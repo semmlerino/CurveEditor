@@ -11,10 +11,10 @@ from typing import cast
 
 from PySide6.QtCore import Slot
 
+from core.logger_utils import get_logger
 from core.type_aliases import CurveDataList
 from protocols.ui import MainWindowProtocol, StateManagerProtocol
 from services import get_data_service
-from core.logger_utils import get_logger
 
 logger = get_logger("action_handler_controller")
 

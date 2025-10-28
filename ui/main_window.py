@@ -745,40 +745,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     @Slot()
     def on_toggle_grid(self) -> None:
-        """Toggle the grid visibility and center on current frame's point."""
+        """Toggle the grid visibility."""
         if self.show_grid_cb:
             # Toggle the checkbox state, which will trigger the existing handler
             new_state = not self.show_grid_cb.isChecked()
             self.show_grid_cb.setChecked(new_state)
-
-            # If enabling the grid, center view on current frame's point and select it
-            # This ensures the grid origin is at the current point
-            if new_state and self.curve_view:
-                from stores.application_state import get_application_state
-                app_state = get_application_state()
-                current_frame = app_state.current_frame
-
-                # Find the point at the current frame
-                if (curve_data := app_state.active_curve_data) is not None:
-                    curve_name, data = curve_data
-
-                    # Find index of point at current frame
-                    point_idx = None
-                    for idx, point in enumerate(data):
-                        if point[0] == current_frame:
-                            point_idx = idx
-                            break
-
-                    if point_idx is not None:
-                        # Select only the current frame's point
-                        # This makes the grid center on it (grid renderer uses selected points)
-                        app_state.set_selection(curve_name, {point_idx})
-
-                        # Center view on the current frame's point
-                        self.curve_view.center_on_frame(current_frame)
-                    else:
-                        # No point at current frame, just center on interpolated position
-                        self.curve_view.center_on_frame(current_frame)
 
     @Slot()
     def on_increase_grid_size(self) -> None:

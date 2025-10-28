@@ -205,6 +205,8 @@ class FileOperations(QObject):
         Returns:
             True if saved successfully, False otherwise
         """
+        from PySide6.QtWidgets import QMessageBox
+
         # Use current file if no path specified
         if file_path is None and self.state_manager:
             file_path = self.state_manager.current_file
@@ -212,9 +214,30 @@ class FileOperations(QObject):
         if not file_path:
             return self.save_file_as(data)
 
-        # Save directly using DataService
+        # Check if trying to save to a multi-point text file (read-only format)
+        if file_path.endswith(".txt"):
+            # Multi-point text format (2DTrackDatav2.txt) is read-only
+            # Cannot write back to this format - force Save As
+            _ = QMessageBox.warning(
+                self.parent_widget,
+                "Read-Only Format",
+                f"Cannot save to '{Path(file_path).name}'.\n\n"
+                + "The multi-point text format (.txt) is read-only.\n"
+                + "Please use 'Save As' and choose JSON or CSV format.",
+            )
+            return self.save_file_as(data)
+
+        # Save based on file extension
         data_service = get_data_service()
-        success = data_service.save_json(file_path, data)
+
+        if file_path.endswith(".json"):
+            success = data_service.save_json(file_path, data)
+        elif file_path.endswith(".csv"):
+            success = data_service._save_csv(file_path, data, include_header=True)  # pyright: ignore[reportPrivateUsage]
+        else:
+            # Default to JSON for unknown extensions
+            logger.warning(f"Unknown file extension for {file_path}, saving as JSON")
+            success = data_service.save_json(file_path, data)
 
         if success:
             # Set state BEFORE emitting signal (for session persistence)
@@ -239,12 +262,12 @@ class FileOperations(QObject):
         """
         parent = parent_widget or self.parent_widget
 
-        # Show save dialog
+        # Show save dialog (no .txt option - multi-point text format is read-only)
         file_path, _ = QFileDialog.getSaveFileName(
             parent,
             "Save Tracking Data",
             "",
-            "Text Files (*.txt);;JSON Files (*.json);;CSV Files (*.csv);;All Files (*.*)",
+            "JSON Files (*.json);;CSV Files (*.csv);;All Files (*.*)",
         )
 
         if not file_path:

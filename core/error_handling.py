@@ -11,8 +11,10 @@ Phase 1.4: Error Handling Pattern Consolidation
 
 from __future__ import annotations
 
+import contextlib
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable, TypeVar
+from typing import TypeVar
 
 from core.logger_utils import get_logger
 
@@ -56,7 +58,7 @@ def safe_execute(
         return False
 
 
-def safe_execute_optional(
+def safe_execute_optional[T](
     operation_name: str,
     operation: Callable[[], T | None],
     context: str = "",
@@ -122,10 +124,8 @@ def safe_operation(operation_name: str = "", context: str = "") -> Callable[[Cal
             ctx = context
             if not ctx and args:
                 # Try to get class name from first argument (self)
-                try:
+                with contextlib.suppress(AttributeError, IndexError):
                     ctx = args[0].__class__.__name__
-                except (AttributeError, IndexError):
-                    pass
 
             try:
                 return func(*args, **kwargs)
@@ -173,10 +173,8 @@ def safe_operation_optional(operation_name: str = "", context: str = "") -> Call
             ctx = context
             if not ctx and args:
                 # Try to get class name from first argument (self)
-                try:
+                with contextlib.suppress(AttributeError, IndexError):
                     ctx = args[0].__class__.__name__
-                except (AttributeError, IndexError):
-                    pass
 
             try:
                 return func(*args, **kwargs)

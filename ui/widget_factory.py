@@ -6,7 +6,7 @@ Provides helper methods for creating common widget types with consistent
 configuration, reducing boilerplate code by ~150 lines.
 """
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon

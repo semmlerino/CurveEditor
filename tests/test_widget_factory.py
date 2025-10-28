@@ -7,7 +7,6 @@ with correct default values and properties.
 
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QStyle
 
 from ui import widget_factory

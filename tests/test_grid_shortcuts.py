@@ -26,6 +26,8 @@ Following UNIFIED_TESTING_GUIDE principles:
 # pyright: reportUnusedParameter=none
 # pyright: reportUnusedCallResult=none
 
+import contextlib
+
 import pytest
 from PySide6.QtWidgets import QApplication
 
@@ -44,10 +46,8 @@ class TestGridToggleShortcut:
             """Remove global event filter before window closes."""
             app = QApplication.instance()
             if app and hasattr(window, 'global_event_filter'):
-                try:
+                with contextlib.suppress(RuntimeError):
                     app.removeEventFilter(window.global_event_filter)
-                except RuntimeError:
-                    pass
 
         window = MainWindow()
         qtbot.addWidget(window, before_close_func=cleanup_event_filter)
@@ -56,7 +56,7 @@ class TestGridToggleShortcut:
         return window
 
     def test_grid_toggle_centers_on_current_frame_point(self, main_window: MainWindow, qtbot):
-        """Test that toggling grid centers on and selects the current frame's point."""
+        """Test that toggling grid only changes grid visibility without side effects."""
         # Setup: Add curve data with points at different frames
         test_data: CurveDataList = [
             (1, 100.0, 200.0),
@@ -89,6 +89,9 @@ class TestGridToggleShortcut:
             main_window.show_grid_cb.setChecked(False)
         qtbot.wait(10)
 
+        # Store initial selection state (should be empty)
+        initial_selection = app_state.get_selection(test_curve_name)
+
         # Trigger grid toggle via the shortcut action
         main_window.on_toggle_grid()
         qtbot.wait(10)
@@ -97,12 +100,11 @@ class TestGridToggleShortcut:
         assert main_window.show_grid_cb is not None
         assert main_window.show_grid_cb.isChecked() is True
 
-        # Verify point at frame 5 is selected (index 1)
+        # Verify selection UNCHANGED (grid toggle has no side effects)
         selection = app_state.get_selection(test_curve_name)
-        assert selection == {1}, f"Expected point at index 1 to be selected, got {selection}. Active curve: {test_curve_name}"
+        assert selection == initial_selection, f"Grid toggle should not change selection. Was {initial_selection}, now {selection}"
 
-        # Verify view is centered on that point
-        # The center_on_frame method should have been called
+        # Grid should be visible
         assert main_window.curve_view is not None
 
     def test_grid_toggle_handles_no_exact_point_at_frame(self, main_window: MainWindow, qtbot):
@@ -187,10 +189,8 @@ class TestGridSizeShortcuts:
             """Remove global event filter before window closes."""
             app = QApplication.instance()
             if app and hasattr(window, 'global_event_filter'):
-                try:
+                with contextlib.suppress(RuntimeError):
                     app.removeEventFilter(window.global_event_filter)
-                except RuntimeError:
-                    pass
 
         window = MainWindow()
         qtbot.addWidget(window, before_close_func=cleanup_event_filter)
@@ -304,10 +304,8 @@ class TestGridShortcutIntegration:
             """Remove global event filter before window closes."""
             app = QApplication.instance()
             if app and hasattr(window, 'global_event_filter'):
-                try:
+                with contextlib.suppress(RuntimeError):
                     app.removeEventFilter(window.global_event_filter)
-                except RuntimeError:
-                    pass
 
         window = MainWindow()
         qtbot.addWidget(window, before_close_func=cleanup_event_filter)
@@ -384,10 +382,8 @@ class TestGridCenteringWithRealData:
             """Remove global event filter before window closes."""
             app = QApplication.instance()
             if app and hasattr(window, 'global_event_filter'):
-                try:
+                with contextlib.suppress(RuntimeError):
                     app.removeEventFilter(window.global_event_filter)
-                except RuntimeError:
-                    pass
 
         window = MainWindow()
         qtbot.addWidget(window, before_close_func=cleanup_event_filter)
@@ -395,9 +391,9 @@ class TestGridCenteringWithRealData:
         qtbot.waitExposed(window)
         return window
 
-    def test_grid_centers_on_selected_point_after_toggle(self, main_window: MainWindow, qtbot):
-        """Test that grid centers on the point selected by toggle."""
-        # Setup: Multi-point curve
+    def test_grid_toggle_has_no_selection_side_effects(self, main_window: MainWindow, qtbot):
+        """Test that grid toggle does not modify selection state."""
+        # Setup: Multi-point curve with pre-existing selection
         test_data: CurveDataList = [
             (1, 100.0, 100.0),
             (5, 300.0, 300.0),
@@ -412,20 +408,27 @@ class TestGridCenteringWithRealData:
         app_state.set_active_curve(test_curve_name)
         app_state.set_curve_data(test_curve_name, test_data)
         app_state.set_frame(5)  # Middle point
+
+        # Set a specific selection (point at index 0)
+        app_state.set_selection(test_curve_name, {0})
         qtbot.wait(50)
 
-        # Toggle grid
+        # Verify initial selection
+        initial_selection = app_state.get_selection(test_curve_name)
+        assert initial_selection == {0}, "Initial selection should be point 0"
+
+        # Toggle grid on
         if main_window.show_grid_cb:
             main_window.show_grid_cb.setChecked(False)
         qtbot.wait(10)
         main_window.on_toggle_grid()
         qtbot.wait(50)  # Wait for rendering
 
-        # Verify selection
-        selection = app_state.get_selection(test_curve_name)
-        assert 1 in selection, "Point at frame 5 (index 1) should be selected"
+        # Verify selection UNCHANGED after grid toggle
+        selection_after = app_state.get_selection(test_curve_name)
+        assert selection_after == {0}, f"Grid toggle should not change selection. Expected {{0}}, got {selection_after}"
 
-        # Grid should now center on this point when rendering
+        # Grid should be visible
         assert main_window.curve_view is not None
         assert main_window.curve_view.visual.show_grid is True
 

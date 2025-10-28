@@ -583,6 +583,79 @@ class TestTransform:
         # Should use absolute value
         assert t.display_height == 100
 
+    def test_transform_clamps_extreme_display_height_in_production_mode(self) -> None:
+        """Test Transform clamps extremely large display height in production mode."""
+        config = ValidationConfig.for_production()
+        t = Transform(
+            scale=1.0, center_offset_x=0.0, center_offset_y=0.0, display_height=2000000, validation_config=config
+        )
+        # Should clamp to max 1,000,000
+        assert t.display_height == 1000000
+
+    def test_transform_rejects_large_center_offset_in_debug_mode(self) -> None:
+        """Test Transform raises ValueError for large center offset in debug mode."""
+        config = ValidationConfig.for_debug()
+        with pytest.raises(ValueError, match="too large"):
+            Transform(
+                scale=1.0, center_offset_x=2e9, center_offset_y=0.0, validation_config=config
+            )
+
+    def test_transform_clamps_large_center_offset_in_production_mode(self) -> None:
+        """Test Transform clamps large center offset in production mode."""
+        config = ValidationConfig.for_production()
+        t = Transform(
+            scale=1.0, center_offset_x=2e9, center_offset_y=-2e9, validation_config=config
+        )
+        # Should clamp to ±1e9
+        assert t.center_offset == (1e9, -1e9)
+
+    def test_transform_rejects_large_pan_offset_in_debug_mode(self) -> None:
+        """Test Transform raises ValueError for large pan offset in debug mode."""
+        config = ValidationConfig.for_debug()
+        with pytest.raises(ValueError, match="too large"):
+            Transform(
+                scale=1.0, center_offset_x=0.0, center_offset_y=0.0,
+                pan_offset_x=1.5e9, pan_offset_y=0.0, validation_config=config
+            )
+
+    def test_transform_clamps_large_pan_offset_in_production_mode(self) -> None:
+        """Test Transform clamps large pan offset in production mode."""
+        config = ValidationConfig.for_production()
+        t = Transform(
+            scale=1.0, center_offset_x=0.0, center_offset_y=0.0,
+            pan_offset_x=1.5e9, pan_offset_y=-1.5e9, validation_config=config
+        )
+        # Should clamp to ±1e9
+        assert t.pan_offset == (1e9, -1e9)
+
+    def test_transform_rejects_large_manual_offset_in_debug_mode(self) -> None:
+        """Test Transform raises ValueError for large manual offset in debug mode."""
+        config = ValidationConfig.for_debug()
+        with pytest.raises(ValueError, match="too large"):
+            Transform(
+                scale=1.0, center_offset_x=0.0, center_offset_y=0.0,
+                manual_offset_x=2e9, manual_offset_y=0.0, validation_config=config
+            )
+
+    def test_transform_clamps_large_manual_offset_in_production_mode(self) -> None:
+        """Test Transform clamps large manual offset in production mode."""
+        config = ValidationConfig.for_production()
+        t = Transform(
+            scale=1.0, center_offset_x=0.0, center_offset_y=0.0,
+            manual_offset_x=2e9, manual_offset_y=-2e9, validation_config=config
+        )
+        # Should clamp to ±1e9
+        assert t.manual_offset == (1e9, -1e9)
+
+    def test_transform_rejects_zero_image_scale_y_in_debug_mode(self) -> None:
+        """Test Transform raises ValueError for zero image_scale_y in debug mode."""
+        config = ValidationConfig.for_debug()
+        with pytest.raises(ValueError, match="Image scale Y too small"):
+            Transform(
+                scale=1.0, center_offset_x=0.0, center_offset_y=0.0,
+                image_scale_y=1e-11, validation_config=config
+            )
+
     def test_transform_data_to_screen_basic(self) -> None:
         """Test basic data-to-screen transformation."""
         t = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0)

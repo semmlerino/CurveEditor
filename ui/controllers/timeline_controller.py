@@ -529,7 +529,7 @@ class TimelineController(QObject):
         self.set_frame(frame)
         logger.debug(f"Timeline tab clicked: frame {frame}")
 
-    def on_timeline_tab_hovered(self, frame: int) -> None:  # noqa: ARG002
+    def on_timeline_tab_hovered(self, frame: int) -> None:
         """Handle timeline tab hover.
 
         Args:

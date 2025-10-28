@@ -722,7 +722,7 @@ class StateManager(QObject):
         data_bounds = None
 
         if (cd := self._app_state.active_curve_data) is not None:
-            curve_name, curve_data = cd
+            _curve_name, curve_data = cd
             if curve_data:
                 has_data = True
                 point_count = len(curve_data)

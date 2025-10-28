@@ -1249,10 +1249,7 @@ class OptimizedCurveRenderer:
 
         # Grid spacing from visual settings
         zoom = render_state.zoom_factor
-        if render_state.visual:
-            base_step = render_state.visual.grid_size
-        else:
-            base_step = 50  # Fallback
+        base_step = render_state.visual.grid_size if render_state.visual else 50
         step = max(10, int(base_step / max(1, zoom / 2)))  # Adjust grid density with zoom
 
         width = render_state.widget_width

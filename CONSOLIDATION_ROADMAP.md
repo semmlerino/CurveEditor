@@ -542,23 +542,135 @@ class DataService:
 
 ---
 
-### PHASE 2: Complexity Reduction (8-12 hours, MEDIUM risk) 🔧
+### PHASE 2: Complexity Reduction (8-12 hours, MEDIUM risk) 🔧 **IN PROGRESS**
 
-**Priority: Execute after Phase 1 validation**
+**Status: 2 of 4 tasks evaluated, both rejected after multi-agent verification**
 
-| Task | Time | Lines Saved | Risk | Score |
-|------|------|-------------|------|-------|
-| Signal Connection Pattern | 3-4h | 300 | LOW-MED | 87.5 |
-| Transform Validation Boilerplate | 2-3h | 184 | LOW | 30 |
-| Loop Duplication fixes | 1-2h | 60 | VERY LOW | 25 |
-| Cache Invalidation Complexity | 2-3h | 48 | MEDIUM | - |
+#### Task 2.2: Transform Validation Boilerplate ❌ **ABANDONED** (October 28, 2025)
 
-**Total Phase 2:** 8-12 hours, ~592 lines removed, MEDIUM risk
+**Original Claim**: 2-3h, 184 lines saved, LOW risk
 
-**Testing Focus:**
-- Signal connections (careful regression testing)
-- Transform validation (hot path, performance testing)
-- Cache logic (rendering correctness)
+**Multi-Agent Verification Results** (3 agents deployed):
+- **Explore agent**: ✅ Verified all 6 duplication patterns exist (9× validate_finite, 3× near-zero checks, etc.)
+- **Code-refactoring-expert**: Manual line count revealed **+55 lines net increase** (not -184!)
+  - Removed: 102 lines (consolidation targets)
+  - Added: 80 lines (helper methods) + 77 lines (usage/unpacking) = 157 lines
+  - Net: +55 lines (130% error in OPPOSITE direction)
+- **Test-development-master**: Identified 8 genuine test coverage gaps (ZERO tests for offset clamping)
+
+**Phase 0 Executed Instead**: Added 8 tests for coverage gaps (102 tests total in test_transform_core.py)
+
+**Rejection Reasons**:
+1. Dict packing/unpacking overhead underestimated by 162%
+2. Helper methods added more boilerplate than removed
+3. Only value was "DRY/maintainability" but 55 extra lines reduces maintainability
+4. Skeptical analysis caught agents' optimistic math (+21 claimed, +55 actual)
+
+**Lines Changed**: +8 tests (Phase 0), refactoring abandoned
+**Time Invested**: 6 hours (planning, 3-agent review, manual verification, test implementation)
+**ROI**: Negative for refactoring, positive for test coverage
+
+**Key Lesson**: Usage overhead (dict creation, unpacking, parameter passing) consistently underestimated by automated analysis. Always verify with manual line-by-line counting.
+
+---
+
+#### Task 2.1: Signal Connection Pattern ❌ **REJECTED** (October 28, 2025)
+
+**Original Claim**: 3-4h, 300 lines saved, LOW-MED risk
+
+**Multi-Agent Verification Results** (3 agents deployed):
+- **Explore agent**: Found 367 `.connect()` calls, 103 `.disconnect()` calls across 47 files
+  - Actual signal management code: ~205 lines (not 300)
+  - Top file: signal_connection_manager.py (313 lines, 54 direct signal operations)
+  - Overestimate: +46% (300 claimed vs 205 actual)
+
+- **Code-refactoring-expert**: Net savings only **98 lines** (not 300)
+  - Current code: ~266 lines across 7 controllers
+  - SignalRegistry helper: 40 lines
+  - Usage overhead: ~128 lines (list/tuple creation + calls)
+  - Net: -98 lines (67% less than claimed)
+
+- **Python-code-reviewer**: 🔴 **CRITICAL RISKS IDENTIFIED**
+  - **Type safety regression**: String-based signal names lose IDE autocomplete, type checking
+  - **Incomplete solution**: Cannot handle 20% of connections (lambdas, conditional connects)
+  - **Mixed patterns required**: Registry + manual fallbacks = complexity explosion
+  - **Project already has better solution**: core/signal_manager.py (244 lines, type-safe, unused)
+
+**Rejection Reasons**:
+1. **Violates "Type Safety First" principle** (CLAUDE.md core architectural value)
+2. String-based signal names break IDE refactoring, type checking, autocomplete
+3. Cannot handle lambda connections or conditional connection patterns
+4. Current explicit pattern is more maintainable for personal tool context
+5. Existing SignalManager (244 lines) is superior but over-engineered for needs
+
+**Lines Changed**: 0 (task abandoned before implementation)
+**Time Invested**: 3 hours (3-agent verification, risk assessment, synthesis)
+**ROI**: Negative - rejected before implementation saved 3-4 hours of wasted work
+
+**Key Lesson**: Line count reduction alone doesn't justify refactoring. Type safety, maintainability, and architectural principles matter more. Current pattern works well for personal tool scope.
+
+---
+
+#### Phase 2 Final Summary
+
+| Task | Original Claim | Verification Result | Time Invested | Status |
+|------|---------------|---------------------|---------------|--------|
+| ~~Transform Validation~~ | -184 lines, 2-3h | **+55 lines** | 6h | ❌ **ABANDONED** |
+| ~~Signal Connection~~ | -300 lines, 3-4h | -98 lines (type unsafe) | 3h | ❌ **REJECTED** |
+| ~~Loop Duplication~~ | -60 lines, 1-2h | **+20 lines** | 2h | ❌ **REJECTED** |
+| Cache Invalidation | -48 lines, 2-3h | Unverified | - | ⏸️ **NOT EVALUATED** |
+
+**Phase 2 Final Metrics**:
+- **Original estimate**: 8-12 hours, 592 lines saved
+- **Actual result**: 11 hours verification, **0 tasks executed, 2 would add lines**
+- **Remaining task**: Task 2.4 (48 lines claimed, unverified)
+- **Estimation accuracy**: **100% failure** (3 of 3 evaluated tasks rejected)
+- **Value delivered**: Avoided 6-8 hours of implementing bad refactorings
+
+**Phase 2 Outcome**: **SUSPENDED**
+- Multi-agent verification caught three bad refactorings before implementation
+- Tasks had 43-133% estimation errors (opposite direction for 2 tasks)
+- Current code is working well, consolidation would add complexity
+- Remaining Task 2.4 not worth evaluating given 0/3 success rate
+
+**Multi-Agent Verification Process Established**: Deploy 3 agents (Explore, Code-Refactoring-Expert, Python-Code-Reviewer) to verify claims before implementation. Process caught two bad refactorings before wasting 6-8 hours of implementation time.
+
+---
+
+#### Task 2.3: Loop Duplication Fixes ❌ **REJECTED** (October 28, 2025)
+
+**Original Claim**: 1-2h, 60 lines saved, VERY LOW risk
+
+**Multi-Agent Verification Results** (2 agents deployed):
+- **Explore agent**: Found 86 lines in 3 locations (`timeline_tabs.py`)
+  - Location 1 (_on_curves_changed): 12 lines
+  - Location 2 (_on_selection_changed): 44 lines
+  - Location 3 (_perform_deferred_updates): 30 lines
+  - Total: 86 lines (43% more than claimed 60)
+
+- **Code-refactoring-expert**: Helper would ADD **+20 lines** (not save 60)
+  - Helper method: 75 lines (complex due to different behaviors)
+  - Usage at 3 sites: 31 lines (1 + 10 + 20)
+  - Net: (75 + 31) - 86 = **+20 lines**
+
+**Rejection Reasons**:
+1. **Superficial similarity, not genuine duplication**: Three locations serve different purposes
+   - Location 1: Simple UI update after curve change
+   - Location 2: Selection change with cache fallback and override logic
+   - Location 3: Full refresh with clear-first pattern
+2. **Different target APIs**: `update_frame_status()` vs `status_cache.set_status()`
+3. **Location 3's clear requirement**: Must clear ALL frames first (can't be eliminated)
+4. **Helper complexity**: Would need 5 parameters to handle all cases
+5. **Type safety**: String-based method selection loses IDE support
+6. **KISS violation**: Current code is simple, consolidation would make it complex
+
+**Lines Changed**: 0 (task abandoned before implementation)
+**Time Invested**: 2 hours (2-agent verification, analysis, documentation)
+**ROI**: Positive - avoided implementing bad refactoring that would add complexity
+
+**Key Lesson**: "Loop duplication" is not always worth consolidating. When loops serve different purposes with different requirements, keep them separate for clarity. Resist premature abstraction that adds complexity.
+
+**Detailed Analysis**: See TASK_2.3_VERIFICATION.md
 
 ---
 

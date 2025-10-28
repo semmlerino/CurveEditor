@@ -14,7 +14,6 @@ from PySide6.QtWidgets import (
     QDockWidget,
     QFrame,
     QHBoxLayout,
-    QLabel,
     QMenu,
     QSlider,
     QStatusBar,

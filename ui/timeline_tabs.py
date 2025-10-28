@@ -888,7 +888,7 @@ class TimelineTabWidget(QWidget):
         # Get active curve data from ApplicationState - use active_curve_data property
         if (cd := self._app_state.active_curve_data) is None:
             return
-        curve_name, curve_data = cd
+        _curve_name, curve_data = cd
 
         # Clear status for frames that no longer have points
         for frame in range(self.min_frame, self.max_frame + 1):

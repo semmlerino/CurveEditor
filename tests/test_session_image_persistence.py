@@ -7,9 +7,7 @@ across application sessions.
 import json
 import logging
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
-
-import pytest
+from unittest.mock import MagicMock, Mock
 
 from stores.application_state import get_application_state
 from ui.session_manager import SessionManager

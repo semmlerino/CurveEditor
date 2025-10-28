@@ -8,6 +8,7 @@ automatic restoration of previously loaded files and settings.
 import json
 import logging
 import os
+from collections.abc import Mapping
 from pathlib import Path
 from typing import cast
 
@@ -106,7 +107,7 @@ class SessionManager:
             logger.warning(f"Error resolving path {path}: {e}")
             return None
 
-    def save_session(self, session_data: dict[str, object]) -> bool:
+    def save_session(self, session_data: Mapping[str, object]) -> bool:
         """
         Save session data to file.
 
@@ -123,7 +124,8 @@ class SessionManager:
 
         try:
             # Process file paths to make them relative when possible
-            processed_data = session_data.copy()
+            # Convert Mapping to dict for mutation
+            processed_data = dict(session_data)
 
             if processed_data.get("tracking_file"):
                 processed_data["tracking_file"] = self._make_relative_path(cast(str, processed_data["tracking_file"]))
@@ -283,7 +285,7 @@ class SessionManager:
             "show_all_curves": show_all_curves,
         }
 
-    def restore_session_state(self, main_window: object, session_data: dict[str, object]) -> None:
+    def restore_session_state(self, main_window: object, session_data: Mapping[str, object]) -> None:
         """Restore application state from session data.
 
         Args:
@@ -378,10 +380,25 @@ class SessionManager:
         # Try to load session data first
         session_data = self.load_session()
 
+        # Check if session has any actual data to restore
+        has_data = False
         if session_data:
+            # Session is considered valid if it has tracking file OR images
+            has_tracking = session_data.get("tracking_file") is not None
+            image_files = session_data.get("image_files")
+            has_images = (
+                session_data.get("image_directory") is not None
+                or (isinstance(image_files, list) and len(image_files) > 0)
+            )
+            has_data = has_tracking or has_images
+
+        if session_data and has_data:
             logger.info("Loading files from session data")
             self.restore_session_state(main_window, session_data)
         else:
-            logger.info("No session found, falling back to burger data")
+            if session_data:
+                logger.info("Session exists but has no data (tracking_file and image_directory are null), falling back to burger data")
+            else:
+                logger.info("No session found, falling back to burger data")
             if main_window.file_operations is not None:  # pyright: ignore[reportAttributeAccessIssue]
                 main_window.file_operations.load_burger_data_async()  # pyright: ignore[reportAttributeAccessIssue]

@@ -10,8 +10,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-import pytest
-
 from core.error_handling import (
     safe_execute,
     safe_execute_optional,
@@ -115,8 +113,8 @@ def test_safe_execute_various_exceptions(caplog: LogCaptureFixture):
 
     for exc in exceptions:
 
-        def operation() -> bool:
-            raise exc
+        def operation(e=exc) -> bool:
+            raise e
 
         with caplog.at_level(logging.ERROR):
             result = safe_execute("test", operation)
@@ -491,12 +489,12 @@ def test_decorator_preserves_docstring():
 
 
 def test_error_message_format_consistency(caplog: LogCaptureFixture):
-    """Test that all error messages follow consistent format."""
-    expected_formats = [
-        "Error {operation}: {error}",
-        "Error {operation} in {context}: {error}",
-    ]
+    """Test that all error messages follow consistent format.
 
+    Expected formats:
+        - "Error {operation}: {error}"
+        - "Error {operation} in {context}: {error}"
+    """
     # Test function variant
     def op1() -> bool:
         raise ValueError("error1")
