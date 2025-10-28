@@ -74,6 +74,7 @@ class FrameChangeCoordinator:
         self.timeline_controller: TimelineControllerProtocol = main_window.timeline_controller
         self.timeline_tabs: TimelineTabWidget | None = main_window.timeline_tabs
         self._connected: bool = False  # Track connection state to prevent Qt warnings
+        self._curve_change_connected: bool = False  # Track active_curve_changed connection
 
     @property
     def curve_widget(self):
@@ -93,7 +94,9 @@ class FrameChangeCoordinator:
         self.disconnect()
 
     def connect(self) -> None:
-        """Connect to state manager frame_changed signal (idempotent).
+        """Connect to state manager signals (idempotent).
+
+        Connects to both frame_changed and active_curve_changed for auto-centering.
 
         Prevents duplicate connections - disconnect first if already connected.
         Qt allows multiple connections to same slot without error, leading to
@@ -104,6 +107,7 @@ class FrameChangeCoordinator:
         AFTER input handler completes, preventing widget state machine confusion.
         """
         from PySide6.QtCore import Qt
+        from stores.application_state import get_application_state
 
         # Guard: Already connected, return early for idempotency
         if self._connected:
@@ -113,27 +117,51 @@ class FrameChangeCoordinator:
         # No need to disconnect if not already connected (_connected is False here)
         # Attempting disconnect on unconnected signal causes Qt RuntimeWarning
 
-        # Connect with QueuedConnection to defer execution until next event loop iteration
+        # Connect to frame_changed with QueuedConnection to defer execution
         # This breaks the synchronous nested execution that causes timeline desync bugs
         _ = self.main_window.state_manager.frame_changed.connect(
             self.on_frame_changed,
             Qt.QueuedConnection,  # pyright: ignore[reportAttributeAccessIssue]  # Defers coordinator execution, prevents nested calls
         )
         self._connected = True
-        logger.info("FrameChangeCoordinator connected with QueuedConnection")
+
+        # Connect to active_curve_changed for centering when switching curves
+        app_state = get_application_state()
+        _ = app_state.active_curve_changed.connect(
+            self.on_active_curve_changed,
+            Qt.QueuedConnection,  # pyright: ignore[reportAttributeAccessIssue]
+        )
+        self._curve_change_connected = True
+
+        logger.info("FrameChangeCoordinator connected to frame_changed and active_curve_changed")
 
     def disconnect(self) -> None:
-        """Disconnect from state manager (cleanup)."""
-        if not self._connected:
-            return  # Not connected, nothing to do
+        """Disconnect from state manager and ApplicationState (cleanup)."""
+        from stores.application_state import get_application_state
 
-        try:
-            _ = self.main_window.state_manager.frame_changed.disconnect(self.on_frame_changed)
-            self._connected = False
-            logger.info("FrameChangeCoordinator disconnected")
-        except (RuntimeError, TypeError):
-            # Signal already disconnected or connection never made
-            self._connected = False
+        # Disconnect frame_changed
+        if self._connected:
+            try:
+                _ = self.main_window.state_manager.frame_changed.disconnect(self.on_frame_changed)
+                self._connected = False
+                logger.debug("Disconnected from frame_changed")
+            except (RuntimeError, TypeError):
+                # Signal already disconnected or connection never made
+                self._connected = False
+
+        # Disconnect active_curve_changed
+        if self._curve_change_connected:
+            try:
+                app_state = get_application_state()
+                _ = app_state.active_curve_changed.disconnect(self.on_active_curve_changed)
+                self._curve_change_connected = False
+                logger.debug("Disconnected from active_curve_changed")
+            except (RuntimeError, TypeError):
+                # Signal already disconnected or connection never made
+                self._curve_change_connected = False
+
+        if not self._connected and not self._curve_change_connected:
+            logger.info("FrameChangeCoordinator fully disconnected")
 
     def on_frame_changed(self, frame: int) -> None:
         """
@@ -199,6 +227,32 @@ class FrameChangeCoordinator:
         """Apply centering if centering mode is enabled."""
         if self.curve_widget and self.curve_widget.centering_mode:
             self.curve_widget.center_on_frame(frame)
+
+    def on_active_curve_changed(self, curve_name: str | None) -> None:
+        """
+        Handle active curve change - center on current frame if centering mode enabled.
+
+        This allows auto-centering when user clicks different curves in the tracking panel.
+
+        Args:
+            curve_name: New active curve name
+        """
+        # Only center if centering mode is enabled
+        if not self.curve_widget or not self.curve_widget.centering_mode:
+            return
+
+        # Get current frame from state manager
+        if not self.main_window.state_manager:
+            return
+
+        current_frame = self.main_window.state_manager.current_frame
+
+        # Center on the current frame with the newly selected curve
+        try:
+            self._apply_centering(current_frame)
+            logger.debug(f"Auto-centered on curve '{curve_name}' at frame {current_frame}")
+        except Exception as e:
+            logger.error(f"Failed to auto-center on curve change: {e}", exc_info=True)
 
     def _invalidate_caches(self) -> None:
         """Invalidate render caches to prepare for repaint."""

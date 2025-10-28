@@ -244,6 +244,138 @@ class TestCenteringIntegration:
         # Centering mode should still be active
         assert widget.centering_mode
 
+    def test_auto_centering_on_point_selection(self, qtbot):
+        """Test that selecting a point automatically centers when centering mode is enabled."""
+        from ui.main_window import MainWindow
+        from stores.application_state import get_application_state
+
+        # Create main window with curve widget
+        main_window = MainWindow(auto_load_data=False)
+        qtbot.addWidget(main_window)
+
+        # Add test data with multiple points at different positions
+        points = [
+            CurvePoint(1, 100.0, 200.0),
+            CurvePoint(2, 500.0, 600.0),  # Far from first point
+            CurvePoint(3, 900.0, 1000.0),  # Even further
+        ]
+        curve_data = [p.to_tuple3() for p in points]
+
+        # Set up curve data in ApplicationState
+        app_state = get_application_state()
+        app_state.set_curve_data("TestCurve", curve_data)
+        app_state.set_active_curve("TestCurve")
+
+        # Update main window's curve widget
+        main_window.curve_widget.set_curve_data(curve_data)
+
+        # Enable centering mode
+        main_window.curve_widget.centering_mode = True
+        assert main_window.curve_widget.centering_mode
+
+        # Store initial pan offset
+        initial_offset_x = main_window.curve_widget.pan_offset_x
+        initial_offset_y = main_window.curve_widget.pan_offset_y
+
+        # Simulate point selection (this should trigger auto-centering)
+        main_window.on_point_selected(1)  # Select second point at frame 2
+
+        # Process events to allow centering to complete
+        qtbot.wait(50)
+
+        # Verify that pan offset changed (view centered on new point)
+        assert (
+            main_window.curve_widget.pan_offset_x != initial_offset_x
+            or main_window.curve_widget.pan_offset_y != initial_offset_y
+        ), "Pan offset should change when auto-centering on selected point"
+
+        # Store pan offset after centering on point 1
+        offset_x_point1 = main_window.curve_widget.pan_offset_x
+        offset_y_point1 = main_window.curve_widget.pan_offset_y
+
+        # Select a different point
+        main_window.on_point_selected(2)  # Select third point at frame 3
+        qtbot.wait(50)
+
+        # Verify that pan offset changed again (centered on new point)
+        assert (
+            main_window.curve_widget.pan_offset_x != offset_x_point1
+            or main_window.curve_widget.pan_offset_y != offset_y_point1
+        ), "Pan offset should change when selecting different point"
+
+        # Now disable centering and verify no auto-centering occurs
+        main_window.curve_widget.centering_mode = False
+        offset_x_before = main_window.curve_widget.pan_offset_x
+        offset_y_before = main_window.curve_widget.pan_offset_y
+
+        # Select first point with centering disabled
+        main_window.on_point_selected(0)
+        qtbot.wait(50)
+
+        # Verify that pan offset did NOT change
+        assert main_window.curve_widget.pan_offset_x == offset_x_before
+        assert main_window.curve_widget.pan_offset_y == offset_y_before
+
+    def test_auto_centering_on_active_curve_change(self, qtbot):
+        """Test that changing active curve auto-centers when centering mode is enabled."""
+        from ui.main_window import MainWindow
+        from stores.application_state import get_application_state
+
+        # Create main window with curve widget
+        main_window = MainWindow(auto_load_data=False)
+        qtbot.addWidget(main_window)
+
+        # Add test data with two curves at different positions
+        points1 = [CurvePoint(1, 100.0, 200.0) for _ in range(3)]
+        points2 = [CurvePoint(1, 800.0, 900.0) for _ in range(3)]  # Far from first curve
+
+        app_state = get_application_state()
+        app_state.set_curve_data("Curve1", [p.to_tuple3() for p in points1])
+        app_state.set_curve_data("Curve2", [p.to_tuple3() for p in points2])
+        app_state.set_active_curve("Curve1")
+        app_state.set_frame(1)
+
+        # Set first curve active and update widget
+        main_window.curve_widget.set_curve_data([p.to_tuple3() for p in points1])
+
+        # Enable centering mode
+        main_window.curve_widget.centering_mode = True
+
+        # Manually center on first curve to establish baseline
+        main_window.frame_change_coordinator._apply_centering(1)
+        qtbot.wait(50)
+
+        # Store pan offset after centering on Curve1
+        offset_x_curve1 = main_window.curve_widget.pan_offset_x
+        offset_y_curve1 = main_window.curve_widget.pan_offset_y
+
+        # Change active curve (simulates clicking different curve in tracking panel)
+        app_state.set_active_curve("Curve2")
+        main_window.curve_widget.set_curve_data([p.to_tuple3() for p in points2])
+
+        # Process events to allow centering to complete
+        qtbot.wait(100)
+
+        # Verify that pan offset changed (view centered on Curve2)
+        offset_x_curve2 = main_window.curve_widget.pan_offset_x
+        offset_y_curve2 = main_window.curve_widget.pan_offset_y
+
+        assert (
+            offset_x_curve2 != offset_x_curve1 or offset_y_curve2 != offset_y_curve1
+        ), "Pan offset should change when active curve changes with centering enabled"
+
+        # Now disable centering and verify no auto-centering occurs
+        main_window.curve_widget.centering_mode = False
+
+        # Switch back to first curve
+        app_state.set_active_curve("Curve1")
+        main_window.curve_widget.set_curve_data([p.to_tuple3() for p in points1])
+        qtbot.wait(50)
+
+        # Verify pan offset did NOT change (centering disabled)
+        assert main_window.curve_widget.pan_offset_x == offset_x_curve2
+        assert main_window.curve_widget.pan_offset_y == offset_y_curve2
+
 
 class TestCenteringStability:
     """Regression tests for centering stability (no jumps when switching frames)."""

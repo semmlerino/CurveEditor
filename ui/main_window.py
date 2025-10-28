@@ -105,7 +105,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     # Attributes initialized in __init__ - declare for type safety
     _file_loading: bool = False  # Track file loading state
-    auto_center_enabled: bool = True  # Auto-centering state
+    # Note: Auto-centering state stored in curve_widget.centering_mode (single source of truth)
 
     # Widget type annotations - initialized by UIInitializationController
     frame_spinbox: QSpinBox | None = None
@@ -281,7 +281,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Note: _file_loading already declared at class level (line 104)
 
         # Initialize centering state
-        # Note: auto_center_enabled already declared at class level (line 105)
+        # Note: Auto-centering state stored in curve_widget.centering_mode
 
         # Image data now managed by ViewManagementController
 
@@ -922,7 +922,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         if (cd := app_state.active_curve_data) is None:
             self._safe_set_label(self.type_label, "Status: --")
             return
-        curve_name, curve_data = cd
+        _curve_name, curve_data = cd
 
         # Get current frame
         current_frame = app_state.current_frame
@@ -1012,6 +1012,16 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     def on_point_selected(self, index: int) -> None:
         """Handle point selection from curve widget."""
         logger.debug(f"Point {index} selected")
+
+        # Auto-center on selected point if centering mode is enabled
+        if self.curve_widget and self.curve_widget.centering_mode:
+            curve_data = self.curve_widget.curve_data
+            if curve_data and 0 <= index < len(curve_data):
+                # Get frame from the selected point
+                frame = curve_data[index][0]  # First element is frame number
+                logger.debug(f"Auto-centering on point at frame {frame}")
+                self.curve_widget.center_on_frame(frame)
+
         # Update properties panel will be handled by selection_changed signal
 
     @Slot(int, float, float)
@@ -1025,6 +1035,17 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Handle selection change from curve widget."""
         # Update state manager
         self.state_manager.set_selected_points(indices)
+
+        # Auto-center on selected point if centering mode is enabled and single point selected
+        if self.curve_widget and self.curve_widget.centering_mode and len(indices) == 1:
+            curve_data = self.curve_widget.curve_data
+            index = indices[0]
+            if curve_data and 0 <= index < len(curve_data):
+                # Get frame from the selected point
+                frame = curve_data[index][0]  # First element is frame number
+                logger.debug(f"Auto-centering on selected point at frame {frame}")
+                self.curve_widget.center_on_frame(frame)
+
         # Properties panel will be updated via state manager signal
 
     @Slot()
@@ -1162,22 +1183,18 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         Args:
             enabled: Whether to enable auto-centering
         """
-        # Store the centering state
-        self.auto_center_enabled = enabled
-
-        # Update the curve widget if available
+        # Update the curve widget if available (single source of truth)
         # curve_widget is Optional
         if self.curve_widget is not None:
-            set_auto_center = getattr(self.curve_widget, "set_auto_center", None)
-            if callable(set_auto_center):
-                _ = set_auto_center(enabled)
+            # Directly set centering_mode on curve widget
+            self.curve_widget.centering_mode = enabled
 
-        # Log the state change
-        logger.info(f"Auto-centering {'enabled' if enabled else 'disabled'}")
+            # Log the state change
+            logger.info(f"Auto-centering {'enabled' if enabled else 'disabled'}")
 
-        # Update status bar
-        # statusBar() is a QMainWindow method, always available
-        self.statusBar().showMessage(f"Auto-center on frame change: {'ON' if enabled else 'OFF'}", 3000)
+            # Update status bar
+            # statusBar() is a QMainWindow method, always available
+            self.statusBar().showMessage(f"Auto-center on frame change: {'ON' if enabled else 'OFF'}", 3000)
 
     def apply_smooth_operation(self) -> None:
         """Apply smoothing operation (delegated to ActionHandlerController)."""
