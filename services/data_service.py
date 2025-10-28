@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, cast
 
 from core.curve_data import CurveDataWithMetadata
 from core.curve_segments import SegmentedCurve
+from core.error_handling import safe_execute, safe_execute_optional
 from core.logger_utils import get_logger
 from core.models import FrameStatus, PointStatus
 from core.type_aliases import CurveDataInput, CurveDataList, LegacyPointData
@@ -201,15 +202,19 @@ class DataService:
         # Use order as window size factor, ensure odd number for symmetry
         window_size = order * 2 + 1 if order < 10 else 5
 
-        try:
+        def _apply_filter() -> CurveDataList | None:
             result = simple_lowpass_filter(data, window_size)
             if self._status:
                 self._status.set_status("Applied lowpass filter")
             return result
-        except Exception as e:
+
+        # Try to apply filter, return original data if it fails
+        result = safe_execute_optional("applying lowpass filter", _apply_filter, "DataService")
+        if result is None:
             if self._logger:
-                self._logger.log_error(f"Filtering failed: {e}. Returning original data.")
+                self._logger.log_error("Filtering failed. Returning original data.")
             return data
+        return result
 
     def fill_gaps(self, data: CurveDataList, max_gap: int = 5) -> CurveDataList:
         """Fill gaps in curve data using linear interpolation."""
@@ -430,11 +435,14 @@ class DataService:
             status_enum = new_status
 
         # Update the persistent SegmentedCurve with restoration logic
-        try:
+        def _update_activity() -> bool:
+            if self._segmented_curve is None:
+                return False
             self._segmented_curve.update_segment_activity(point_index, status_enum)
             logger.debug(f"Updated segment activity for point {point_index} to {status_enum.value}")
-        except Exception as e:
-            logger.error(f"Error updating segment activity: {e}")
+            return True
+
+        safe_execute_optional("updating segment activity", _update_activity, "DataService")
 
     def get_frame_range_point_status(self, points: CurveDataList) -> dict[int, FrameStatus]:
         """Get comprehensive point status for all frames that have points.
@@ -633,14 +641,21 @@ class DataService:
         elif file_path.endswith(".txt"):
             return self._load_2dtrack_data(file_path)
         else:
-            # Try to detect format by content
-            try:
-                return self._load_json(file_path)
-            except Exception:
-                try:
-                    return self._load_2dtrack_data(file_path)
-                except Exception:
-                    return self._load_csv(file_path)
+            # Try to detect format by content - try loaders in sequence
+            result = safe_execute_optional(
+                "loading as JSON", lambda: self._load_json(file_path), "DataService"
+            )
+            if result is not None:
+                return result
+
+            result = safe_execute_optional(
+                "loading as 2D track", lambda: self._load_2dtrack_data(file_path), "DataService"
+            )
+            if result is not None:
+                return result
+
+            # Last resort: try CSV
+            return self._load_csv(file_path)
 
     def save_track_data(
         self, parent_widget: "QWidget", data: CurveDataList, label: str = "Track", color: str = "#FF0000"
@@ -683,7 +698,8 @@ class DataService:
 
     def load_image_sequence(self, directory: str) -> list[str]:
         """Load image sequence from directory."""
-        try:
+
+        def _load_sequence() -> list[str] | None:
             path = Path(directory)
             if not path.exists() or not path.is_dir():
                 if self._logger:
@@ -703,10 +719,8 @@ class DataService:
 
             return image_files
 
-        except Exception as e:
-            if self._logger:
-                self._logger.log_error(f"Failed to load image sequence: {e}")
-            return []
+        result = safe_execute_optional("loading image sequence", _load_sequence, "DataService")
+        return result if result is not None else []
 
     def set_current_image_by_frame(self, _view: object, _frame: int) -> None:
         """Set current image by frame number."""
@@ -739,9 +753,20 @@ class DataService:
     # Keep these minimal legacy methods for compatibility
     def _load_json(self, file_path: str) -> CurveDataList:
         """Load JSON file implementation."""
-        try:
-            with open(file_path, encoding="utf-8") as f:
-                data = json.load(f)
+
+        def _load() -> CurveDataList | None:
+            # FileNotFoundError and JSONDecodeError handled specially
+            try:
+                with open(file_path, encoding="utf-8") as f:
+                    data = json.load(f)
+            except FileNotFoundError:
+                if self._logger:
+                    self._logger.log_error(f"File not found: {file_path}")
+                return []
+            except json.JSONDecodeError as e:
+                if self._logger:
+                    self._logger.log_error(f"Invalid JSON in {file_path}: {e}")
+                return []
 
             # Convert to CurveDataList format
             curve_data: CurveDataList = []
@@ -791,22 +816,13 @@ class DataService:
             # Apply default status rules
             return self._apply_default_statuses(curve_data)
 
-        except FileNotFoundError:
-            if self._logger:
-                self._logger.log_error(f"File not found: {file_path}")
-            return []
-        except json.JSONDecodeError as e:
-            if self._logger:
-                self._logger.log_error(f"Invalid JSON in {file_path}: {e}")
-            return []
-        except Exception as e:
-            if self._logger:
-                self._logger.log_error(f"Failed to load JSON file {file_path}: {e}")
-            return []
+        result = safe_execute_optional(f"loading JSON from {file_path}", _load, "DataService")
+        return result if result is not None else []
 
     def _save_json(self, file_path: str, data: CurveDataList, label: str, color: str) -> bool:
         """Save JSON file implementation."""
-        try:
+
+        def _save() -> bool:
             # Convert CurveDataList to JSON format
             points_list: list[dict[str, object]] = []
             json_data: dict[str, object] = {
@@ -839,10 +855,7 @@ class DataService:
 
             return True
 
-        except Exception as e:
-            if self._logger:
-                self._logger.log_error(f"Failed to save JSON file {file_path}: {e}")
-            return False
+        return safe_execute(f"saving JSON to {file_path}", _save, "DataService")
 
     def load_tracked_data(self, file_path: str) -> dict[str, CurveDataList]:
         """Load 2DTrackDatav2 format with multiple tracking points.
@@ -856,9 +869,10 @@ class DataService:
         - Point count line (e.g., "37")
         - Data lines: frame_number x_coordinate y_coordinate
         """
-        tracked_data = {}
 
-        try:
+        def _load() -> dict[str, CurveDataList] | None:
+            tracked_data = {}
+
             with open(file_path, encoding="utf-8") as f:
                 lines = f.readlines()
 
@@ -921,10 +935,8 @@ class DataService:
 
             return tracked_data
 
-        except Exception as e:
-            if self._logger:
-                self._logger.log_error(f"Failed to load tracked data: {e}")
-            return {}
+        result = safe_execute_optional(f"loading tracked data from {file_path}", _load, "DataService")
+        return result if result is not None else {}
 
     def _load_2dtrack_data(self, file_path: str) -> "CurveDataList | CurveDataWithMetadata":
         """Load 2DTrackData.txt format file (single curve).
@@ -936,39 +948,58 @@ class DataService:
         Line 4: Number of points (e.g., "37")
         Lines 5+: frame_number x_coordinate y_coordinate
         """
-        try:
+        from core.coordinate_system import CoordinateMetadata, CoordinateOrigin, CoordinateSystem
+        from core.curve_data import CurveDataWithMetadata
+
+        def _create_empty_result() -> CurveDataWithMetadata:
+            """Create empty metadata-aware result."""
+            metadata = CoordinateMetadata(
+                system=CoordinateSystem.THREE_DE_EQUALIZER,
+                origin=CoordinateOrigin.BOTTOM_LEFT,
+                width=1280,
+                height=720,
+            )
+            return CurveDataWithMetadata(data=[], metadata=metadata)
+
+        def _load() -> CurveDataWithMetadata | None:
+            # Handle FileNotFoundError specially
+            try:
+                with open(file_path, encoding="utf-8") as f:
+                    lines = f.readlines()
+            except FileNotFoundError:
+                if self._logger:
+                    self._logger.log_error(f"File not found: {file_path}")
+                return _create_empty_result()
+
             curve_data: CurveDataList = []
 
-            with open(file_path, encoding="utf-8") as f:
-                lines = f.readlines()
+            # Skip the 4-line header
+            if len(lines) > 4:
+                # Parse data lines starting from line 5 (index 4)
+                for line_num, line in enumerate(lines[4:], start=5):
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
 
-                # Skip the 4-line header
-                if len(lines) > 4:
-                    # Parse data lines starting from line 5 (index 4)
-                    for line_num, line in enumerate(lines[4:], start=5):
-                        line = line.strip()
-                        if not line or line.startswith("#"):
+                    parts = line.split()
+                    if len(parts) >= 3:
+                        try:
+                            frame = int(parts[0])
+                            x = float(parts[1])
+                            y = float(parts[2])
+                            # Store raw coordinates - metadata system handles Y-flip
+
+                            # Optional status field - only include if explicitly provided
+                            if len(parts) >= 4:
+                                status = parts[3]
+                                curve_data.append((frame, x, y, status))
+                            else:
+                                curve_data.append((frame, x, y))
+
+                        except (ValueError, IndexError) as e:
+                            if self._logger:
+                                self._logger.log_error(f"Invalid data at line {line_num}: {e}")
                             continue
-
-                        parts = line.split()
-                        if len(parts) >= 3:
-                            try:
-                                frame = int(parts[0])
-                                x = float(parts[1])
-                                y = float(parts[2])
-                                # Store raw coordinates - metadata system handles Y-flip
-
-                                # Optional status field - only include if explicitly provided
-                                if len(parts) >= 4:
-                                    status = parts[3]
-                                    curve_data.append((frame, x, y, status))
-                                else:
-                                    curve_data.append((frame, x, y))
-
-                            except (ValueError, IndexError) as e:
-                                if self._logger:
-                                    self._logger.log_error(f"Invalid data at line {line_num}: {e}")
-                                continue
 
             # Apply default status rules
             result = self._apply_default_statuses(curve_data)
@@ -977,9 +1008,6 @@ class DataService:
                 self._logger.log_info(f"Loaded {len(result)} points from {file_path}")
 
             # Wrap with 3DEqualizer metadata for coordinate system awareness
-            from core.coordinate_system import CoordinateMetadata, CoordinateOrigin, CoordinateSystem
-            from core.curve_data import CurveDataWithMetadata
-
             metadata = CoordinateMetadata(
                 system=CoordinateSystem.THREE_DE_EQUALIZER,
                 origin=CoordinateOrigin.BOTTOM_LEFT,
@@ -989,87 +1017,68 @@ class DataService:
 
             return CurveDataWithMetadata(data=result, metadata=metadata)
 
-        except FileNotFoundError:
-            if self._logger:
-                self._logger.log_error(f"File not found: {file_path}")
-            # Return empty metadata-aware data
-            from core.coordinate_system import CoordinateMetadata, CoordinateOrigin, CoordinateSystem
-            from core.curve_data import CurveDataWithMetadata
-
-            metadata = CoordinateMetadata(
-                system=CoordinateSystem.THREE_DE_EQUALIZER,
-                origin=CoordinateOrigin.BOTTOM_LEFT,
-                width=1280,
-                height=720,
-            )
-            return CurveDataWithMetadata(data=[], metadata=metadata)
-        except Exception as e:
-            if self._logger:
-                self._logger.log_error(f"Failed to load 2DTrackData file {file_path}: {e}")
-            # Return empty metadata-aware data
-            from core.coordinate_system import CoordinateMetadata, CoordinateOrigin, CoordinateSystem
-            from core.curve_data import CurveDataWithMetadata
-
-            metadata = CoordinateMetadata(
-                system=CoordinateSystem.THREE_DE_EQUALIZER,
-                origin=CoordinateOrigin.BOTTOM_LEFT,
-                width=1280,
-                height=720,
-            )
-            return CurveDataWithMetadata(data=[], metadata=metadata)
+        result = safe_execute_optional(f"loading 2DTrackData from {file_path}", _load, "DataService")
+        return result if result is not None else _create_empty_result()
 
     def _load_csv(self, file_path: str) -> CurveDataList:
         """Load CSV file implementation."""
-        try:
-            curve_data: CurveDataList = []
 
-            with open(file_path, encoding="utf-8", newline="") as f:
-                # Try to detect delimiter
-                sample = f.read(1024)
-                _ = f.seek(0)
+        def _load() -> CurveDataList | None:
+            # Handle FileNotFoundError specially
+            try:
+                with open(file_path, encoding="utf-8", newline="") as f:
+                    # Try to detect delimiter
+                    sample = f.read(1024)
+                    _ = f.seek(0)
 
-                delimiter = ","
-                if "\t" in sample and sample.count("\t") > sample.count(","):
-                    delimiter = "\t"
-                elif ";" in sample and sample.count(";") > sample.count(","):
-                    delimiter = ";"
+                    delimiter = ","
+                    if "\t" in sample and sample.count("\t") > sample.count(","):
+                        delimiter = "\t"
+                    elif ";" in sample and sample.count(";") > sample.count(","):
+                        delimiter = ";"
 
-                reader = csv.reader(f, delimiter=delimiter)
+                    reader = csv.reader(f, delimiter=delimiter)
 
-                # Skip header if present
-                first_row = next(reader, None)
-                if first_row:
-                    # Check if first row looks like a header
-                    try:
-                        # Try to convert first column to number
-                        _ = float(first_row[0])
-                        # If successful, this is data, not header
-                        _ = f.seek(0)
-                        reader = csv.reader(f, delimiter=delimiter)
-                    except (ValueError, IndexError):
-                        # First row is likely a header, continue from next row
-                        pass
+                    # Skip header if present
+                    first_row = next(reader, None)
+                    if first_row:
+                        # Check if first row looks like a header
+                        try:
+                            # Try to convert first column to number
+                            _ = float(first_row[0])
+                            # If successful, this is data, not header
+                            _ = f.seek(0)
+                            reader = csv.reader(f, delimiter=delimiter)
+                        except (ValueError, IndexError):
+                            # First row is likely a header, continue from next row
+                            pass
 
-                for row_num, row in enumerate(reader, 1):
-                    if len(row) < 3:
-                        continue
+                    curve_data: CurveDataList = []
+                    for row_num, row in enumerate(reader, 1):
+                        if len(row) < 3:
+                            continue
 
-                    try:
-                        frame = int(float(row[0]))  # Allow float input, convert to int
-                        x = float(row[1])
-                        y = float(row[2])
+                        try:
+                            frame = int(float(row[0]))  # Allow float input, convert to int
+                            x = float(row[1])
+                            y = float(row[2])
 
-                        # Optional status column - only include if explicitly provided
-                        if len(row) > 3 and row[3].strip():
-                            status = row[3].strip()
-                            curve_data.append((frame, x, y, status))
-                        else:
-                            curve_data.append((frame, x, y))
+                            # Optional status column - only include if explicitly provided
+                            if len(row) > 3 and row[3].strip():
+                                status = row[3].strip()
+                                curve_data.append((frame, x, y, status))
+                            else:
+                                curve_data.append((frame, x, y))
 
-                    except (ValueError, IndexError) as e:
-                        if self._logger:
-                            self._logger.log_error(f"Invalid data at row {row_num}: {e}")
-                        continue
+                        except (ValueError, IndexError) as e:
+                            if self._logger:
+                                self._logger.log_error(f"Invalid data at row {row_num}: {e}")
+                            continue
+
+            except FileNotFoundError:
+                if self._logger:
+                    self._logger.log_error(f"File not found: {file_path}")
+                return []
 
             if self._logger:
                 self._logger.log_info(f"Loaded {len(curve_data)} points from {file_path}")
@@ -1077,18 +1086,13 @@ class DataService:
             # Apply default status rules
             return self._apply_default_statuses(curve_data)
 
-        except FileNotFoundError:
-            if self._logger:
-                self._logger.log_error(f"File not found: {file_path}")
-            return []
-        except Exception as e:
-            if self._logger:
-                self._logger.log_error(f"Failed to load CSV file {file_path}: {e}")
-            return []
+        result = safe_execute_optional(f"loading CSV from {file_path}", _load, "DataService")
+        return result if result is not None else []
 
     def _save_csv(self, file_path: str, data: CurveDataList, include_header: bool = True) -> bool:
         """Save CSV file implementation."""
-        try:
+
+        def _save() -> bool:
             # Ensure directory exists
             Path(file_path).parent.mkdir(parents=True, exist_ok=True)
 
@@ -1119,10 +1123,7 @@ class DataService:
 
             return True
 
-        except Exception as e:
-            if self._logger:
-                self._logger.log_error(f"Failed to save CSV file {file_path}: {e}")
-            return False
+        return safe_execute(f"saving CSV to {file_path}", _save, "DataService")
 
     def _apply_default_statuses(self, curve_data: CurveDataList) -> CurveDataList:
         """Apply default status rules to loaded curve data.
