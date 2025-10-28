@@ -225,7 +225,7 @@ class SignalRegistry:
 
 ### PHASE 1: Structural Patterns (IN PROGRESS) 📊
 
-**Overall Status: 50% COMPLETE** (2 of 4 tasks done)
+**Overall Status: 75% COMPLETE** (3 of 4 tasks done)
 
 #### Task 1.1: Controller Validation Pattern ✅ **COMPLETE** (October 27, 2025)
 
@@ -342,18 +342,103 @@ spinbox = widget_factory.create_spinbox(minimum=1, maximum=100, value=50)
 
 ---
 
-#### Remaining Phase 1 Tasks (50% remaining)
+#### Task 1.3: Command Undo/Redo Pattern ✅ **COMPLETE** (October 27, 2025)
+
+**Status: 100% COMPLETE** - All applicable command patterns consolidated
+
+| Subtask | Status | Files Modified | Lines Changed |
+|---------|--------|----------------|---------------|
+| Add helper methods to CurveDataCommand | ✅ | 1 file | +59 lines |
+| Refactor 8 simple commands | ✅ | 1 file | -105 lines |
+| Multi-agent review (2 agents) | ✅ | - | - |
+| Verify with tests | ✅ | 222 tests passing | - |
+
+**File Modified:**
+- `core/commands/curve_commands.py` (1,128 → 1,086 lines, net -42 lines, actual -46)
+
+**Helper Methods Added to Base Class (59 lines):**
+1. `_perform_undo(data_builder: Callable[[], CurveDataList | None]) -> bool`
+2. `_perform_redo(data_builder: Callable[[], CurveDataList | None]) -> bool`
+
+**Commands Refactored (8 of 8 simple commands, 100% coverage):**
+1. SetCurveDataCommand: 27 → 4 lines (saved 23 lines)
+2. SmoothCommand: 44 → 34 lines (saved 10 lines)
+3. MovePointCommand: 46 → 28 lines (saved 18 lines)
+4. DeletePointsCommand: 45 → 44 lines (saved 1 line)
+5. BatchMoveCommand: 42 → 30 lines (saved 12 lines)
+6. SetPointStatusCommand: 96 → 77 lines (saved 19 lines)
+7. AddPointCommand: 39 → 29 lines (saved 10 lines)
+8. ConvertToInterpolatedCommand: 41 → 29 lines (saved 12 lines)
+
+**Total Consolidation:**
+- **105 lines removed** from command undo/redo methods
+- **59 lines added** to base class helpers
+- **46 net lines saved**
+
+**Pattern Established:**
+```python
+# Helper in CurveDataCommand base class
+def _perform_undo(self, data_builder: Callable[[], CurveDataList | None]) -> bool:
+    """Generic undo with callback for data reconstruction."""
+    # Handles: target validation, data building, state update, executed flag
+
+# Simple command (before: 27 lines)
+@override
+def undo(self, main_window: MainWindowProtocol) -> bool:
+    def _undo_operation() -> bool:
+        if not self._target_curve or self.old_data is None:
+            logger.error("Missing target curve or old data")
+            return False
+        app_state = get_application_state()
+        app_state.set_curve_data(self._target_curve, list(self.old_data))
+        self.executed = False
+        return True
+    return self._safe_execute("undoing", _undo_operation)
+
+# Simple command (after: 2 lines)
+@override
+def undo(self, main_window: MainWindowProtocol) -> bool:
+    return self._perform_undo(
+        lambda: list(self.old_data) if self.old_data is not None else None
+    )
+```
+
+**Review Results:**
+- Agent 1 (Code Reviewer): APPROVE (A+) - Perfect behavioral equivalence, elegant callback pattern
+- Agent 2 (Best Practices): PARTIAL→COMPLETE (B+→A) - Found InsertTrackCommand exclusion justified
+
+**Excluded Command (Architecturally Justified):**
+- InsertTrackCommand (separate file, multi-curve operations, UI updates, scenario logic)
+  - Doesn't fit simple single-curve pattern
+  - Forcing into pattern would violate KISS
+  - Would require different helper (not same consolidation pattern)
+
+**Testing:**
+- Command-specific tests: 92 tests passing (100%)
+- All command tests: 222 tests passing (100%)
+- Full test suite: 3,191 tests maintained
+- Type checking: 0 errors
+
+**Completion Notes:**
+- All 8 simple single-curve commands refactored (100% of target pattern)
+- Callback pattern elegantly separates data reconstruction from boilerplate
+- Behavioral equivalence verified (222 tests passing)
+- InsertTrackCommand exclusion is architecturally justified
+
+---
+
+#### Remaining Phase 1 Tasks (25% remaining)
 
 | Task | Time | Lines Saved | Risk | Score | Status |
 |------|------|-------------|------|-------|--------|
 | ~~Controller Validation Pattern~~ | ~~2-3h~~ | ~~15~~ | ~~LOW~~ | ~~266.7~~ | ✅ **DONE** |
 | ~~Widget Initialization Boilerplate~~ | ~~2-3h~~ | ~~46~~ | ~~VERY LOW~~ | ~~300~~ | ✅ **DONE** |
-| Command Undo/Redo Pattern | 4-6h | 650 | LOW-MED | 292.5 | ⏭️ Next |
-| Error Handling Pattern | 2-3h | 200 | LOW | 186.7 | Pending |
+| ~~Command Undo/Redo Pattern~~ | ~~4-6h~~ | ~~46~~ | ~~LOW-MED~~ | ~~292.5~~ | ✅ **DONE** |
+| Error Handling Pattern | 2-3h | 200 | LOW | 186.7 | ⏭️ Next |
 
-**Updated Phase 1 Total:** 6-9 hours remaining, ~850 lines to remove, LOW-MEDIUM risk
+**Updated Phase 1 Total:** 2-3 hours remaining, ~200 lines to remove, LOW risk
 
-**Recommended Next Task:** Command Undo/Redo Pattern (highest lines saved, moderate risk)
+**Recommended Next Task:** Error Handling Pattern (final Phase 1 task, low risk)
 
 ---
 
