@@ -123,6 +123,66 @@ class CurveDataCommand(Command, ABC):
         logger.warning(f"Point index {index} out of range (len={len(curve_data)})")
         return False
 
+    def _perform_undo(self, data_builder: Callable[[], CurveDataList | None]) -> bool:
+        """Generic undo implementation using data reconstruction callback.
+
+        Consolidates common undo pattern: validation → data building → state update.
+
+        Args:
+            data_builder: Callback that returns restored curve_data or None if
+                         data cannot be built (e.g., missing old_data attribute)
+
+        Returns:
+            True if undo succeeded, False otherwise
+        """
+
+        def _undo_operation() -> bool:
+            if not self._target_curve:
+                logger.error(f"Missing target curve for undo in {self.__class__.__name__}")
+                return False
+
+            restored_data = data_builder()
+            if restored_data is None:
+                logger.error(f"Failed to build undo data in {self.__class__.__name__}")
+                return False
+
+            app_state = get_application_state()
+            app_state.set_curve_data(self._target_curve, restored_data)
+            self.executed = False
+            return True
+
+        return self._safe_execute("undoing", _undo_operation)
+
+    def _perform_redo(self, data_builder: Callable[[], CurveDataList | None]) -> bool:
+        """Generic redo implementation using data reconstruction callback.
+
+        Consolidates common redo pattern: validation → data building → state update.
+
+        Args:
+            data_builder: Callback that returns new curve_data or None if
+                         data cannot be built (e.g., missing new_data attribute)
+
+        Returns:
+            True if redo succeeded, False otherwise
+        """
+
+        def _redo_operation() -> bool:
+            if not self._target_curve:
+                logger.error(f"Missing target curve for redo in {self.__class__.__name__}")
+                return False
+
+            new_data = data_builder()
+            if new_data is None:
+                logger.error(f"Failed to build redo data in {self.__class__.__name__}")
+                return False
+
+            app_state = get_application_state()
+            app_state.set_curve_data(self._target_curve, new_data)
+            self.executed = True
+            return True
+
+        return self._safe_execute("redoing", _redo_operation)
+
 
 class SetCurveDataCommand(CurveDataCommand):
     """
@@ -173,34 +233,12 @@ class SetCurveDataCommand(CurveDataCommand):
     @override
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo by restoring the old curve data."""
-
-        def _undo_operation() -> bool:
-            if not self._target_curve or self.old_data is None:
-                logger.error("Missing target curve or old data for undo")
-                return False
-
-            app_state = get_application_state()
-            app_state.set_curve_data(self._target_curve, list(self.old_data))
-            self.executed = False
-            return True
-
-        return self._safe_execute("undoing", _undo_operation)
+        return self._perform_undo(lambda: list(self.old_data) if self.old_data is not None else None)
 
     @override
     def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo by setting the new curve data again."""
-
-        def _redo_operation() -> bool:
-            if not self._target_curve:
-                logger.error("Missing target curve for redo")
-                return False
-
-            app_state = get_application_state()
-            app_state.set_curve_data(self._target_curve, list(self.new_data))
-            self.executed = True
-            return True
-
-        return self._safe_execute("redoing", _redo_operation)
+        return self._perform_redo(lambda: list(self.new_data))
 
 
 class SmoothCommand(CurveDataCommand):
@@ -303,10 +341,9 @@ class SmoothCommand(CurveDataCommand):
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo smoothing by restoring original points."""
 
-        def _undo_operation() -> bool:
-            if not self._target_curve or not self.old_points:
-                logger.error("Missing target curve or old points for undo")
-                return False
+        def build_undo_data() -> CurveDataList | None:
+            if not self.old_points:
+                return None
 
             app_state = get_application_state()
             curve_data = list(app_state.get_curve_data(self._target_curve))
@@ -315,21 +352,17 @@ class SmoothCommand(CurveDataCommand):
                 if i < len(self.old_points) and 0 <= idx < len(curve_data):
                     curve_data[idx] = self.old_points[i]
 
-            # Update ApplicationState (signals update view, preserves view state)
-            app_state.set_curve_data(self._target_curve, curve_data)
-            self.executed = False
-            return True
+            return curve_data
 
-        return self._safe_execute("undoing", _undo_operation)
+        return self._perform_undo(build_undo_data)
 
     @override
     def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo smoothing by applying smoothed points."""
 
-        def _redo_operation() -> bool:
-            if not self._target_curve or not self.new_points:
-                logger.error("Missing target curve or new points for redo")
-                return False
+        def build_redo_data() -> CurveDataList | None:
+            if not self.new_points:
+                return None
 
             app_state = get_application_state()
             curve_data = list(app_state.get_curve_data(self._target_curve))
@@ -338,12 +371,9 @@ class SmoothCommand(CurveDataCommand):
                 if i < len(self.new_points) and 0 <= idx < len(curve_data):
                     curve_data[idx] = self.new_points[i]
 
-            # Update ApplicationState (signals update view, preserves view state)
-            app_state.set_curve_data(self._target_curve, curve_data)
-            self.executed = True
-            return True
+            return curve_data
 
-        return self._safe_execute("redoing", _redo_operation)
+        return self._perform_redo(build_redo_data)
 
     @override
     def can_merge_with(self, other: Command) -> bool:
@@ -431,48 +461,33 @@ class MovePointCommand(CurveDataCommand):
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo point movement."""
 
-        def _undo_operation() -> bool:
-            if not self._target_curve:
-                return False
-
+        def build_undo_data() -> CurveDataList | None:
             app_state = get_application_state()
             curve_data = list(app_state.get_curve_data(self._target_curve))
 
             if 0 <= self.index < len(curve_data):
-                # Use helper to restore original position
                 curve_data[self.index] = self._update_point_position(curve_data[self.index], self.old_pos)
+                return curve_data
 
-                app_state.set_curve_data(self._target_curve, curve_data)
-                self.executed = False
-                return True
+            return None
 
-            return False
-
-        return self._safe_execute("undoing", _undo_operation)
+        return self._perform_undo(build_undo_data)
 
     @override
     def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo point movement."""
 
-        def _redo_operation() -> bool:
-            if not self._target_curve:
-                logger.error("Missing target curve for redo")
-                return False
-
+        def build_redo_data() -> CurveDataList | None:
             app_state = get_application_state()
             curve_data = list(app_state.get_curve_data(self._target_curve))
 
             if 0 <= self.index < len(curve_data):
-                # Use helper to apply new position
                 curve_data[self.index] = self._update_point_position(curve_data[self.index], self.new_pos)
+                return curve_data
 
-                app_state.set_curve_data(self._target_curve, curve_data)
-                self.executed = True
-                return True
+            return None
 
-            return False
-
-        return self._safe_execute("redoing", _redo_operation)
+        return self._perform_redo(build_redo_data)
 
     @override
     def can_merge_with(self, other: Command) -> bool:
@@ -562,9 +577,9 @@ class DeletePointsCommand(CurveDataCommand):
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo point deletion by restoring deleted points."""
 
-        def _undo_operation() -> bool:
-            if not self._target_curve or not self.deleted_points:
-                return False
+        def build_undo_data() -> CurveDataList | None:
+            if not self.deleted_points:
+                return None
 
             app_state = get_application_state()
             curve_data = list(app_state.get_curve_data(self._target_curve))
@@ -574,20 +589,17 @@ class DeletePointsCommand(CurveDataCommand):
                 if 0 <= idx <= len(curve_data):
                     curve_data.insert(idx, point)
 
-            app_state.set_curve_data(self._target_curve, curve_data)
-            self.executed = False
-            return True
+            return curve_data
 
-        return self._safe_execute("undoing", _undo_operation)
+        return self._perform_undo(build_undo_data)
 
     @override
     def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo point deletion."""
 
-        def _redo_operation() -> bool:
-            if not self._target_curve or not self.deleted_points:
-                logger.error("Missing target curve or deleted points for redo")
-                return False
+        def build_redo_data() -> CurveDataList | None:
+            if not self.deleted_points:
+                return None
 
             app_state = get_application_state()
             curve_data = list(app_state.get_curve_data(self._target_curve))
@@ -597,15 +609,16 @@ class DeletePointsCommand(CurveDataCommand):
                 if 0 <= idx < len(curve_data):
                     del curve_data[idx]
 
-            app_state.set_curve_data(self._target_curve, curve_data)
+            return curve_data
 
-            # Clear selection after deletion
+        result = self._perform_redo(build_redo_data)
+
+        # Clear selection after successful deletion (side effect)
+        if result and self._target_curve:
+            app_state = get_application_state()
             app_state.set_selection(self._target_curve, set())
 
-            self.executed = True
-            return True
-
-        return self._safe_execute("redoing", _redo_operation)
+        return result
 
 
 class BatchMoveCommand(CurveDataCommand):
@@ -663,10 +676,7 @@ class BatchMoveCommand(CurveDataCommand):
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo batch point movement."""
 
-        def _undo_operation() -> bool:
-            if not self._target_curve:
-                return False
-
+        def build_undo_data() -> CurveDataList | None:
             app_state = get_application_state()
             curve_data = list(app_state.get_curve_data(self._target_curve))
 
@@ -675,21 +685,15 @@ class BatchMoveCommand(CurveDataCommand):
                 if 0 <= index < len(curve_data):
                     curve_data[index] = self._update_point_position(curve_data[index], old_pos)
 
-            app_state.set_curve_data(self._target_curve, curve_data)
-            self.executed = False
-            return True
+            return curve_data
 
-        return self._safe_execute("undoing", _undo_operation)
+        return self._perform_undo(build_undo_data)
 
     @override
     def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo batch point movement."""
 
-        def _redo_operation() -> bool:
-            if not self._target_curve:
-                logger.error("Missing target curve for redo")
-                return False
-
+        def build_redo_data() -> CurveDataList | None:
             app_state = get_application_state()
             curve_data = list(app_state.get_curve_data(self._target_curve))
 
@@ -698,11 +702,9 @@ class BatchMoveCommand(CurveDataCommand):
                 if 0 <= index < len(curve_data):
                     curve_data[index] = self._update_point_position(curve_data[index], new_pos)
 
-            app_state.set_curve_data(self._target_curve, curve_data)
-            self.executed = True
-            return True
+            return curve_data
 
-        return self._safe_execute("redoing", _redo_operation)
+        return self._perform_redo(build_redo_data)
 
     @override
     def can_merge_with(self, other: Command) -> bool:
@@ -812,11 +814,7 @@ class SetPointStatusCommand(CurveDataCommand):
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo status changes with gap restoration logic."""
 
-        def _undo_operation() -> bool:
-            if not self._target_curve:
-                logger.error("Missing target curve for undo")
-                return False
-
+        def build_undo_data() -> CurveDataList | None:
             app_state = get_application_state()
             data_service = get_data_service()
 
@@ -836,7 +834,7 @@ class SetPointStatusCommand(CurveDataCommand):
             # Get restored data from SegmentedCurve
             if data_service.segmented_curve:
                 restored_points = data_service.segmented_curve.all_points
-                updated_data = [(p.frame, p.x, p.y, p.status.value) for p in restored_points]
+                return [(p.frame, p.x, p.y, p.status.value) for p in restored_points]
             else:
                 # Fallback: apply changes directly if SegmentedCurve unavailable
                 logger.warning("SegmentedCurve not available, applying changes directly")
@@ -848,24 +846,15 @@ class SetPointStatusCommand(CurveDataCommand):
                             updated_data[index] = (point[0], point[1], point[2], old_status)
                         else:
                             logger.warning(f"Point {index} has invalid format (need at least 3 elements)")
+                return updated_data
 
-            # Update ApplicationState with restored data
-            app_state.set_curve_data(self._target_curve, updated_data)
-            self.executed = False
-
-            return True
-
-        return self._safe_execute("undoing", _undo_operation)
+        return self._perform_undo(build_undo_data)
 
     @override
     def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo status changes with gap restoration logic."""
 
-        def _redo_operation() -> bool:
-            if not self._target_curve:
-                logger.error("Missing target curve for redo")
-                return False
-
+        def build_redo_data() -> CurveDataList | None:
             app_state = get_application_state()
             data_service = get_data_service()
 
@@ -885,7 +874,7 @@ class SetPointStatusCommand(CurveDataCommand):
             # Get restored data from SegmentedCurve
             if data_service.segmented_curve:
                 restored_points = data_service.segmented_curve.all_points
-                updated_data = [(p.frame, p.x, p.y, p.status.value) for p in restored_points]
+                return [(p.frame, p.x, p.y, p.status.value) for p in restored_points]
             else:
                 # Fallback: apply changes directly if SegmentedCurve unavailable
                 logger.warning("SegmentedCurve not available, applying changes directly")
@@ -897,14 +886,9 @@ class SetPointStatusCommand(CurveDataCommand):
                             updated_data[index] = (point[0], point[1], point[2], new_status)
                         else:
                             logger.warning(f"Point {index} has invalid format (need at least 3 elements)")
+                return updated_data
 
-            # Update ApplicationState with restored data
-            app_state.set_curve_data(self._target_curve, updated_data)
-            self.executed = True
-
-            return True
-
-        return self._safe_execute("redoing", _redo_operation)
+        return self._perform_redo(build_redo_data)
 
     @override
     def can_merge_with(self, other: Command) -> bool:
@@ -983,44 +967,33 @@ class AddPointCommand(CurveDataCommand):
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo point addition by removing the added point."""
 
-        def _undo_operation() -> bool:
-            if not self._target_curve:
-                return False
-
+        def build_undo_data() -> CurveDataList | None:
             app_state = get_application_state()
             curve_data = list(app_state.get_curve_data(self._target_curve))
 
             if 0 <= self.index < len(curve_data):
                 del curve_data[self.index]
-                app_state.set_curve_data(self._target_curve, curve_data)
-                self.executed = False
-                return True
+                return curve_data
 
-            return False
+            return None
 
-        return self._safe_execute("undoing", _undo_operation)
+        return self._perform_undo(build_undo_data)
 
     @override
     def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo point addition."""
 
-        def _redo_operation() -> bool:
-            if not self._target_curve:
-                logger.error("Missing target curve for redo")
-                return False
-
+        def build_redo_data() -> CurveDataList | None:
             app_state = get_application_state()
             curve_data = list(app_state.get_curve_data(self._target_curve))
 
             if 0 <= self.index <= len(curve_data):
                 curve_data.insert(self.index, self.point)
-                app_state.set_curve_data(self._target_curve, curve_data)
-                self.executed = True
-                return True
+                return curve_data
 
-            return False
+            return None
 
-        return self._safe_execute("redoing", _redo_operation)
+        return self._perform_redo(build_redo_data)
 
 
 class ConvertToInterpolatedCommand(CurveDataCommand):
@@ -1084,45 +1057,30 @@ class ConvertToInterpolatedCommand(CurveDataCommand):
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo the conversion by restoring the original point."""
 
-        def _undo_operation() -> bool:
-            if not self._target_curve:
-                return False
-
+        def build_undo_data() -> CurveDataList | None:
             app_state = get_application_state()
             curve_data = list(app_state.get_curve_data(self._target_curve))
 
             if 0 <= self.index < len(curve_data):
-                # Restore the original point
                 curve_data[self.index] = self.old_point
+                return curve_data
 
-                app_state.set_curve_data(self._target_curve, curve_data)
-                self.executed = False
-                return True
+            return None
 
-            return False
-
-        return self._safe_execute("undoing", _undo_operation)
+        return self._perform_undo(build_undo_data)
 
     @override
     def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo the conversion."""
 
-        def _redo_operation() -> bool:
-            if not self._target_curve:
-                logger.error("Missing target curve for redo")
-                return False
-
+        def build_redo_data() -> CurveDataList | None:
             app_state = get_application_state()
             curve_data = list(app_state.get_curve_data(self._target_curve))
 
             if 0 <= self.index < len(curve_data):
-                # Replace the point with the interpolated version
                 curve_data[self.index] = self.new_point
+                return curve_data
 
-                app_state.set_curve_data(self._target_curve, curve_data)
-                self.executed = True
-                return True
+            return None
 
-            return False
-
-        return self._safe_execute("redoing", _redo_operation)
+        return self._perform_redo(build_redo_data)
