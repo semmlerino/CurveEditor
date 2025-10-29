@@ -831,6 +831,48 @@ def _update_background_image(self, frame: int) -> None:
 - First access always triggers disk load (no predictive preloading)
 - Fixed cache size (no adaptation to available RAM)
 
+**Phase 2B: Background Preloading** ✅ COMPLETE (October 2025)
+- [x] Created `SafeImagePreloadWorker` QThread class (118 lines)
+- [x] Implemented `preload_range()` method
+- [x] Implemented `preload_around_frame()` method (default window_size=20)
+- [x] Added `cache_progress` signal for UI feedback
+- [x] Worker cleanup on sequence changes (_stop_preload)
+- [x] Verified NO QPixmap in worker thread (test_worker_no_qpixmap_created)
+- [x] Comprehensive test suite (19 new tests, 58 total, 100% pass rate)
+- [x] 0 basedpyright errors
+- [x] Added cleanup() method and threading documentation (per review)
+
+**Key Decisions (Phase 2B)**:
+- ✅ **QThread worker pattern** - SafeImagePreloadWorker loads QImage in background
+- ✅ **QueuedConnection** - Explicit cross-thread signal safety
+- ✅ **Type guard in slot** - isinstance(qimage, QImage) check before caching
+- ✅ **Graceful shutdown** - Cooperative cancellation with 1-second timeout
+- ✅ **Frame filtering** - Skip already-cached frames before worker start
+- ✅ **Smart caching** - Preload doesn't overwrite on-demand loads
+
+**Review Results**:
+- Code review: APPROVE WITH MINOR SUGGESTIONS → Improvements implemented (cleanup, docs)
+- Threading safety: SAFE ✅ (no race conditions, no deadlocks, no Qt violations)
+- Overall quality: A- (excellent thread safety, comprehensive tests)
+- Threading debugger: PRODUCTION-READY ✅
+
+**Files Modified**:
+- `services/image_cache_manager.py` (+250 lines, worker + preload methods + cleanup)
+- `tests/test_image_cache_manager.py` (+420 lines, 19 new threading tests)
+
+**Threading Safety Verified**:
+- ✅ NO QPixmap in worker thread (test_worker_no_qpixmap_created)
+- ✅ QueuedConnection for all cross-thread signals
+- ✅ Type guard prevents invalid types in cache
+- ✅ Lock protects all cache mutations
+- ✅ Graceful worker shutdown with timeout
+- ✅ No race conditions or deadlocks identified
+
+**Known Limitations** (to address in Phase 2C):
+- Cache not yet integrated into DataService/ViewManagementController
+- No preloading triggers on frame change (manual preload only)
+- cache_progress signal not connected to UI
+
 ### Implementation Steps
 
 **Phase 1: Core Cache Manager** ✅ COMPLETE
@@ -839,13 +881,13 @@ def _update_background_image(self, frame: int) -> None:
 - [x] Implement `get_image()` returning QImage
 - [x] Add unit tests for cache eviction policy
 
-**Phase 2: Background Preloading** (1 day)
-- [ ] Create `SafeImagePreloadWorker` QThread class (QImage only)
-- [ ] Implement `preload_range()` method
-- [ ] Implement `preload_around_frame()` method
-- [ ] Add progress signals for UI feedback
-- [ ] Handle worker cleanup on sequence changes
-- [ ] Verify NO QPixmap in worker thread (add assertion test)
+**Phase 2: Background Preloading** ✅ COMPLETE
+- [x] Create `SafeImagePreloadWorker` QThread class (QImage only)
+- [x] Implement `preload_range()` method
+- [x] Implement `preload_around_frame()` method
+- [x] Add progress signals for UI feedback
+- [x] Handle worker cleanup on sequence changes
+- [x] Verify NO QPixmap in worker thread (add assertion test)
 
 **Phase 3: Integration** (0.5 days)
 - [ ] Update `DataService.load_image_sequence()` to initialize cache

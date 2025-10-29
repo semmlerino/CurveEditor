@@ -665,5 +665,423 @@ class TestCacheProperties:
         assert cache.cache_size == 0
 
 
+class TestImagePreloading:
+    """Test background image preloading (Phase 2B)."""
+
+    def test_preload_range_starts_worker(self):
+        """Test that preload_range creates and starts worker thread."""
+        cache = SafeImageCacheManager(max_cache_size=100)
+
+        files = [f"/path/frame_{i:04d}.png" for i in range(100)]
+        cache.set_image_sequence(files)
+
+        # Mock worker to prevent actual loading
+        with patch("services.image_cache_manager.SafeImagePreloadWorker") as mock_worker_class:
+            mock_worker = Mock()
+            mock_worker_class.return_value = mock_worker
+
+            cache.preload_range(10, 20)
+
+            # Verify worker created with correct frames
+            mock_worker_class.assert_called_once()
+            call_args = mock_worker_class.call_args
+            assert call_args[0][0] == files  # image_files
+            assert call_args[0][1] == list(range(10, 21))  # frames_to_load (inclusive)
+
+            # Verify worker started
+            mock_worker.start.assert_called_once()
+
+    def test_preload_around_frame_calculates_range(self):
+        """Test that preload_around_frame calculates correct frame range."""
+        cache = SafeImageCacheManager()
+
+        files = [f"/path/frame_{i:04d}.png" for i in range(200)]
+        cache.set_image_sequence(files)
+
+        with patch("services.image_cache_manager.SafeImagePreloadWorker") as mock_worker_class:
+            mock_worker = Mock()
+            mock_worker_class.return_value = mock_worker
+
+            # Test window_size=20 (±20 frames)
+            cache.preload_around_frame(100, window_size=20)
+
+            call_args = mock_worker_class.call_args
+            frames_to_load = call_args[0][1]
+            assert frames_to_load == list(range(80, 121))  # 100±20 (inclusive)
+
+    def test_preload_around_frame_clamps_to_bounds(self):
+        """Test that frame range is clamped to sequence bounds."""
+        cache = SafeImageCacheManager()
+
+        files = [f"/path/frame_{i:04d}.png" for i in range(50)]
+        cache.set_image_sequence(files)
+
+        with patch("services.image_cache_manager.SafeImagePreloadWorker") as mock_worker_class:
+            mock_worker = Mock()
+            mock_worker_class.return_value = mock_worker
+
+            # Test near start (would go negative)
+            cache.preload_around_frame(10, window_size=20)
+            call_args = mock_worker_class.call_args
+            frames_to_load = call_args[0][1]
+            assert frames_to_load[0] == 0  # Clamped to 0 (not -10)
+            assert frames_to_load[-1] == 30  # 10+20
+
+            # Test near end (would exceed length)
+            cache.preload_around_frame(45, window_size=20)
+            call_args = mock_worker_class.call_args
+            frames_to_load = call_args[0][1]
+            assert frames_to_load[0] == 25  # 45-20
+            assert frames_to_load[-1] == 49  # Clamped to len-1 (not 65)
+
+    def test_preload_filters_cached_frames(self):
+        """Test that preload doesn't reload frames already in cache."""
+        cache = SafeImageCacheManager()
+
+        files = [f"/path/frame_{i:04d}.png" for i in range(20)]
+        cache.set_image_sequence(files)
+
+        # Manually populate cache with frames 5-9
+        for i in range(5, 10):
+            cache._cache[i] = Mock(spec=QImage)
+            cache._lru_order.append(i)
+
+        with patch("services.image_cache_manager.SafeImagePreloadWorker") as mock_worker_class:
+            mock_worker = Mock()
+            mock_worker_class.return_value = mock_worker
+
+            # Request preload of frames 0-14
+            cache.preload_range(0, 14)
+
+            # Verify only non-cached frames passed to worker
+            call_args = mock_worker_class.call_args
+            frames_to_load = call_args[0][1]
+
+            # Should exclude 5-9 (already cached)
+            expected = list(range(0, 5)) + list(range(10, 15))
+            assert frames_to_load == expected
+
+    def test_preload_with_all_frames_cached(self):
+        """Test that preload with all frames cached doesn't start worker."""
+        cache = SafeImageCacheManager()
+
+        files = [f"/path/frame_{i:04d}.png" for i in range(10)]
+        cache.set_image_sequence(files)
+
+        # Cache all frames 0-4
+        for i in range(5):
+            cache._cache[i] = Mock(spec=QImage)
+            cache._lru_order.append(i)
+
+        with patch("services.image_cache_manager.SafeImagePreloadWorker") as mock_worker_class:
+            # Request preload of already-cached frames
+            cache.preload_range(0, 4)
+
+            # Worker should not be created (all frames cached)
+            mock_worker_class.assert_not_called()
+
+    def test_preload_stops_existing_worker(self):
+        """Test that starting new preload stops existing worker."""
+        cache = SafeImageCacheManager()
+
+        files = [f"/path/frame_{i:04d}.png" for i in range(100)]
+        cache.set_image_sequence(files)
+
+        with patch("services.image_cache_manager.SafeImagePreloadWorker") as mock_worker_class:
+            # Create first worker
+            mock_worker1 = Mock()
+            mock_worker1.isRunning.return_value = True
+            mock_worker_class.return_value = mock_worker1
+
+            cache.preload_range(0, 10)
+
+            # Start second preload (should stop first worker)
+            mock_worker2 = Mock()
+            mock_worker_class.return_value = mock_worker2
+
+            cache.preload_range(50, 60)
+
+            # Verify first worker stopped
+            mock_worker1.stop.assert_called_once()
+            mock_worker1.wait.assert_called_once()
+
+    def test_set_image_sequence_stops_worker(self):
+        """Test that setting new sequence stops preload worker."""
+        cache = SafeImageCacheManager()
+
+        files1 = [f"/path/frame_{i:04d}.png" for i in range(50)]
+        cache.set_image_sequence(files1)
+
+        with patch("services.image_cache_manager.SafeImagePreloadWorker") as mock_worker_class:
+            mock_worker = Mock()
+            mock_worker.isRunning.return_value = True
+            mock_worker_class.return_value = mock_worker
+
+            # Start preload
+            cache.preload_range(0, 10)
+
+            # Set new sequence (should stop worker)
+            files2 = [f"/path/other_{i:04d}.png" for i in range(50)]
+            cache.set_image_sequence(files2)
+
+            # Verify worker stopped
+            mock_worker.stop.assert_called_once()
+            mock_worker.wait.assert_called_once()
+
+    def test_preload_no_sequence_loaded(self):
+        """Test that preload without sequence loaded is no-op."""
+        cache = SafeImageCacheManager()
+
+        # No sequence set
+        with patch("services.image_cache_manager.SafeImagePreloadWorker") as mock_worker_class:
+            cache.preload_range(0, 10)
+
+            # Worker should not be created
+            mock_worker_class.assert_not_called()
+
+    def test_preload_invalid_range(self):
+        """Test that invalid range (start > end) is handled."""
+        cache = SafeImageCacheManager()
+
+        files = [f"/path/frame_{i:04d}.png" for i in range(50)]
+        cache.set_image_sequence(files)
+
+        with patch("services.image_cache_manager.SafeImagePreloadWorker") as mock_worker_class:
+            # Invalid range
+            cache.preload_range(20, 10)
+
+            # Worker should not be created
+            mock_worker_class.assert_not_called()
+
+
+class TestWorkerThreadSafety:
+    """Test worker thread safety and signal handling (Phase 2B)."""
+
+    def test_worker_emits_image_loaded_signal(self):
+        """Test that worker emits image_loaded signal with QImage."""
+        from services.image_cache_manager import SafeImagePreloadWorker
+
+        files = ["/path/frame_0001.png", "/path/frame_0002.png"]
+        frames = [0, 1]
+
+        worker = SafeImagePreloadWorker(files, frames)
+
+        # Collect emitted signals
+        signals_received: list[tuple[int, object]] = []
+
+        def capture_signal(frame: int, image: object) -> None:
+            signals_received.append((frame, image))
+
+        worker.image_loaded.connect(capture_signal)
+
+        # Mock image loading
+        with patch.object(worker, "_load_image") as mock_load:
+            mock_image = Mock(spec=QImage)
+            mock_load.return_value = mock_image
+
+            worker.run()
+
+            # Verify signals emitted for both frames
+            assert len(signals_received) == 2
+            assert signals_received[0][0] == 0
+            assert signals_received[1][0] == 1
+
+            # Verify QImage objects passed
+            assert isinstance(signals_received[0][1], Mock)
+            assert isinstance(signals_received[1][1], Mock)
+
+    def test_worker_emits_progress_signal(self):
+        """Test that worker emits progress signals."""
+        from services.image_cache_manager import SafeImagePreloadWorker
+
+        files = [f"/path/frame_{i:04d}.png" for i in range(5)]
+        frames = list(range(5))
+
+        worker = SafeImagePreloadWorker(files, frames)
+
+        # Collect progress signals
+        progress_signals: list[tuple[int, int]] = []
+
+        def capture_progress(loaded: int, total: int) -> None:
+            progress_signals.append((loaded, total))
+
+        worker.progress.connect(capture_progress)
+
+        # Mock image loading
+        with patch.object(worker, "_load_image") as mock_load:
+            mock_load.return_value = Mock(spec=QImage)
+
+            worker.run()
+
+            # Verify progress signals emitted
+            assert len(progress_signals) == 5
+            assert progress_signals[0] == (1, 5)
+            assert progress_signals[4] == (5, 5)
+
+    def test_worker_no_qpixmap_created(self):
+        """CRITICAL: Verify worker never creates QPixmap (main-thread-only)."""
+        from services.image_cache_manager import SafeImagePreloadWorker
+
+        files = ["/path/frame_0001.png"]
+        frames = [0]
+
+        worker = SafeImagePreloadWorker(files, frames)
+
+        # Mock QImage to succeed
+        with patch("PySide6.QtGui.QImage") as mock_qimage_class:
+            mock_image = Mock(spec=QImage)
+            mock_image.isNull.return_value = False
+            mock_qimage_class.return_value = mock_image
+
+            with patch("services.image_cache_manager.Path.exists", return_value=True):
+                # Mock QPixmap to track if it's created
+                with patch("PySide6.QtGui.QPixmap") as mock_qpixmap_class:
+                    result = worker._load_image("/path/frame_0001.png")
+
+                    # Verify QPixmap never created
+                    mock_qpixmap_class.assert_not_called()
+
+                    # Verify QImage was created
+                    assert result is mock_image
+
+    def test_worker_handles_missing_file(self):
+        """Test that worker handles missing files gracefully."""
+        from services.image_cache_manager import SafeImagePreloadWorker
+
+        files = ["/nonexistent/frame_0001.png"]
+        frames = [0]
+
+        worker = SafeImagePreloadWorker(files, frames)
+
+        # Collect signals
+        signals_received: list[tuple[int, object]] = []
+        worker.image_loaded.connect(lambda f, img: signals_received.append((f, img)))
+
+        # Run worker (file doesn't exist)
+        worker.run()
+
+        # Verify no signal emitted for missing file
+        assert len(signals_received) == 0
+
+    def test_worker_handles_exr_format(self):
+        """Test that worker uses EXR loader for .exr files."""
+        from services.image_cache_manager import SafeImagePreloadWorker
+
+        files = ["/path/frame_0001.exr"]
+        frames = [0]
+
+        worker = SafeImagePreloadWorker(files, frames)
+
+        with patch("io_utils.exr_loader.load_exr_as_qimage") as mock_exr_load:
+            mock_image = Mock(spec=QImage)
+            mock_exr_load.return_value = mock_image
+
+            with patch("services.image_cache_manager.Path.exists", return_value=True):
+                result = worker._load_image("/path/frame_0001.exr")
+
+            # Verify EXR loader used
+            mock_exr_load.assert_called_once_with("/path/frame_0001.exr")
+            assert result is mock_image
+
+    def test_worker_graceful_stop(self):
+        """Test that worker stops gracefully when requested."""
+        from services.image_cache_manager import SafeImagePreloadWorker
+
+        files = [f"/path/frame_{i:04d}.png" for i in range(100)]
+        frames = list(range(100))
+
+        worker = SafeImagePreloadWorker(files, frames)
+
+        # Collect loaded frames
+        loaded_frames: list[int] = []
+
+        def capture_frame(frame: int, image: object) -> None:
+            loaded_frames.append(frame)
+            # Request stop after first frame
+            if len(loaded_frames) == 1:
+                worker.stop()
+
+        worker.image_loaded.connect(capture_frame)
+
+        # Mock image loading
+        with patch.object(worker, "_load_image") as mock_load:
+            mock_load.return_value = Mock(spec=QImage)
+
+            worker.run()
+
+            # Verify worker stopped early (not all 100 frames loaded)
+            assert len(loaded_frames) < 100
+
+    def test_worker_skips_out_of_bounds_frames(self):
+        """Test that worker skips frames outside valid range."""
+        from services.image_cache_manager import SafeImagePreloadWorker
+
+        files = [f"/path/frame_{i:04d}.png" for i in range(10)]
+        frames = [-1, 0, 5, 10, 15]  # -1 and 10, 15 are out of bounds
+
+        worker = SafeImagePreloadWorker(files, frames)
+
+        # Collect loaded frames
+        loaded_frames: list[int] = []
+        worker.image_loaded.connect(lambda f, img: loaded_frames.append(f))
+
+        # Mock image loading
+        with patch.object(worker, "_load_image") as mock_load:
+            mock_load.return_value = Mock(spec=QImage)
+
+            worker.run()
+
+            # Verify only valid frames loaded (0, 5)
+            assert loaded_frames == [0, 5]
+
+    def test_on_image_preloaded_adds_to_cache(self):
+        """Test that _on_image_preloaded adds image to cache."""
+        cache = SafeImageCacheManager()
+
+        files = ["/path/frame_0001.png"]
+        cache.set_image_sequence(files)
+
+        mock_image = Mock(spec=QImage)
+
+        # Call slot directly (simulates signal from worker)
+        cache._on_image_preloaded(0, mock_image)
+
+        # Verify image added to cache
+        assert 0 in cache._cache
+        assert cache._cache[0] is mock_image
+
+    def test_on_image_preloaded_skips_cached_frame(self):
+        """Test that _on_image_preloaded doesn't overwrite cached frames."""
+        cache = SafeImageCacheManager()
+
+        files = ["/path/frame_0001.png"]
+        cache.set_image_sequence(files)
+
+        # Pre-cache frame 0
+        original_image = Mock(spec=QImage)
+        cache._cache[0] = original_image
+        cache._lru_order.append(0)
+
+        # Try to overwrite with preloaded image
+        preloaded_image = Mock(spec=QImage)
+        cache._on_image_preloaded(0, preloaded_image)
+
+        # Verify original image retained (not overwritten)
+        assert cache._cache[0] is original_image
+
+    def test_on_image_preloaded_rejects_invalid_type(self):
+        """Test that _on_image_preloaded rejects non-QImage objects."""
+        cache = SafeImageCacheManager()
+
+        files = ["/path/frame_0001.png"]
+        cache.set_image_sequence(files)
+
+        # Pass invalid type (string instead of QImage)
+        cache._on_image_preloaded(0, "not_an_image")
+
+        # Verify not added to cache
+        assert 0 not in cache._cache
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
