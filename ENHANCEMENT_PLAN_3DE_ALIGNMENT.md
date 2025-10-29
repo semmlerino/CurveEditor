@@ -271,9 +271,40 @@ class FrameTab(QLabel):
 
 **No new dataclass needed** - `FrameStatus` handles both modes.
 
+### Implementation Progress
+
+**Phase 1A: Core Aggregation Engine** ✅ COMPLETE (October 2025)
+- [x] Created `core/frame_status_aggregator.py` (125 lines)
+- [x] Implemented `aggregate_frame_statuses()` module-level function (not class - architectural improvement per code review)
+- [x] Implemented `FrameStatusAccumulator` dataclass for type-safe aggregation
+- [x] Created comprehensive test suite (17 tests, 100% pass rate)
+- [x] 0 basedpyright errors
+- [x] Added integration context documentation
+
+**Key Decisions (Phase 1A)**:
+- ✅ **Module-level function** instead of StatusAggregator class (consistent with project patterns like `normalize_legacy_point()`)
+- ✅ **FrameStatusAccumulator** dataclass prevents type errors from list unpacking
+- ✅ **AND logic for is_inactive** (ALL curves must be inactive) - prevents hiding active curves
+- ✅ **OR logic for is_startframe/has_selected** (ANY curve matches)
+
+**Review Results**:
+- Code review: APPROVE WITH CHANGES → Changes implemented
+- Test coverage: SUFFICIENT (100% line/branch coverage, A+ quality)
+
+**Files Added**:
+- `core/frame_status_aggregator.py` (module-level function)
+- `tests/core/test_frame_status_aggregator.py` (17 comprehensive tests)
+
+---
+
 ### Implementation Steps
 
-**Phase 1: Timeline Widget Integration** (1.5 days)
+**Phase 1B: DataService Integration** (NEXT - 0.5 days)
+- [ ] Add `aggregate_frame_statuses()` integration to DataService
+- [ ] Add tests in `tests/services/test_data_service.py`
+- [ ] Verify integration with existing `get_frame_range_point_status()` method
+
+**Phase 1C: Timeline Widget Integration** (1.5 days)
 - [ ] Add `AggregatedCounts` dataclass (type-safe accumulator)
 - [ ] Add `show_all_curves_mode` boolean flag
 - [ ] Add `mode_toggle_btn` to navigation controls
