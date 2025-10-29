@@ -25,7 +25,7 @@ from core.type_aliases import CurveDataInput, CurveDataList, LegacyPointData
 from services.service_protocols import LoggingServiceProtocol, StatusServiceProtocol
 
 if TYPE_CHECKING:
-    from PySide6.QtGui import QImage
+    from PySide6.QtGui import QImage, QPixmap
     from PySide6.QtWidgets import QWidget
 
 # Simple filter import (replaces scipy dependency)
@@ -51,6 +51,8 @@ class DataService:
         status_service: StatusServiceProtocol | None = None,
     ) -> None:
         """Initialize DataService with optional dependencies."""
+        from services.image_cache_manager import SafeImageCacheManager
+
         self._lock: threading.RLock = threading.RLock()
         self._logger: LoggingServiceProtocol | None = logging_service
         self._status: StatusServiceProtocol | None = status_service
@@ -65,6 +67,9 @@ class DataService:
         # Persistent SegmentedCurve for restoration functionality
         self._segmented_curve: SegmentedCurve | None = None
         self._current_curve_data: CurveDataList | None = None
+
+        # Phase 2C: Image cache manager for efficient background image loading
+        self._safe_image_cache: SafeImageCacheManager = SafeImageCacheManager(max_cache_size=100)
 
     @property
     def segmented_curve(self) -> SegmentedCurve | None:
@@ -763,7 +768,17 @@ class DataService:
     # ==================== Image Operation Delegation ====================
 
     def load_image_sequence(self, directory: str) -> list[str]:
-        """Load image sequence from directory."""
+        """Load image sequence from directory and initialize cache.
+
+        Phase 2C: Initializes SafeImageCacheManager with loaded image files
+        for efficient on-demand loading with background preloading support.
+
+        Args:
+            directory: Path to directory containing image sequence
+
+        Returns:
+            List of absolute paths to image files in sequence order
+        """
 
         def _load_sequence() -> list[str] | None:
             path = Path(directory)
@@ -783,10 +798,57 @@ class DataService:
             if self._logger and image_files:
                 self._logger.log_info(f"Loaded {len(image_files)} images from {directory}")
 
+            # Phase 2C: Initialize cache with image files
+            if image_files:
+                self._safe_image_cache.set_image_sequence(image_files)
+                logger.debug(f"Initialized image cache with {len(image_files)} files")
+
             return image_files
 
         result = safe_execute_optional("loading image sequence", _load_sequence, "DataService")
         return result if result is not None else []
+
+    def get_background_image(self, frame: int) -> "QPixmap | None":
+        """
+        Get background image for frame (cached).
+
+        Phase 2C: Returns QPixmap for direct display use.
+        Cache stores QImage; conversion happens here in main thread.
+
+        Args:
+            frame: Frame number (0-indexed)
+
+        Returns:
+            QPixmap ready for display, or None if frame invalid or load fails
+
+        Note:
+            Thread-safe: QImage → QPixmap conversion happens in main thread only.
+            This method should be called from main thread.
+        """
+        from PySide6.QtGui import QPixmap
+
+        qimage = self._safe_image_cache.get_image(frame)
+        if qimage:
+            # ✅ SAFE: Convert QImage → QPixmap in main thread
+            return QPixmap.fromImage(qimage)
+        return None
+
+    def preload_around_frame(self, frame: int, window_size: int = 20) -> None:
+        """
+        Preload frames around current frame (background operation).
+
+        Phase 2C: Triggers background preloading of adjacent frames to
+        eliminate first-pass lag during playback.
+
+        Args:
+            frame: Center frame for preloading window
+            window_size: Number of frames to load before and after (default 20)
+
+        Note:
+            Non-blocking operation. Frames load in background QThread.
+            Safe to call from main thread during frame changes.
+        """
+        self._safe_image_cache.preload_around_frame(frame, window_size=window_size)
 
     def set_current_image_by_frame(self, _view: object, _frame: int) -> None:
         """Set current image by frame number."""

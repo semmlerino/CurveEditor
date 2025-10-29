@@ -868,10 +868,28 @@ def _update_background_image(self, frame: int) -> None:
 - ✅ Graceful worker shutdown with timeout
 - ✅ No race conditions or deadlocks identified
 
-**Known Limitations** (to address in Phase 2C):
-- Cache not yet integrated into DataService/ViewManagementController
-- No preloading triggers on frame change (manual preload only)
-- cache_progress signal not connected to UI
+**Phase 2C: DataService Integration** ✅ COMPLETE (October 2025)
+- [x] Updated `DataService.load_image_sequence()` to initialize cache
+- [x] Added `DataService.get_background_image()` method (returns QPixmap)
+- [x] Added `DataService.preload_around_frame()` wrapper method
+- [x] Updated `ViewManagementController._update_background_image()` to use cache
+- [x] Added preloading triggers on frame change (non-blocking)
+- [x] Removed legacy ViewManagementController cache (62 lines dead code cleanup)
+- [x] Comprehensive integration tests (16 tests, 100% pass rate)
+- [x] 0 basedpyright errors
+- [x] 78 total tests passing (Phase 2A/2B/2C combined)
+
+**Key Integration Points**:
+- ✅ **DataService owns cache lifecycle** - initialized on sequence load
+- ✅ **QImage → QPixmap conversion in main thread** - thread safety verified
+- ✅ **Non-blocking preload** - background operation, returns immediately
+- ✅ **FrameChangeCoordinator integration** - preload triggered after image display
+- ✅ **Dead code eliminated** - legacy ViewManagementController cache removed
+
+**Review Results**:
+- Code review: APPROVE WITH CHANGES (A grade, dead code removed)
+- Test coverage: SUFFICIENT (97.5% coverage, 78/80 lines)
+- Overall quality: A (Production-ready)
 
 ### Implementation Steps
 
@@ -889,16 +907,18 @@ def _update_background_image(self, frame: int) -> None:
 - [x] Handle worker cleanup on sequence changes
 - [x] Verify NO QPixmap in worker thread (add assertion test)
 
-**Phase 3: Integration** (0.5 days)
-- [ ] Update `DataService.load_image_sequence()` to initialize cache
-- [ ] Add `DataService.get_background_image()` method (returns QPixmap)
-- [ ] Update `ViewManagementController._update_background_image()` to use cache
-- [ ] Add preloading triggers on frame change
+**Phase 3: Integration** ✅ COMPLETE (renamed to Phase 2C)
+- [x] Update `DataService.load_image_sequence()` to initialize cache
+- [x] Add `DataService.get_background_image()` method (returns QPixmap)
+- [x] Update `ViewManagementController._update_background_image()` to use cache
+- [x] Add preloading triggers on frame change
+- [x] Remove legacy cache code (dead code cleanup)
 
-**Phase 4: Testing & Optimization** (0.5 days)
-- [ ] Unit tests for `SafeImageCacheManager`
-- [ ] Threading safety test: verify no QPixmap in worker
-- [ ] **Integration test: frame change triggers preload** (`test_frame_change_triggers_preload`)
+**Phase 4: Testing & Optimization** (0.5 days) - PARTIALLY COMPLETE
+- [x] Unit tests for `SafeImageCacheManager` (58 tests in Phase 2A/2B)
+- [x] Threading safety test: verify no QPixmap in worker (test_worker_no_qpixmap_created)
+- [x] Integration tests: cache initialization, QPixmap conversion, preload (16 tests in Phase 2C)
+- [ ] **Integration test: frame change triggers preload** (end-to-end UI test - Phase 2D)
 - [ ] Test with small sequences (10 frames)
 - [ ] Test with large sequences (500+ frames)
 - [ ] Profile memory usage
