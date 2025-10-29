@@ -295,16 +295,33 @@ class FrameTab(QLabel):
 - `core/frame_status_aggregator.py` (module-level function)
 - `tests/core/test_frame_status_aggregator.py` (17 comprehensive tests)
 
+**Phase 1B: DataService Integration** ✅ COMPLETE (October 2025)
+- [x] Added `aggregate_frame_statuses_for_curves()` method to DataService (line 447)
+- [x] Integrated with ApplicationState for curve data retrieval
+- [x] Created comprehensive test suite (9 tests, 100% pass rate)
+- [x] 100% line and branch coverage
+- [x] 0 basedpyright errors
+
+**Key Decisions (Phase 1B)**:
+- ✅ **Delegates to existing `get_frame_range_point_status()`** for each curve (reuses infrastructure)
+- ✅ **Graceful error handling** for empty lists, missing curves, None data
+- ✅ **Single-pass algorithm** - O(n*f) complexity (n=curves, f=frames) appropriate for typical usage
+- ✅ **Direct ApplicationState integration** - no unnecessary wrappers
+
+**Review Results**:
+- Code review: APPROVE (Overall Quality: A-, ready for Phase 1C)
+- Test coverage: SUFFICIENT (100% line/branch coverage, proceed to Phase 1C)
+- Minor suggestions noted (documentation, optional tests) - not blockers
+
+**Files Modified**:
+- `services/data_service.py` (added `aggregate_frame_statuses_for_curves()` method)
+- `tests/test_data_service.py` (added 9 comprehensive integration tests)
+
 ---
 
 ### Implementation Steps
 
-**Phase 1B: DataService Integration** (NEXT - 0.5 days)
-- [ ] Add `aggregate_frame_statuses()` integration to DataService
-- [ ] Add tests in `tests/services/test_data_service.py`
-- [ ] Verify integration with existing `get_frame_range_point_status()` method
-
-**Phase 1C: Timeline Widget Integration** (1.5 days)
+**Phase 1C: UI Integration** (NEXT - 1.5 days)
 - [ ] Add `AggregatedCounts` dataclass (type-safe accumulator)
 - [ ] Add `show_all_curves_mode` boolean flag
 - [ ] Add `mode_toggle_btn` to navigation controls

@@ -595,6 +595,268 @@ class TestRecentFiles:
         assert len(recent) == 3  # Should not exceed max
 
 
+class TestAggregateFrameStatuses:
+    """Test multi-curve frame status aggregation (Phase 1B)."""
+
+    def test_aggregate_single_curve_matches_direct_query(self):
+        """Test that single curve aggregation matches direct get_frame_range_point_status."""
+        from stores.application_state import get_application_state
+
+        service = DataService()
+        app_state = get_application_state()
+
+        # Setup: Add curve to ApplicationState
+        curve_name = "Track1"
+        curve_data: CurveDataList = [
+            (1, 10.0, 20.0, "keyframe"),
+            (2, 12.0, 22.0, "tracked"),
+            (3, 14.0, 24.0, "keyframe"),
+        ]
+        app_state.set_curve_data(curve_name, curve_data)
+
+        # Get direct status
+        direct_status = service.get_frame_range_point_status(curve_data)
+
+        # Get aggregated status
+        aggregated_status = service.aggregate_frame_statuses_for_curves([curve_name])
+
+        # Should match exactly for single curve
+        assert aggregated_status.keys() == direct_status.keys()
+        for frame in direct_status:
+            assert aggregated_status[frame] == direct_status[frame]
+
+    def test_aggregate_multiple_curves_sums_counts(self):
+        """Test that aggregation sums count fields across curves."""
+        from stores.application_state import get_application_state
+
+        service = DataService()
+        app_state = get_application_state()
+
+        # Setup: Two curves with different statuses at same frames
+        curve1_data: CurveDataList = [
+            (1, 10.0, 20.0, "keyframe"),  # Frame 1: 1 keyframe
+            (2, 12.0, 22.0, "tracked"),  # Frame 2: 1 tracked
+        ]
+        curve2_data: CurveDataList = [
+            (1, 15.0, 25.0, "tracked"),  # Frame 1: 1 tracked
+            (2, 17.0, 27.0, "interpolated"),  # Frame 2: 1 interpolated
+        ]
+
+        app_state.set_curve_data("Curve1", curve1_data)
+        app_state.set_curve_data("Curve2", curve2_data)
+
+        # Aggregate
+        result = service.aggregate_frame_statuses_for_curves(["Curve1", "Curve2"])
+
+        # Verify counts are summed
+        assert result[1].keyframe_count == 1  # Curve1
+        assert result[1].tracked_count == 1  # Curve2
+        assert result[2].tracked_count == 1  # Curve1
+        assert result[2].interpolated_count == 1  # Curve2
+
+    def test_aggregate_empty_curve_list_returns_empty(self):
+        """Test that empty curve list returns empty dict."""
+        service = DataService()
+
+        result = service.aggregate_frame_statuses_for_curves([])
+
+        assert result == {}
+
+    def test_aggregate_curves_with_non_overlapping_frames(self):
+        """Test aggregation when curves have non-overlapping frames."""
+        from stores.application_state import get_application_state
+
+        service = DataService()
+        app_state = get_application_state()
+
+        # Curve1: frames 1-3
+        curve1_data: CurveDataList = [
+            (1, 10.0, 20.0, "keyframe"),
+            (2, 12.0, 22.0, "tracked"),
+            (3, 14.0, 24.0, "keyframe"),
+        ]
+        # Curve2: frames 4-6
+        curve2_data: CurveDataList = [
+            (4, 16.0, 26.0, "keyframe"),
+            (5, 18.0, 28.0, "tracked"),
+            (6, 20.0, 30.0, "keyframe"),
+        ]
+
+        app_state.set_curve_data("Curve1", curve1_data)
+        app_state.set_curve_data("Curve2", curve2_data)
+
+        result = service.aggregate_frame_statuses_for_curves(["Curve1", "Curve2"])
+
+        # Should have all frames from both curves
+        assert set(result.keys()) == {1, 2, 3, 4, 5, 6}
+        # Each frame should have single-curve counts
+        assert result[1].keyframe_count == 1
+        assert result[2].tracked_count == 1
+        assert result[4].keyframe_count == 1
+        assert result[5].tracked_count == 1
+
+    def test_aggregate_curves_with_overlapping_frames(self):
+        """Test aggregation when curves have overlapping frames."""
+        from stores.application_state import get_application_state
+
+        service = DataService()
+        app_state = get_application_state()
+
+        # Both curves have data at frames 2-3
+        curve1_data: CurveDataList = [
+            (1, 10.0, 20.0, "keyframe"),
+            (2, 12.0, 22.0, "tracked"),
+            (3, 14.0, 24.0, "keyframe"),
+        ]
+        curve2_data: CurveDataList = [
+            (2, 16.0, 26.0, "keyframe"),
+            (3, 18.0, 28.0, "interpolated"),
+            (4, 20.0, 30.0, "keyframe"),
+        ]
+
+        app_state.set_curve_data("Curve1", curve1_data)
+        app_state.set_curve_data("Curve2", curve2_data)
+
+        result = service.aggregate_frame_statuses_for_curves(["Curve1", "Curve2"])
+
+        # Frame 2: should sum tracked (Curve1) + keyframe (Curve2)
+        assert result[2].tracked_count == 1
+        assert result[2].keyframe_count == 1
+
+        # Frame 3: should sum keyframe (Curve1) + interpolated (Curve2)
+        assert result[3].keyframe_count == 1
+        assert result[3].interpolated_count == 1
+
+    def test_aggregate_is_inactive_uses_AND_logic(self):
+        """Test that is_inactive uses AND logic (ALL curves must be inactive)."""
+        from stores.application_state import get_application_state
+
+        service = DataService()
+        app_state = get_application_state()
+
+        # Curve1: Frame 2 has endframe (creates inactive region after)
+        curve1_data: CurveDataList = [
+            (1, 10.0, 20.0, "keyframe"),
+            (2, 12.0, 22.0, "endframe"),
+            # Frame 3+ would be inactive (gap)
+        ]
+        # Curve2: Active curve (no gaps)
+        curve2_data: CurveDataList = [
+            (1, 15.0, 25.0, "keyframe"),
+            (2, 17.0, 27.0, "tracked"),
+            (3, 19.0, 29.0, "keyframe"),
+        ]
+
+        app_state.set_curve_data("Curve1", curve1_data)
+        app_state.set_curve_data("Curve2", curve2_data)
+
+        result = service.aggregate_frame_statuses_for_curves(["Curve1", "Curve2"])
+
+        # Frame 2: Curve1 has endframe (active), Curve2 is active
+        # Aggregation should show active (not inactive) because Curve2 is active
+        # (AND logic: frame inactive ONLY if ALL curves inactive)
+        # Note: Frame 2 itself is active (endframe is the last active frame)
+        assert result[2].is_inactive is False
+
+        # Frame 3: Only Curve2 has data (active)
+        # Should not be inactive because Curve2 is active
+        if 3 in result:
+            assert result[3].is_inactive is False
+
+    def test_aggregate_is_startframe_uses_OR_logic(self):
+        """Test that is_startframe uses OR logic (ANY curve has startframe)."""
+        from stores.application_state import get_application_state
+
+        service = DataService()
+        app_state = get_application_state()
+
+        # Curve1: Frame 1 is startframe (first point)
+        curve1_data: CurveDataList = [
+            (1, 10.0, 20.0, "keyframe"),
+            (2, 12.0, 22.0, "tracked"),
+        ]
+        # Curve2: Frame 1 is NOT startframe (just tracked)
+        curve2_data: CurveDataList = [
+            (1, 15.0, 25.0, "tracked"),
+            (2, 17.0, 27.0, "tracked"),
+        ]
+
+        app_state.set_curve_data("Curve1", curve1_data)
+        app_state.set_curve_data("Curve2", curve2_data)
+
+        result = service.aggregate_frame_statuses_for_curves(["Curve1", "Curve2"])
+
+        # Frame 1: Curve1 has startframe, Curve2 does not
+        # Aggregation should show startframe (OR logic: ANY curve)
+        assert result[1].is_startframe is True
+
+    def test_aggregate_nonexistent_curve_ignored(self):
+        """Test that nonexistent curves are ignored gracefully."""
+        from stores.application_state import get_application_state
+
+        service = DataService()
+        app_state = get_application_state()
+
+        # Only add one curve
+        curve1_data: CurveDataList = [
+            (1, 10.0, 20.0, "keyframe"),
+            (2, 12.0, 22.0, "tracked"),
+        ]
+        app_state.set_curve_data("Curve1", curve1_data)
+
+        # Request aggregation including nonexistent curve
+        result = service.aggregate_frame_statuses_for_curves(["Curve1", "NonexistentCurve"])
+
+        # Should return data for Curve1 only (NonexistentCurve ignored)
+        assert 1 in result
+        assert 2 in result
+        assert result[1].keyframe_count == 1
+        assert result[2].tracked_count == 1
+
+    def test_aggregate_three_curves_complex_case(self):
+        """Test aggregation with three curves and complex overlapping statuses."""
+        from stores.application_state import get_application_state
+
+        service = DataService()
+        app_state = get_application_state()
+
+        # Three curves with various statuses
+        curve1_data: CurveDataList = [
+            (1, 10.0, 20.0, "keyframe"),
+            (2, 12.0, 22.0, "tracked"),
+            (3, 14.0, 24.0, "endframe"),
+        ]
+        curve2_data: CurveDataList = [
+            (1, 15.0, 25.0, "tracked"),
+            (2, 17.0, 27.0, "interpolated"),
+            (3, 19.0, 29.0, "keyframe"),
+        ]
+        curve3_data: CurveDataList = [
+            (1, 20.0, 30.0, "keyframe"),
+            (2, 22.0, 32.0, "tracked"),
+            (3, 24.0, 34.0, "tracked"),
+        ]
+
+        app_state.set_curve_data("Curve1", curve1_data)
+        app_state.set_curve_data("Curve2", curve2_data)
+        app_state.set_curve_data("Curve3", curve3_data)
+
+        result = service.aggregate_frame_statuses_for_curves(["Curve1", "Curve2", "Curve3"])
+
+        # Frame 1: 2 keyframes (Curve1, Curve3), 1 tracked (Curve2)
+        assert result[1].keyframe_count == 2
+        assert result[1].tracked_count == 1
+
+        # Frame 2: 2 tracked (Curve1, Curve3), 1 interpolated (Curve2)
+        assert result[2].tracked_count == 2
+        assert result[2].interpolated_count == 1
+
+        # Frame 3: 1 endframe (Curve1), 1 keyframe (Curve2), 1 tracked (Curve3)
+        assert result[3].endframe_count == 1
+        assert result[3].keyframe_count == 1
+        assert result[3].tracked_count == 1
+
+
 class TestPointStatusAnalysis:
     """Test point status analysis methods."""
 

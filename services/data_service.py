@@ -444,6 +444,62 @@ class DataService:
 
         safe_execute_optional("updating segment activity", _update_activity, "DataService")
 
+    def aggregate_frame_statuses_for_curves(
+        self,
+        curve_names: list[str],
+    ) -> dict[int, FrameStatus]:
+        """Aggregate frame statuses across multiple curves.
+
+        Uses aggregate_frame_statuses() from core.frame_status_aggregator to combine
+        status information from multiple curves, following 3DEqualizer's multi-point
+        timeline behavior (sum counts, AND for is_inactive, OR for flags).
+
+        Args:
+            curve_names: List of curve names to aggregate. Empty list returns empty dict.
+
+        Returns:
+            Dict mapping frame numbers to aggregated FrameStatus. Each FrameStatus
+            contains summed counts and combined boolean flags across all curves.
+
+        Example:
+            >>> service = get_data_service()
+            >>> # Aggregate timeline status for all visible curves
+            >>> agg_status = service.aggregate_frame_statuses_for_curves(["Track1", "Track2"])
+            >>> # agg_status[42] shows combined status at frame 42 across both curves
+        """
+        from core.frame_status_aggregator import aggregate_frame_statuses
+        from stores.application_state import get_application_state
+
+        if not curve_names:
+            return {}
+
+        app_state = get_application_state()
+
+        # Collect status data from each curve
+        # Structure: frame_statuses[frame][curve_idx] = FrameStatus
+        frame_statuses: dict[int, list[FrameStatus]] = {}
+
+        for curve_name in curve_names:
+            curve_data = app_state.get_curve_data(curve_name)
+            if not curve_data:
+                continue
+
+            # Get status for this curve using existing method
+            curve_status = self.get_frame_range_point_status(curve_data)
+
+            # Group by frame number
+            for frame, status in curve_status.items():
+                if frame not in frame_statuses:
+                    frame_statuses[frame] = []
+                frame_statuses[frame].append(status)
+
+        # Aggregate statuses for each frame
+        aggregated: dict[int, FrameStatus] = {}
+        for frame, statuses in frame_statuses.items():
+            aggregated[frame] = aggregate_frame_statuses(statuses)
+
+        return aggregated
+
     def get_frame_range_point_status(self, points: CurveDataList) -> dict[int, FrameStatus]:
         """Get comprehensive point status for all frames that have points.
 
