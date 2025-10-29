@@ -174,7 +174,9 @@ class SegmentedCurve:
                 # Start new segment after an endframe
                 if prev_point.is_endframe:
                     should_start_new_segment = True
-                    in_gap_after_endframe = True  # We're now in a gap
+                    # We're in a gap only if the next point is NOT a keyframe
+                    # If it IS a keyframe, it starts a new active segment (no gap)
+                    in_gap_after_endframe = point.status != PointStatus.KEYFRAME
 
                 # Start new segment if this is a keyframe after being in a gap
                 elif in_gap_after_endframe and point.status == PointStatus.KEYFRAME:
@@ -384,14 +386,14 @@ class SegmentedCurve:
         prev_point: CurvePoint | None = None
         next_point: CurvePoint | None = None
 
+        # ENDFRAME is included as valid interpolation boundary
+        # This allows interpolation between KEYFRAME and ENDFRAME in active segments
+        valid_statuses = (PointStatus.KEYFRAME, PointStatus.TRACKED, PointStatus.NORMAL, PointStatus.ENDFRAME)
+
         for point in segment.points:
-            if point.frame < frame and point.status in (PointStatus.KEYFRAME, PointStatus.TRACKED, PointStatus.NORMAL):
+            if point.frame < frame and point.status in valid_statuses:
                 prev_point = point
-            elif point.frame > frame and point.status in (
-                PointStatus.KEYFRAME,
-                PointStatus.TRACKED,
-                PointStatus.NORMAL,
-            ):
+            elif point.frame > frame and point.status in valid_statuses:
                 if next_point is None:
                     next_point = point
                 break
@@ -447,15 +449,17 @@ class SegmentedCurve:
     def _get_position_beyond_segments(self, frame: int) -> tuple[float, float] | None:
         """Get position for a frame beyond all segments.
 
-        Returns a held position if there's an endframe with no keyframes after it.
-        This implements the rule: "After an endframe, if there are no keyframes
-        afterwards, all subsequent frames should be inactive."
+        Gap behavior: If there's an ENDFRAME with no keyframes after it,
+        hold the ENDFRAME position (inactive segment).
+
+        Normal extension: If the last point is a KEYFRAME (or no ENDFRAME exists),
+        hold the last point's position (natural curve extension).
 
         Args:
             frame: Frame number beyond all segments
 
         Returns:
-            Held position from last endframe (if no keyframes follow) or None
+            Held position or None if no points exist
         """
         if not self.all_points:
             return None
@@ -475,8 +479,14 @@ class SegmentedCurve:
             )
 
             # If no keyframes after endframe, all frames beyond should hold the endframe position
+            # (Gap behavior: inactive segment extends indefinitely)
             if not has_keyframe_after and frame > last_endframe.frame:
                 return (last_endframe.x, last_endframe.y)
+
+        # No gap behavior applies - use last point for natural extension
+        last_point = max(self.all_points, key=lambda p: p.frame)
+        if frame > last_point.frame:
+            return (last_point.x, last_point.y)
 
         return None
 

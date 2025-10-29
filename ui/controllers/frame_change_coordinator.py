@@ -39,6 +39,7 @@ Usage:
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 from core.logger_utils import get_logger
@@ -140,26 +141,30 @@ class FrameChangeCoordinator:
         """Disconnect from state manager and ApplicationState (cleanup)."""
         from stores.application_state import get_application_state
 
-        # Disconnect frame_changed
+        # Disconnect frame_changed (suppress warning if not connected)
         if self._connected:
-            try:
-                _ = self.main_window.state_manager.frame_changed.disconnect(self.on_frame_changed)
-                self._connected = False
-                logger.debug("Disconnected from frame_changed")
-            except (RuntimeError, TypeError):
-                # Signal already disconnected or connection never made
-                self._connected = False
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=RuntimeWarning, message="Failed to disconnect.*")
+                try:
+                    _ = self.main_window.state_manager.frame_changed.disconnect(self.on_frame_changed)
+                    self._connected = False
+                    logger.debug("Disconnected from frame_changed")
+                except (RuntimeError, TypeError):
+                    # Signal already disconnected or connection never made
+                    self._connected = False
 
-        # Disconnect active_curve_changed
+        # Disconnect active_curve_changed (suppress warning if not connected)
         if self._curve_change_connected:
-            try:
-                app_state = get_application_state()
-                _ = app_state.active_curve_changed.disconnect(self.on_active_curve_changed)
-                self._curve_change_connected = False
-                logger.debug("Disconnected from active_curve_changed")
-            except (RuntimeError, TypeError):
-                # Signal already disconnected or connection never made
-                self._curve_change_connected = False
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=RuntimeWarning, message="Failed to disconnect.*")
+                try:
+                    app_state = get_application_state()
+                    _ = app_state.active_curve_changed.disconnect(self.on_active_curve_changed)
+                    self._curve_change_connected = False
+                    logger.debug("Disconnected from active_curve_changed")
+                except (RuntimeError, TypeError):
+                    # Signal already disconnected or connection never made
+                    self._curve_change_connected = False
 
         if not self._connected and not self._curve_change_connected:
             logger.info("FrameChangeCoordinator fully disconnected")

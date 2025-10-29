@@ -335,7 +335,7 @@ class TestFileOperations:
     def test_save_file_with_path(self, file_ops, mock_services):
         """Test saving file with explicit path."""
         test_data = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
-        test_path = "/tmp/test_save.txt"
+        test_path = "/tmp/test_save.json"
 
         mock_services.save_success = True
 
@@ -370,7 +370,7 @@ class TestFileOperations:
         from services import get_data_service
 
         test_data = [(1, 100.0, 200.0)]
-        test_path = "/tmp/test_fail.txt"
+        test_path = "/tmp/test_fail.json"
 
         # Mock DataService save_json to return False
         data_service = get_data_service()
@@ -392,10 +392,10 @@ class TestFileOperations:
     def test_save_file_as_success(self, file_ops, monkeypatch, mock_services):
         """Test successful save file as."""
         test_data = [(1, 100.0, 200.0)]
-        test_path = "/tmp/test_saveas.txt"
+        test_path = "/tmp/test_saveas.json"
 
         # Mock QFileDialog to return test path
-        monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *args, **kwargs: (test_path, "Text Files (*.txt)"))
+        monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *args, **kwargs: (test_path, "JSON Files (*.json)"))
 
         mock_services.save_success = True
 

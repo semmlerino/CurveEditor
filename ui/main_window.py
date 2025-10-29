@@ -932,8 +932,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             status_name = current_point.status.name
             self._safe_set_label(self.type_label, f"Status: {status_name}")
         else:
-            # No point at current frame (gap in active segment)
-            self._safe_set_label(self.type_label, "Status: Inactive")
+            # No point at current frame in active segment
+            # This means position is interpolated between keyframes
+            self._safe_set_label(self.type_label, "Status: INTERPOLATED")
 
     def update_ui_state(self) -> None:
         """Update UI elements based on current state."""

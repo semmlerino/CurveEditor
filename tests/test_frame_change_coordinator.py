@@ -222,13 +222,22 @@ class TestFrameChangeCoordinator:
 
     # CRITICAL: Tests for bugs identified in code review
 
-    def test_connect_is_idempotent(self, main_window, coordinator, qtbot):
+    def test_connect_is_idempotent(self, main_window, qtbot):
         """Test connect() can be called multiple times without duplicate connections.
 
         Critical Bug #1: Prevents signal connection leak.
         If connect() called twice (testing, error recovery, window reinit),
         Qt creates multiple connections → 2x-3x updates per frame.
         """
+        # Use MainWindow's own coordinator (don't create a separate one)
+        coordinator = main_window.frame_change_coordinator
+
+        # Disconnect first to start from clean state (MainWindow.__init__ already connected it)
+        coordinator.disconnect()
+
+        # Flush any pending queued signals from previous tests
+        qtbot.wait(50)
+
         # Mock coordinator's _trigger_repaint to count calls
         with patch.object(coordinator, "_trigger_repaint") as repaint_mock:
             # Connect twice

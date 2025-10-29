@@ -596,8 +596,13 @@ class DataService:
                     elif is_gap_after_endframe:
                         # Frame is in gap after endframe (should be inactive)
                         frame_status[frame] = [0, 0, 0, 0, 0, False, True, False]
+                    elif segment and segment.is_active:
+                        # Frame is in ACTIVE segment but has no explicit point
+                        # This means position is interpolated between keyframes
+                        # Set interpolated_count=1 so timeline shows interpolated color
+                        frame_status[frame] = [0, 1, 0, 0, 0, False, False, False]
                     else:
-                        # Normal gap between keyframes - NOT inactive
+                        # Frame is outside all segments (gap between segments)
                         frame_status[frame] = [0, 0, 0, 0, 0, False, False, False]
 
         # Convert lists to FrameStatus namedtuples

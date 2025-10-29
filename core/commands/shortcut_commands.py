@@ -116,7 +116,12 @@ class SetEndframeCommand(ShortcutCommand):
     def can_execute(self, context: ShortcutContext) -> bool:
         """Check if we can toggle endframe status.
 
-        This is a FRAME-BASED operation - can execute if there's a point at the current frame.
+        This is a FRAME-BASED operation - can execute for any frame in the valid range.
+        Valid range is defined as [1, max_frame] where max_frame is the maximum of:
+        - Image sequence length (if loaded)
+        - Maximum frame in existing curve data
+
+        If no point exists at the current frame, one will be auto-created at the interpolated position.
         Selection is ignored.
         """
         # No modifiers should be pressed
@@ -125,19 +130,24 @@ class SetEndframeCommand(ShortcutCommand):
         if clean_modifiers != Qt.KeyboardModifier.NoModifier:
             return False
 
-        # Can execute if we have a current frame with a point
+        # Can execute if we have a current frame
         if context.current_frame is None:
             return False
 
         try:
             app_state = get_application_state()
-            # Get active curve data using property
+            # Must have an active curve
             if (cd := app_state.active_curve_data) is None:
                 return False
             _, curve_data = cd
 
-            # Check if any point exists at the current frame
-            return any(point[0] == context.current_frame for point in curve_data)
+            # Determine valid frame range: max of image sequence or curve data range
+            total_frames = app_state.get_total_frames()
+            if curve_data:
+                max_curve_frame = max(point[0] for point in curve_data)
+                total_frames = max(total_frames, max_curve_frame)
+
+            return 1 <= context.current_frame <= total_frames
 
         except ValueError:
             # No active curve set
@@ -148,30 +158,80 @@ class SetEndframeCommand(ShortcutCommand):
         """Execute the endframe toggle command.
 
         This is a FRAME-BASED operation - it operates on the point at the current frame,
-        NOT on selected points. This allows navigating to a frame and toggling its status
-        regardless of what's selected.
+        NOT on selected points. If no point exists at the current frame, one is auto-created
+        at the interpolated/held position (3DEqualizer behavior).
         """
         curve_widget = self._get_curve_widget(context)
         if curve_widget is None:
             return False
 
         try:
-            from core.commands.curve_commands import SetPointStatusCommand
-            from services import get_interaction_service
+            from core.commands.curve_commands import AddPointCommand, SetPointStatusCommand
+            from services import get_data_service, get_interaction_service
 
             # FRAME-BASED OPERATION: Always operate on current frame, ignore selection
             if context.current_frame is None:
                 return False
 
-            # Find the point at the current frame using ApplicationState
+            # Get active curve data using ApplicationState
             app_state = get_application_state()
             if (cd := app_state.active_curve_data) is None:
                 logger.warning("No active curve set, cannot toggle endframe")
                 return False
-            _, curve_data = cd
+            curve_name, curve_data = cd
+            curve_data = list(curve_data)  # Mutable copy
+
+            # Find the point at the current frame
             point_index = self._find_point_index_at_frame(curve_data, context.current_frame)
 
-            if point_index is None or point_index < 0 or point_index >= len(curve_data):
+            # If no point exists at current frame, create one at interpolated position
+            if point_index is None:
+                data_service = get_data_service()
+                position = data_service.get_position_at_frame(curve_data, context.current_frame)
+
+                if position is None:
+                    # No curve data to interpolate from - create at origin
+                    x, y = 0.0, 0.0
+                else:
+                    x, y = position
+
+                # Find insertion index (keep frames sorted)
+                insert_index = 0
+                for i, point in enumerate(curve_data):
+                    if point[0] < context.current_frame:
+                        insert_index = i + 1
+                    else:
+                        break
+
+                # Create new KEYFRAME at interpolated position
+                new_point = (context.current_frame, x, y, PointStatus.KEYFRAME.value)
+
+                # Add the point via command (for undo support)
+                add_command = AddPointCommand(
+                    description=f"Auto-create keyframe at frame {context.current_frame}",
+                    index=insert_index,
+                    point=new_point,
+                )
+
+                interaction_service = get_interaction_service()
+                if not interaction_service:
+                    return False
+
+                success = interaction_service.command_manager.execute_command(
+                    add_command, cast("MainWindowProtocol", cast(object, context.main_window))
+                )
+
+                if not success:
+                    logger.error("Failed to auto-create point")
+                    return False
+
+                # Update our local copy and find the new point
+                curve_data.insert(insert_index, new_point)
+                point_index = insert_index
+                logger.info(f"Auto-created keyframe at frame {context.current_frame}, position ({x:.2f}, {y:.2f})")
+
+            # Now we have a point at the current frame - toggle its status
+            if point_index < 0 or point_index >= len(curve_data):
                 return False
 
             point = curve_data[point_index]
@@ -179,7 +239,6 @@ class SetEndframeCommand(ShortcutCommand):
                 return False
 
             # Handle both 3-element (frame, x, y) and 4-element (frame, x, y, status) formats
-            # If no status is present, default to "keyframe"
             if len(point) >= 4:
                 current_status = PointStatus.from_legacy(point[3]).to_legacy_string()
             else:
@@ -193,7 +252,7 @@ class SetEndframeCommand(ShortcutCommand):
                 new_status = PointStatus.ENDFRAME.value
                 status_text = "ENDFRAME"
 
-            # Create status message first (before using it)
+            # Create status message
             msg = f"Set frame {context.current_frame} to {status_text}"
 
             # Create command with proper description

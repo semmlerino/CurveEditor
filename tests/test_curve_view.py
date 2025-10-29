@@ -442,6 +442,38 @@ class TestInteractionHandling:
         assert len(point_after) == 4
         assert point_after[3] == PointStatus.KEYFRAME.value, "Point should remain keyframe after nudge"
 
+    def test_nudge_endframe_stays_endframe(self, curve_view_widget: CurveViewWidget) -> None:
+        """Test that nudging an endframe preserves its status."""
+        from core.models import PointStatus
+
+        # Create test data with an endframe
+        test_data = [
+            (1, 100.0, 100.0, "keyframe"),
+            (2, 110.0, 110.0, PointStatus.ENDFRAME.value),  # This will be nudged
+            (3, 120.0, 120.0, "keyframe"),
+        ]
+        curve_view_widget.set_curve_data(test_data)
+
+        # Select the endframe (index 1)
+        set_test_selection(curve_view_widget, {1})
+
+        # Verify it's an endframe before nudging
+        point_before = curve_view_widget.curve_data[1]
+        assert len(point_before) == 4
+        assert point_before[3] == PointStatus.ENDFRAME.value, "Point should be endframe before nudge"
+
+        # Nudge the point
+        curve_view_widget.nudge_selected(5.0, 5.0)
+
+        # Verify the point is STILL an endframe (not converted to keyframe)
+        point_after = curve_view_widget.curve_data[1]
+        assert len(point_after) == 4
+        assert point_after[3] == PointStatus.ENDFRAME.value, "Point should remain endframe after nudge"
+
+        # Verify position changed
+        assert point_after[1] == 115.0, "X coordinate should have moved"
+        assert point_after[2] == 115.0, "Y coordinate should have moved"
+
 
 class TestServiceIntegration:
     """Test integration with services."""

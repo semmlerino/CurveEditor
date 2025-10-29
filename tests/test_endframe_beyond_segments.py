@@ -35,8 +35,12 @@ def test_endframe_makes_all_subsequent_frames_inactive_beyond_data():
     assert position_100 == (200.0, 200.0), f"Expected held position (200, 200), got {position_100}"
 
 
-def test_no_endframe_beyond_segments_returns_none():
-    """If there's no endframe, frames beyond data should return None."""
+def test_no_endframe_beyond_segments_returns_held_position():
+    """If there's no endframe, frames beyond data should return held position from last point.
+
+    This enables 3DEqualizer-style flexibility where the E key can work on any frame
+    in the image sequence range, not just frames with existing points.
+    """
     points = [
         CurvePoint(frame=10, x=100.0, y=100.0, status=PointStatus.KEYFRAME),
         CurvePoint(frame=20, x=200.0, y=200.0, status=PointStatus.TRACKED),
@@ -44,9 +48,9 @@ def test_no_endframe_beyond_segments_returns_none():
 
     curve = SegmentedCurve.from_points(points)
 
-    # Without an endframe, frames beyond should return None
-    assert curve.get_position_at_frame(30) is None
-    assert curve.get_position_at_frame(100) is None
+    # Without an endframe, frames beyond should return held position from last point
+    assert curve.get_position_at_frame(30) == (200.0, 200.0)
+    assert curve.get_position_at_frame(100) == (200.0, 200.0)
 
 
 def test_keyframe_after_endframe_reactivates():
@@ -54,10 +58,10 @@ def test_keyframe_after_endframe_reactivates():
 
     Test case:
     - Frame 10: KEYFRAME
-    - Frame 20: ENDFRAME
-    - Frame 30: KEYFRAME (starts new active segment)
+    - Frame 20: ENDFRAME (gap starts)
+    - Frame 30: KEYFRAME (starts new active segment, gap ends)
     - Frame 40: TRACKED
-    - Frame 50+: Should return None (no endframe after frame 30)
+    - Frame 50+: Should return held position from frame 40 (last point in active segment)
     """
     points = [
         CurvePoint(frame=10, x=100.0, y=100.0, status=PointStatus.KEYFRAME),
@@ -68,6 +72,6 @@ def test_keyframe_after_endframe_reactivates():
 
     curve = SegmentedCurve.from_points(points)
 
-    # Frames beyond should return None (no endframe after frame 30)
-    assert curve.get_position_at_frame(50) is None
-    assert curve.get_position_at_frame(100) is None
+    # Frames beyond should return held position from last point (frame 40)
+    assert curve.get_position_at_frame(50) == (400.0, 400.0)
+    assert curve.get_position_at_frame(100) == (400.0, 400.0)

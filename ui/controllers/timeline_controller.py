@@ -10,7 +10,7 @@ from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal, Slot
-from PySide6.QtWidgets import QApplication, QStyle
+from PySide6.QtWidgets import QApplication, QPushButton, QSlider, QSpinBox, QStyle
 
 from ui import widget_factory
 
@@ -144,40 +144,40 @@ class TimelineController(QObject):
 
         # ========== Navigation Widgets ==========
         # Frame spinbox
-        self.frame_spinbox = widget_factory.create_spinbox(
+        self.frame_spinbox: QSpinBox = widget_factory.create_spinbox(
             minimum=1, maximum=1000, value=1, tooltip="Current frame"  # Default max, will be updated
         )
 
         # Frame slider
-        self.frame_slider = widget_factory.create_slider(
+        self.frame_slider: QSlider = widget_factory.create_slider(
             minimum=1, maximum=1000, value=1, orientation=Qt.Orientation.Horizontal, tooltip="Scrub through frames"
         )
 
         # Navigation buttons
-        self.btn_first = widget_factory.create_button_with_icon(
+        self.btn_first: QPushButton = widget_factory.create_button_with_icon(
             icon=style.standardIcon(QStyle.StandardPixmap.SP_MediaSkipBackward), tooltip="First frame"
         )
 
-        self.btn_prev = widget_factory.create_button_with_icon(
+        self.btn_prev: QPushButton = widget_factory.create_button_with_icon(
             icon=style.standardIcon(QStyle.StandardPixmap.SP_MediaSeekBackward), tooltip="Previous frame"
         )
 
-        self.btn_next = widget_factory.create_button_with_icon(
+        self.btn_next: QPushButton = widget_factory.create_button_with_icon(
             icon=style.standardIcon(QStyle.StandardPixmap.SP_MediaSeekForward), tooltip="Next frame"
         )
 
-        self.btn_last = widget_factory.create_button_with_icon(
+        self.btn_last: QPushButton = widget_factory.create_button_with_icon(
             icon=style.standardIcon(QStyle.StandardPixmap.SP_MediaSkipForward), tooltip="Last frame"
         )
 
         # ========== Playback Widgets ==========
         # Play/pause button
-        self.btn_play_pause = widget_factory.create_button_with_icon(
+        self.btn_play_pause: QPushButton = widget_factory.create_button_with_icon(
             icon=style.standardIcon(QStyle.StandardPixmap.SP_MediaPlay), tooltip="Play/Pause (Spacebar)", checkable=True
         )
 
         # FPS spinbox
-        self.fps_spinbox = widget_factory.create_spinbox(
+        self.fps_spinbox: QSpinBox = widget_factory.create_spinbox(
             minimum=1, maximum=120, value=24, tooltip="Playback speed", suffix=" fps"
         )
 

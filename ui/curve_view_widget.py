@@ -1530,7 +1530,7 @@ class CurveViewWidget(QWidget):
 
     def nudge_selected(self, dx: float, dy: float) -> None:
         """
-        Nudge selected points and convert them to keyframes.
+        Nudge selected points and convert them to keyframes (except endframes which are preserved).
 
         Args:
             dx: X offset in data units
@@ -1552,6 +1552,7 @@ class CurveViewWidget(QWidget):
                 moves.append((idx, old_pos, new_pos))
 
                 # Collect status changes - convert non-keyframes to keyframes
+                # EXCEPT endframes which should be preserved
                 point = self.curve_data[idx]
                 if len(point) >= 4:
                     old_status = point[3]
@@ -1560,8 +1561,9 @@ class CurveViewWidget(QWidget):
                         old_status_str: str = "interpolated" if old_status else "normal"
                     else:
                         old_status_str = str(old_status)
-                    # Only add status change if not already a keyframe
-                    if old_status_str != PointStatus.KEYFRAME.value:
+                    # Only add status change if not already a keyframe AND not an endframe
+                    # Endframes should remain endframes when nudged
+                    if old_status_str != PointStatus.KEYFRAME.value and old_status_str != PointStatus.ENDFRAME.value:
                         status_changes.append((idx, old_status_str, PointStatus.KEYFRAME.value))
                 else:
                     # 3-tuple point has implicit "normal" status

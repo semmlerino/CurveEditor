@@ -23,6 +23,7 @@ from core.curve_segments import CurveSegment, SegmentedCurve
 from core.defaults import GRID_CELL_SIZE, RENDER_PADDING
 from core.logger_utils import get_logger
 from core.models import CurvePoint
+from core.type_aliases import CurveDataList
 from ui.color_constants import CurveColors
 
 if TYPE_CHECKING:
@@ -1085,6 +1086,83 @@ class OptimizedCurveRenderer:
                     label_y = int(screen_pos[1] + 5)
                     painter.drawText(label_x, label_y, label.upper())
 
+    def _densify_curve_for_rendering(self, curve_data: CurveDataList) -> CurveDataList:
+        """
+        Fill in interpolated frames for active segments to enable continuous line rendering.
+
+        When keyframes are created beyond the original curve range, there may be gaps
+        where frames don't have explicit point data. This method generates interpolated
+        points for all frames in active segments so the renderer can draw continuous lines.
+
+        Args:
+            curve_data: Sparse curve data (may have gaps in active segments)
+
+        Returns:
+            Dense curve data with all frames in active segments filled in
+        """
+        if not curve_data:
+            return curve_data
+
+        from core.models import PointStatus
+        from services import get_data_service
+
+        # Convert to CurvePoint objects for SegmentedCurve
+        points = []
+        for item in curve_data:
+            if len(item) >= 3:
+                frame, x, y = item[0], item[1], item[2]
+                status_str = item[3] if len(item) > 3 else "NORMAL"
+
+                # Handle both string and boolean status values
+                if isinstance(status_str, bool):
+                    status_str = "ENDFRAME" if status_str else "NORMAL"
+
+                # Convert status string to PointStatus
+                try:
+                    status = PointStatus[status_str.upper()]
+                except (KeyError, AttributeError):
+                    status = PointStatus.NORMAL
+
+                points.append(CurvePoint(frame=frame, x=x, y=y, status=status))
+
+        if len(points) < 2:
+            return curve_data
+
+        # Create segmented curve to identify active segments
+        segmented_curve = SegmentedCurve.from_points(points)
+
+        # Build densified data by filling in all frames in active segments
+        data_service = get_data_service()
+        densified: CurveDataList = []
+
+        # Get all frames we need to consider (from first to last point)
+        min_frame = min(p.frame for p in points)
+        max_frame = max(p.frame for p in points)
+
+        for frame in range(min_frame, max_frame + 1):
+            # Check if this frame is in an active segment
+            segment = segmented_curve.get_segment_at_frame(frame)
+
+            if segment and segment.is_active:
+                # Get position at this frame (uses interpolation if needed)
+                position = data_service.get_position_at_frame(curve_data, frame)
+                if position is None:
+                    continue
+                x, y = position
+
+                # Check if this frame has explicit point data
+                existing_point = next((p for p in points if p.frame == frame), None)
+
+                if existing_point:
+                    # Use existing point with its status
+                    status_str = existing_point.status.name
+                    densified.append((frame, x, y, status_str))
+                else:
+                    # Interpolated frame - mark as INTERPOLATED
+                    densified.append((frame, x, y, "INTERPOLATED"))
+
+        return densified
+
     def _render_multiple_curves(self, painter: QPainter, render_state: "RenderState") -> None:
         """Render multiple curves with different colors and styles.
 
@@ -1121,6 +1199,14 @@ class OptimizedCurveRenderer:
 
             # Visibility check: use pre-computed visibility from RenderState
             if visible_curves is None or curve_name not in visible_curves:
+                continue
+
+            # Densify curve data to fill in interpolated frames for continuous rendering
+            # This ensures lines are drawn through interpolated regions (e.g., between
+            # keyframes created beyond original curve range)
+            curve_points = self._densify_curve_for_rendering(curve_points)
+
+            if not curve_points:
                 continue
 
             # Determine curve styling
