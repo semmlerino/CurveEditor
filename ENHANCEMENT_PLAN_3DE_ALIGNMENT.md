@@ -317,11 +317,43 @@ class FrameTab(QLabel):
 - `services/data_service.py` (added `aggregate_frame_statuses_for_curves()` method)
 - `tests/test_data_service.py` (added 9 comprehensive integration tests)
 
+**Phase 1C: UI Integration** ✅ COMPLETE (October 2025)
+- [x] Added aggregate mode toggle button to timeline navigation bar
+- [x] Implemented `toggle_aggregate_mode()` method with `@safe_slot` decorator
+- [x] Modified `_on_curves_changed()` to handle both single-curve and aggregate modes
+- [x] Created comprehensive test suite (15 tests, 100% pass rate)
+- [x] 0 basedpyright errors in production code
+- [x] Fixed button width stability (setFixedWidth(120))
+
+**Key Decisions (Phase 1C)**:
+- ✅ **Checkable button** with `toggled` signal (Qt best practice)
+- ✅ **Fixed button width** prevents layout shift when text changes
+- ✅ **Minimal changes** to existing code - additive feature, no refactoring
+- ✅ **Reuses existing infrastructure** - StatusColorResolver, status cache, frame tabs
+- ✅ **Dynamic label feedback** - Shows "All Curves (N)" in aggregate mode
+
+**Review Results**:
+- Code review: APPROVE WITH MINOR CHANGES → Button width fix implemented
+- UI/UX validation: NEEDS IMPROVEMENTS → P1 critical fix (button width) implemented
+- Test coverage: 15 tests (100% pass), 6 test classes covering all scenarios
+- Production code: 0 type errors ✅
+- Tests: 15/15 passing ✅
+
+**Files Modified**:
+- `ui/timeline_tabs.py` (toggle button, mode switching logic)
+- `tests/ui/test_timeline_aggregate.py` (NEW - 15 comprehensive UI tests)
+
+**Known Limitations (Future Work)**:
+- Selection highlighting in aggregate mode only shows active curve's selection (not all curves)
+- No keyboard shortcut (Ctrl+Shift+A suggested for future)
+- Button placement could be clearer (add visual separator suggested)
+- Mode state not persisted across sessions
+
 ---
 
 ### Implementation Steps
 
-**Phase 1C: UI Integration** (NEXT - 1.5 days)
+**Phase 1: Multi-Curve Timeline Aggregate** ✅ COMPLETE
 - [ ] Add `AggregatedCounts` dataclass (type-safe accumulator)
 - [ ] Add `show_all_curves_mode` boolean flag
 - [ ] Add `mode_toggle_btn` to navigation controls

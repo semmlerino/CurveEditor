@@ -169,6 +169,7 @@ class TimelineTabWidget(QWidget):
     scrub_start_frame: int
     status_cache: FrameStatusCache
     _update_timer: QTimer
+    show_all_curves_mode: bool
 
     # UI components - initialized in _setup_ui (called from __init__)
     main_layout: QVBoxLayout
@@ -176,6 +177,7 @@ class TimelineTabWidget(QWidget):
     prev_group_btn: QPushButton  # pyright: ignore[reportUninitializedInstanceVariable]
     next_group_btn: QPushButton  # pyright: ignore[reportUninitializedInstanceVariable]
     last_btn: QPushButton  # pyright: ignore[reportUninitializedInstanceVariable]
+    mode_toggle_btn: QPushButton  # pyright: ignore[reportUninitializedInstanceVariable]
     active_point_label: QLabel  # pyright: ignore[reportUninitializedInstanceVariable]
     frame_info: QLabel  # pyright: ignore[reportUninitializedInstanceVariable]
     scroll_area: TimelineScrollArea  # pyright: ignore[reportUninitializedInstanceVariable]
@@ -225,6 +227,9 @@ class TimelineTabWidget(QWidget):
         # Scrubbing state
         self.is_scrubbing = False
         self.scrub_start_frame = 1
+
+        # Aggregate mode state
+        self.show_all_curves_mode = False
 
         # Performance optimization
         self.status_cache = FrameStatusCache()
@@ -382,9 +387,11 @@ class TimelineTabWidget(QWidget):
 
     @safe_slot
     def _on_curves_changed(self, curves: dict[str, CurveDataList]) -> None:
-        """Handle ApplicationState curves_changed signal."""
+        """Handle ApplicationState curves_changed signal.
 
-        logger.info(f"[TIMELINE] _on_curves_changed called with {len(curves)} curves")
+        Supports both single-curve and aggregate display modes.
+        """
+        logger.info(f"[TIMELINE] _on_curves_changed called with {len(curves)} curves (aggregate={self.show_all_curves_mode})")
 
         # Invalidate status cache when curve data changes (segmentation may have changed)
         self.status_cache.invalidate_all()
@@ -393,40 +400,80 @@ class TimelineTabWidget(QWidget):
         # Get active timeline point data (the curve whose timeline should be displayed)
         from services import get_data_service
 
-        # Use active_timeline_point from StateManager, fallback to active_curve if not set
-        active_timeline_point = None
-        if self._state_manager:
-            active_timeline_point = self._state_manager.active_timeline_point
+        data_service = get_data_service()
 
-        # Fallback to active_curve if active_timeline_point not set (e.g., in tests)
-        if not active_timeline_point:
-            active_timeline_point = self._app_state.active_curve
+        # Determine which curves to process based on mode
+        if self.show_all_curves_mode:
+            # Aggregate mode - use all available curves
+            selected_curves = list(curves.keys())
+            if not selected_curves:
+                # No curves to aggregate - use default range
+                total_frames = get_application_state().get_total_frames()
+                if total_frames > 1:
+                    self.set_frame_range(1, total_frames)
+                else:
+                    self.set_frame_range(1, 1)
+                return
 
-        if not active_timeline_point or active_timeline_point not in curves:
-            # Check if image sequence is loaded even without tracking data
-            total_frames = get_application_state().get_total_frames()
-            if total_frames > 1:
-                logger.debug(f"_on_curves_changed: No tracking data, using image sequence range 1-{total_frames}")
-                self.set_frame_range(1, total_frames)
-            else:
-                logger.debug("_on_curves_changed: No data, setting frame range to 1-1")
-                self.set_frame_range(1, 1)
-            return
+            # Get aggregated status across all curves
+            frame_status = data_service.aggregate_frame_statuses_for_curves(selected_curves)
 
-        curve_data = curves[active_timeline_point]
-        logger.debug(f"_on_curves_changed: got {len(curve_data) if curve_data else 0} points from ApplicationState")
+            # Calculate frame range from all curves
+            min_frame = 1
+            max_frame = 1
+            for curve_data in curves.values():
+                if curve_data:
+                    frame_range = get_frame_range_with_limits(curve_data, max_range=200)
+                    if frame_range:
+                        curve_min, curve_max = frame_range
+                        min_frame = min(min_frame, curve_min) if min_frame > 1 else curve_min
+                        max_frame = max(max_frame, curve_max)
 
-        if not curve_data:
-            total_frames = get_application_state().get_total_frames()
-            if total_frames > 1:
-                self.set_frame_range(1, total_frames)
-            else:
-                self.set_frame_range(1, 1)
-            return
+            # Also consider image sequence length
+            image_sequence_frames = get_application_state().get_total_frames()
+            max_frame = max(max_frame, image_sequence_frames)
 
-        # Calculate frame range from data (with performance limits)
-        frame_range = get_frame_range_with_limits(curve_data, max_range=200)
-        if frame_range:
+            # Update frame range
+            self.set_frame_range(min_frame, max_frame)
+
+        else:
+            # Single-curve mode - use active timeline point
+            # Use active_timeline_point from StateManager, fallback to active_curve if not set
+            active_timeline_point = None
+            if self._state_manager:
+                active_timeline_point = self._state_manager.active_timeline_point
+
+            # Fallback to active_curve if active_timeline_point not set (e.g., in tests)
+            if not active_timeline_point:
+                active_timeline_point = self._app_state.active_curve
+
+            if not active_timeline_point or active_timeline_point not in curves:
+                # Check if image sequence is loaded even without tracking data
+                total_frames = get_application_state().get_total_frames()
+                if total_frames > 1:
+                    logger.debug(f"_on_curves_changed: No tracking data, using image sequence range 1-{total_frames}")
+                    self.set_frame_range(1, total_frames)
+                else:
+                    logger.debug("_on_curves_changed: No data, setting frame range to 1-1")
+                    self.set_frame_range(1, 1)
+                return
+
+            curve_data = curves[active_timeline_point]
+            logger.debug(f"_on_curves_changed: got {len(curve_data) if curve_data else 0} points from ApplicationState")
+
+            if not curve_data:
+                total_frames = get_application_state().get_total_frames()
+                if total_frames > 1:
+                    self.set_frame_range(1, total_frames)
+                else:
+                    self.set_frame_range(1, 1)
+                return
+
+            # Calculate frame range from data (with performance limits)
+            frame_range = get_frame_range_with_limits(curve_data, max_range=200)
+            if not frame_range:
+                return
+
             min_frame, max_frame = frame_range
 
             # Also consider image sequence length from ApplicationState
@@ -444,27 +491,27 @@ class TimelineTabWidget(QWidget):
             self.set_frame_range(min_frame, max_frame)
 
             # Update status for all frames
-            data_service = get_data_service()
             frame_status = data_service.get_frame_range_point_status(curve_data)
 
-            inactive_count = 0
-            for frame, status in frame_status.items():
-                if status.is_inactive:
-                    inactive_count += 1
-                self.update_frame_status(
-                    frame,
-                    keyframe_count=status.keyframe_count,
-                    interpolated_count=status.interpolated_count,
-                    tracked_count=status.tracked_count,
-                    endframe_count=status.endframe_count,
-                    normal_count=status.normal_count,
-                    is_startframe=status.is_startframe,
-                    is_inactive=status.is_inactive,
-                    has_selected=status.has_selected,
-                )
+        # Update frame status for all frames (common path for both modes)
+        inactive_count = 0
+        for frame, status in frame_status.items():
+            if status.is_inactive:
+                inactive_count += 1
+            self.update_frame_status(
+                frame,
+                keyframe_count=status.keyframe_count,
+                interpolated_count=status.interpolated_count,
+                tracked_count=status.tracked_count,
+                endframe_count=status.endframe_count,
+                normal_count=status.normal_count,
+                is_startframe=status.is_startframe,
+                is_inactive=status.is_inactive,
+                has_selected=status.has_selected,
+            )
 
-            logger.info(f"[TIMELINE] Updated {len(frame_status)} frames ({inactive_count} inactive)")
-            logger.debug(f"Timeline updated from ApplicationState: {len(frame_status)} frames")
+        logger.info(f"[TIMELINE] Updated {len(frame_status)} frames ({inactive_count} inactive)")
+        logger.debug(f"Timeline updated from ApplicationState: {len(frame_status)} frames")
 
     @safe_slot
     def _on_active_curve_changed(self, _curve_name: str) -> None:
@@ -557,6 +604,38 @@ class TimelineTabWidget(QWidget):
                 has_selected=has_selected,
             )
 
+    @safe_slot
+    def toggle_aggregate_mode(self, checked: bool) -> None:
+        """Toggle between single-curve and aggregate display modes.
+
+        Args:
+            checked: True if aggregate mode is enabled, False for single-curve mode
+        """
+        self.show_all_curves_mode = checked
+
+        # Update button text to reflect current mode
+        if self.show_all_curves_mode:
+            self.mode_toggle_btn.setText("All Curves")
+            # Get all curves for aggregate display
+            all_curves = self._app_state.get_all_curves()
+            curve_count = len(all_curves)
+            self.active_point_label.setText(f"All Curves ({curve_count})")
+        else:
+            self.mode_toggle_btn.setText("Aggregate Mode")
+            # Restore single-curve display label
+            active_timeline_point = None
+            if self._state_manager:
+                active_timeline_point = self._state_manager.active_timeline_point
+            if not active_timeline_point:
+                active_timeline_point = self._app_state.active_curve
+            if active_timeline_point:
+                self.active_point_label.setText(f"Timeline: {active_timeline_point}")
+            else:
+                self.active_point_label.setText("No point")
+
+        # Refresh timeline display with new mode
+        self._on_curves_changed(self._app_state.get_all_curves())
+
     def _create_navigation_controls(self) -> None:
         """Create navigation buttons and frame info."""
         nav_widget = QWidget()
@@ -586,6 +665,14 @@ class TimelineTabWidget(QWidget):
         self.last_btn.setToolTip("Go to last frame")
         _ = self.last_btn.clicked.connect(lambda: self.set_current_frame(self.max_frame))
 
+        # Aggregate mode toggle button
+        self.mode_toggle_btn = QPushButton("Aggregate Mode")
+        self.mode_toggle_btn.setCheckable(True)
+        self.mode_toggle_btn.setFixedHeight(button_size)
+        self.mode_toggle_btn.setFixedWidth(120)  # Prevent width shift between "Aggregate Mode" and "All Curves"
+        self.mode_toggle_btn.setToolTip("Show combined status from all curves")
+        _ = self.mode_toggle_btn.toggled.connect(self.toggle_aggregate_mode)
+
         # Active point label - shows which tracking point's timeline is displayed
         self.active_point_label = QLabel("No point")
         self.active_point_label.setStyleSheet(
@@ -603,6 +690,7 @@ class TimelineTabWidget(QWidget):
         # Layout navigation
         nav_layout.addWidget(self.first_btn)
         nav_layout.addWidget(self.prev_group_btn)
+        nav_layout.addWidget(self.mode_toggle_btn)
         nav_layout.addWidget(self.active_point_label)
         nav_layout.addStretch()
         nav_layout.addWidget(self.frame_info)
