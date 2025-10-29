@@ -798,13 +798,46 @@ def _update_background_image(self, frame: int) -> None:
     get_data_service().preload_around_frame(frame)
 ```
 
+### Implementation Progress
+
+**Phase 2A: Core Cache Manager** ✅ COMPLETE (October 2025)
+- [x] Created `SafeImageCacheManager` class in `services/image_cache_manager.py` (237 lines)
+- [x] Implemented LRU cache logic with thread-safe `threading.Lock`
+- [x] Implemented `get_image()` returning QImage (NOT QPixmap - thread safety)
+- [x] Comprehensive test suite (39 tests, 100% pass rate)
+- [x] 100% line and branch coverage
+- [x] 0 basedpyright errors
+- [x] Added validation for max_cache_size <= 0 (per code review)
+
+**Key Decisions (Phase 2A)**:
+- ✅ **QImage storage** (not QPixmap) - enables Phase 2B background preloading
+- ✅ **List-based LRU tracking** - matches existing codebase pattern
+- ✅ **Frame-indexed lookup** - O(1) access using frame numbers as keys
+- ✅ **Single threading.Lock** - protects all cache operations
+- ✅ **EXR format support** - leverages existing `load_exr_as_qimage()` utility
+- ✅ **QObject base class** - provides hooks for Phase 2B signals
+
+**Review Results**:
+- Code review: APPROVE WITH MINOR CHANGES → Changes implemented (validation added)
+- Test coverage: SUFFICIENT (100% line/branch coverage, production-ready)
+- Overall quality: A+ (Excellent)
+
+**Files Created**:
+- `services/image_cache_manager.py` (thread-safe LRU cache, 237 lines)
+- `tests/test_image_cache_manager.py` (39 comprehensive tests, 100% coverage)
+
+**Known Limitations** (to address in Phase 2B):
+- Synchronous loading only (no background preloading yet)
+- First access always triggers disk load (no predictive preloading)
+- Fixed cache size (no adaptation to available RAM)
+
 ### Implementation Steps
 
-**Phase 1: Core Cache Manager** (1 day)
-- [ ] Create `SafeImageCacheManager` class in `services/image_cache_manager.py`
-- [ ] Implement LRU cache logic with thread safety
-- [ ] Implement `get_image()` returning QImage
-- [ ] Add unit tests for cache eviction policy
+**Phase 1: Core Cache Manager** ✅ COMPLETE
+- [x] Create `SafeImageCacheManager` class in `services/image_cache_manager.py`
+- [x] Implement LRU cache logic with thread safety
+- [x] Implement `get_image()` returning QImage
+- [x] Add unit tests for cache eviction policy
 
 **Phase 2: Background Preloading** (1 day)
 - [ ] Create `SafeImagePreloadWorker` QThread class (QImage only)
