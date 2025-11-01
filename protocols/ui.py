@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Protocol
 if TYPE_CHECKING:
     from PySide6.QtCore import QPoint
     from PySide6.QtGui import QPixmap
-    from PySide6.QtWidgets import QPushButton, QRubberBand, QStatusBar
+    from PySide6.QtWidgets import QDoubleSpinBox, QPushButton, QRubberBand, QStatusBar
 
     from rendering.visual_settings import VisualSettings
     from ui.protocols.controller_protocols import TimelineControllerProtocol
@@ -519,6 +519,10 @@ class MultiCurveViewProtocol(CurveViewProtocol, Protocol):
         """Invalidate rendering caches."""
         ...
 
+    def update_point(self, index: int, x: float, y: float) -> None:
+        """Update point coordinates at given index (needed by PointEditorController)."""
+        ...
+
     zoom_changed: SignalProtocol  # Signal emitted when zoom changes
 
     def reset_view(self) -> None:
@@ -693,6 +697,12 @@ class MainWindowProtocol(Protocol):
     save_button: "QPushButton | None"
     _point_spinbox_connected: bool
     file_operations: FileOperationsProtocol  # File operations manager
+
+    # Point editor widgets (needed by PointEditorController)
+    point_x_spinbox: "QDoubleSpinBox | None"
+    point_y_spinbox: "QDoubleSpinBox | None"
+    selected_point_label: "QLabelProtocol | None"
+    selected_count_label: "QLabelProtocol | None"
 
     # Service references (readonly to allow covariance)
     @property

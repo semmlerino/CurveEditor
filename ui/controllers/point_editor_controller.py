@@ -7,16 +7,11 @@ interaction with the curve data. It handles updating the spinbox values when
 points are selected and applying changes when spinbox values are edited.
 """
 
-from typing import TYPE_CHECKING
-
 from PySide6.QtCore import QSignalBlocker, Slot
-
-if TYPE_CHECKING:
-    from ui.main_window import MainWindow
-    from ui.state_manager import StateManager
 
 from core.logger_utils import get_logger
 from core.point_types import safe_extract_point
+from protocols.ui import MainWindowProtocol, StateManagerProtocol
 from stores.application_state import get_application_state
 
 logger = get_logger("point_editor_controller")
@@ -31,17 +26,17 @@ class PointEditorController:
     coordinate changes back to the curve.
     """
 
-    main_window: "MainWindow"
-    state_manager: "StateManager"
+    main_window: MainWindowProtocol
+    state_manager: StateManagerProtocol
     _spinbox_connected: bool
 
-    def __init__(self, main_window: "MainWindow", state_manager: "StateManager"):
+    def __init__(self, main_window: MainWindowProtocol, state_manager: StateManagerProtocol):
         """
         Initialize the point editor controller.
 
         Args:
-            main_window: Reference to the main window for UI access
-            state_manager: Reference to the state manager for selection state
+            main_window: Main window implementing MainWindowProtocol
+            state_manager: State manager implementing StateManagerProtocol
         """
         self.main_window = main_window
         self.state_manager = state_manager
