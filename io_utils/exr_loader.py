@@ -203,7 +203,7 @@ def _load_exr_with_pillow(file_path: str) -> "QImage | None":
 
 def _load_exr_with_imageio(file_path: str) -> "QImage | None":
     """
-    Load EXR using imageio (requires imageio-ffmpeg backend).
+    Load EXR using imageio (auto-detects available backend).
 
     Args:
         file_path: Path to the EXR file
@@ -215,9 +215,9 @@ def _load_exr_with_imageio(file_path: str) -> "QImage | None":
         import imageio.v3 as iio
         from PySide6.QtGui import QImage
 
-        # Read EXR file using imageio with explicit ffmpeg plugin
-        # The 'ffmpeg' plugin is provided by imageio-ffmpeg package
-        img_data = iio.imread(file_path, plugin="ffmpeg")
+        # Read EXR file using imageio with auto-detection
+        # Will try available plugins (pillow, etc.) automatically
+        img_data = iio.imread(file_path)
 
         # Apply tone mapping (HDR -> LDR conversion)
         img_data = _tone_map_hdr(img_data)
