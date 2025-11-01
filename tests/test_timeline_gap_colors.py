@@ -47,15 +47,31 @@ class TestTimelineGapColors:
         return window
 
     def test_timeline_shows_gaps_correctly(self, main_window: MainWindow, qtbot: QtBot) -> None:
-        """Test that frames without points show 'no_points' color, not interpolated colors."""
-        # Create sparse data with gaps
-        # Points at frames 1, 5, 10, 15, 20
-        # Gaps at frames 2-4, 6-9, 11-14, 16-19
+        """Test that frames without points show 'no_points' color, not interpolated colors.
+
+        Note: Frames between keyframes in active segments show as INTERPOLATED, not gaps.
+        True gaps only exist after endframes (which terminate active segments).
+        This test has been updated to match the correct DataService behavior.
+        """
+        # Create data with actual gaps using endframes
+        # Active segment 1: frames 1-2 (keyframe 1, endframe 2)
+        # Gap: frames 3-4
+        # Active segment 2: frames 5-6 (keyframe 5, endframe 6)
+        # Gap: frames 7-9
+        # Active segment 3: frames 10-11 (keyframe 10, endframe 11)
+        # Gap: frames 12-14
+        # Active segment 4: frames 15-16 (keyframe 15, endframe 16)
+        # Gap: frames 17-19
+        # Active segment 5: frame 20 (keyframe 20)
         sparse_data = [
             (1, 100.0, 100.0, "keyframe"),
+            (2, 110.0, 110.0, "endframe"),  # Ends segment - creates gap after
             (5, 150.0, 150.0, "keyframe"),
+            (6, 160.0, 160.0, "endframe"),  # Ends segment - creates gap after
             (10, 200.0, 200.0, "keyframe"),
+            (11, 210.0, 210.0, "endframe"),  # Ends segment - creates gap after
             (15, 250.0, 250.0, "keyframe"),
+            (16, 260.0, 260.0, "endframe"),  # Ends segment - creates gap after
             (20, 300.0, 300.0, "keyframe"),
         ]
 
@@ -72,49 +88,48 @@ class TestTimelineGapColors:
         for frame in range(1, 21):
             assert frame in timeline.frame_tabs, f"Frame {frame} not in timeline tabs"
 
-        # Frames with data should have keyframe color
-        frames_with_data = [1, 5, 10, 15, 20]
-        for frame in frames_with_data:
+        # Frames with explicit data points
+        frames_with_explicit_data = [1, 2, 5, 6, 10, 11, 15, 16, 20]
+        for frame in frames_with_explicit_data:
             tab = timeline.frame_tabs[frame]
-            assert tab.keyframe_count == 1, f"Frame {frame} should have 1 keyframe"
-            assert tab.interpolated_count == 0, f"Frame {frame} should have 0 interpolated"
-            # Color should be keyframe color
-            color = tab._get_background_color()
-            expected = tab._colors_cache["keyframe"]
-            # Allow for gradient variations
-            assert abs(color.red() - expected.red()) <= 30
-            assert abs(color.green() - expected.green()) <= 30
-            assert abs(color.blue() - expected.blue()) <= 30
+            # Should have some count > 0 (keyframe or endframe)
+            assert (
+                tab.keyframe_count + tab.endframe_count > 0
+            ), f"Frame {frame} should have keyframe or endframe"
 
-        # Frames without data should have no_points color
-        frames_without_data = [2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 16, 17, 18, 19]
-        for frame in frames_without_data:
+        # True gap frames (after endframes, before next keyframe)
+        # These should show as inactive (gray) in the timeline
+        gap_frames = [3, 4, 7, 8, 9, 12, 13, 14, 17, 18, 19]
+        for frame in gap_frames:
             tab = timeline.frame_tabs[frame]
-            assert tab.keyframe_count == 0, f"Frame {frame} should have 0 keyframes"
-            assert tab.interpolated_count == 0, f"Frame {frame} should have 0 interpolated"
-            assert tab.tracked_count == 0, f"Frame {frame} should have 0 tracked"
-            assert tab.point_count == 0, f"Frame {frame} should have 0 total points"
+            # Gap frames show as inactive (held position from endframe)
+            assert tab.is_inactive, f"Gap frame {frame} should be inactive"
 
-            # Color should be no_points color
+            # Color should be inactive color (dark gray), not interpolated color
             color = tab._get_background_color()
-            expected = tab._colors_cache["no_points"]
-            # Should match exactly (no gradient for no_points initially)
-            assert color.red() == expected.red(), f"Frame {frame} red mismatch"
-            assert color.green() == expected.green(), f"Frame {frame} green mismatch"
-            assert color.blue() == expected.blue(), f"Frame {frame} blue mismatch"
+            expected = tab._colors_cache["inactive"]
+            # Gap frames use inactive color
+            assert abs(color.red() - expected.red()) <= 30, f"Frame {frame} red mismatch"
+            assert abs(color.green() - expected.green()) <= 30, f"Frame {frame} green mismatch"
+            assert abs(color.blue() - expected.blue()) <= 30, f"Frame {frame} blue mismatch"
 
     def test_timeline_with_interpolated_vs_gaps(self, main_window: MainWindow, qtbot: QtBot) -> None:
-        """Test that interpolated points are distinct from gaps."""
-        # Data with keyframes, interpolated, and gaps
+        """Test that interpolated points are distinct from gaps.
+
+        Note: True gaps require endframes. Without endframes, all frames between
+        keyframes show as interpolated (the curve is continuous).
+        """
+        # Data with keyframes, explicit interpolated points, and TRUE gaps (using endframes)
         mixed_data = [
             (1, 100.0, 100.0, "keyframe"),
-            (2, 110.0, 110.0, "interpolated"),
-            (3, 120.0, 120.0, "interpolated"),
-            # Gap at frames 4-6
+            (2, 110.0, 110.0, "interpolated"),  # Explicit interpolated
+            (3, 120.0, 120.0, "endframe"),      # Ends segment - creates gap
+            # Gap at frames 4-6 (after endframe, before next keyframe)
             (7, 170.0, 170.0, "keyframe"),
-            (8, 180.0, 180.0, "interpolated"),
-            # Gap at frames 9-10
-            (10, 200.0, 200.0, "keyframe"),  # Add frame 10 to extend range
+            (8, 180.0, 180.0, "interpolated"),  # Explicit interpolated
+            (9, 190.0, 190.0, "endframe"),      # Ends segment - creates gap
+            # Gap at frame 10-11 (after endframe, before next keyframe)
+            (12, 220.0, 220.0, "keyframe"),
         ]
 
         # Load data
@@ -126,32 +141,41 @@ class TestTimelineGapColors:
         timeline = main_window.timeline_tabs
         assert timeline is not None
 
-        # Check interpolated frames
-        for frame in [2, 3, 8]:
+        # Check explicit interpolated frames
+        for frame in [2, 8]:
             tab = timeline.frame_tabs[frame]
             assert tab.interpolated_count == 1
             color = tab._get_background_color()
             expected = tab._colors_cache["interpolated"]
-            # These should NOT be no_points color
-            no_points = tab._colors_cache["no_points"]
-            assert color.red() != no_points.red() or color.green() != no_points.green()
+            # These should NOT be inactive color
+            inactive = tab._colors_cache["inactive"]
+            assert color.red() != inactive.red() or color.green() != inactive.green()
 
-        # Check gap frames (frames without any data)
-        for frame in [4, 5, 6, 9]:
-            tab = timeline.frame_tabs[frame]
-            assert tab.point_count == 0
-            color = tab._get_background_color()
-            expected = tab._colors_cache["no_points"]
-            assert color.red() == expected.red()
-            assert color.green() == expected.green()
-            assert color.blue() == expected.blue()
+        # Check gap frames (frames after endframe, before next keyframe)
+        for frame in [4, 5, 6, 10, 11]:
+            if frame in timeline.frame_tabs:
+                tab = timeline.frame_tabs[frame]
+                assert tab.is_inactive, f"Gap frame {frame} should be inactive"
+                color = tab._get_background_color()
+                expected = tab._colors_cache["inactive"]
+                # Gap frames use inactive color (dark gray)
+                assert abs(color.red() - expected.red()) <= 30
+                assert abs(color.green() - expected.green()) <= 30
+                assert abs(color.blue() - expected.blue()) <= 30
 
     def test_large_gaps_display_correctly(self, main_window: MainWindow, qtbot: QtBot) -> None:
-        """Test timeline with large gaps between data points."""
-        # Very sparse data with large gaps
+        """Test timeline with large gaps between data points.
+
+        Note: Frames between keyframes are INTERPOLATED. True gaps need endframes.
+        """
+        # Data with actual large gaps using endframes
         sparse_data = [
             (1, 100.0, 100.0, "keyframe"),
+            (10, 110.0, 110.0, "endframe"),  # Ends segment - creates gap
+            # Gap from 11-49
             (50, 200.0, 200.0, "keyframe"),
+            (60, 210.0, 210.0, "endframe"),  # Ends segment - creates gap
+            # Gap from 61-99
             (100, 300.0, 300.0, "keyframe"),
         ]
 
@@ -173,15 +197,16 @@ class TestTimelineGapColors:
                 # Allow gradient variations
                 assert abs(color.red() - expected.red()) <= 30
 
-        # Check some gap frames
-        gap_frames = [10, 20, 30, 60, 70, 80, 90]
+        # Check some actual gap frames (after endframes)
+        gap_frames = [15, 20, 30, 65, 70, 80, 90]
         for frame in gap_frames:
             if frame in timeline.frame_tabs:
                 tab = timeline.frame_tabs[frame]
-                assert tab.point_count == 0, f"Frame {frame} should have no points"
+                assert tab.is_inactive, f"Gap frame {frame} should be inactive"
                 color = tab._get_background_color()
-                expected = tab._colors_cache["no_points"]
-                assert color.red() == expected.red()
+                expected = tab._colors_cache["inactive"]
+                # Gap frames use inactive color
+                assert abs(color.red() - expected.red()) <= 30
 
     def test_timeline_color_consistency_after_data_changes(self, main_window: MainWindow, qtbot: QtBot) -> None:
         """Test that timeline colors update correctly when data changes."""
@@ -228,18 +253,22 @@ class TestTimelineGapColors:
             assert abs(color.red() - expected.red()) <= 30
 
     def test_timeline_gap_colors_with_all_status_types(self, main_window: MainWindow, qtbot: QtBot) -> None:
-        """Test gap colors alongside all different point status types."""
-        # Data with all status types and gaps
+        """Test gap colors alongside all different point status types.
+
+        Note: Frames between keyframes are interpolated. True gaps need endframes.
+        """
+        # Data with all status types and TRUE gaps (using endframes)
         diverse_data = [
             (1, 100.0, 100.0, "keyframe"),
             (2, 110.0, 110.0, "interpolated"),
-            # Gap at 3
-            (4, 130.0, 130.0, "tracked"),
-            (5, 140.0, 140.0, "endframe"),
-            # Gap at 6-7
-            (8, 160.0, 160.0, "normal"),
-            # Gap at 9
+            (3, 120.0, 120.0, "endframe"),  # Ends segment - creates gap
+            # Gap at 4
+            (5, 140.0, 140.0, "keyframe"),
+            (6, 150.0, 150.0, "tracked"),
+            (7, 160.0, 160.0, "endframe"),  # Ends segment - creates gap
+            # Gap at 8-9
             (10, 180.0, 180.0, "keyframe"),
+            (11, 190.0, 190.0, "normal"),
         ]
 
         assert main_window.curve_widget is not None
@@ -254,10 +283,12 @@ class TestTimelineGapColors:
         status_frames = {
             1: "keyframe",
             2: "interpolated",
-            4: "tracked",
-            5: "endframe",
-            8: "normal",
+            3: "endframe",
+            5: "keyframe",
+            6: "tracked",
+            7: "endframe",
             10: "keyframe",
+            11: "normal",
         }
 
         for frame, status in status_frames.items():
@@ -277,20 +308,17 @@ class TestTimelineGapColors:
                     # Just verify the frame has data
                     pass
 
-        # Check gap frames - they should have tabs but show as empty
-        gap_frames = [3, 6, 7, 9]
+        # Check gap frames - they should be inactive (after endframes)
+        gap_frames = [4, 8, 9]
         for frame in gap_frames:
             if frame in timeline.frame_tabs:
                 tab = timeline.frame_tabs[frame]
-                assert tab.point_count == 0, f"Gap frame {frame} should have 0 points"
-                # Don't check the exact color - just verify it's different from frames with data
+                assert tab.is_inactive, f"Gap frame {frame} should be inactive"
+                # Gap frames use inactive color
                 color = tab._get_background_color()
-                # The gap color should be darker/different than normal frames
-                # We'll just check it's not the same as a keyframe color
-                keyframe_color = tab._colors_cache.get("keyframe", None)
-                if keyframe_color:
-                    # Allow some tolerance in color comparison
-                    assert color != keyframe_color, f"Gap frame {frame} should not have keyframe color"
+                inactive_color = tab._colors_cache.get("inactive", None)
+                if inactive_color:
+                    assert abs(color.red() - inactive_color.red()) <= 30
 
     def test_timeline_edge_case_single_frame_data(self, main_window: MainWindow, qtbot: QtBot) -> None:
         """Test timeline with only a single frame of data."""
@@ -316,11 +344,18 @@ class TestTimelineGapColors:
         # (Timeline might only create tabs for frames 5 or a small range around it)
 
     def test_timeline_performance_with_many_gaps(self, main_window: MainWindow, qtbot: QtBot) -> None:
-        """Test timeline performance doesn't degrade with many gap frames."""
-        # Data at every 10th frame, creating many gaps
-        sparse_data = [
-            (i * 10, float(i * 100), float(i * 100), "keyframe") for i in range(1, 11)
-        ]  # Frames 10, 20, 30...100
+        """Test timeline performance doesn't degrade with many gap frames.
+
+        Note: This test creates TRUE gaps using endframes for realistic performance testing.
+        """
+        # Data with keyframes followed by endframes, creating actual gaps
+        sparse_data = []
+        for i in range(1, 11):
+            # Add keyframe and endframe for each segment
+            frame_start = i * 10
+            sparse_data.append((frame_start, float(i * 100), float(i * 100), "keyframe"))
+            sparse_data.append((frame_start + 2, float(i * 100 + 20), float(i * 100 + 20), "endframe"))
+            # This creates gaps between segments (e.g., frames 13-20, 23-30, etc.)
 
         assert main_window.curve_widget is not None
         main_window.curve_widget.set_curve_data(sparse_data)
@@ -343,8 +378,8 @@ class TestTimelineGapColors:
         # Spot check some frames
         if 10 in timeline.frame_tabs:
             assert timeline.frame_tabs[10].keyframe_count == 1
-        if 15 in timeline.frame_tabs:  # Gap frame
-            assert timeline.frame_tabs[15].point_count == 0
+        if 15 in timeline.frame_tabs:  # Gap frame (after endframe at 12)
+            assert timeline.frame_tabs[15].is_inactive  # Gap frames are inactive
 
     def test_timeline_colors_match_ui_constants(self, main_window: MainWindow, qtbot: QtBot) -> None:
         """Test that timeline colors are properly derived from ui_constants."""

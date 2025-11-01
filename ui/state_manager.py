@@ -106,6 +106,7 @@ class StateManager(QObject):
         self._zoom_level: float = 1.0
         self._pan_offset: tuple[float, float] = (0.0, 0.0)
         self._view_bounds: tuple[float, float, float, float] = (0.0, 0.0, 100.0, 100.0)  # min_x, min_y, max_x, max_y
+        self._show_current_point_only: bool = False  # 3DEqualizer-style: show only point at current frame
 
         # Image sequence state
         self._image_directory: str | None = None
@@ -376,6 +377,19 @@ class StateManager(QObject):
             self._view_bounds = bounds
             self.view_state_changed.emit()
             logger.debug(f"View bounds changed to: {bounds}")
+
+    @property
+    def show_current_point_only(self) -> bool:
+        """Get the show current point only mode (3DEqualizer-style)."""
+        return self._show_current_point_only
+
+    @show_current_point_only.setter
+    def show_current_point_only(self, value: bool) -> None:
+        """Set the show current point only mode."""
+        if self._show_current_point_only != value:
+            self._show_current_point_only = value
+            self.view_state_changed.emit()
+            logger.debug(f"Show current point only mode: {value}")
 
     # ==================== Image Sequence Properties ====================
 

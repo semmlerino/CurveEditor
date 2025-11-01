@@ -29,13 +29,12 @@ where thorough validation of implementation details is required.
 # pyright: reportUnusedParameter=none
 
 import time
-from pathlib import Path
 
 import pytest
 from PySide6.QtGui import QImage
 
 from services import get_data_service
-from stores.application_state import get_application_state
+from services.data_service import DataService
 from ui.controllers.view_management_controller import ViewManagementController
 
 
@@ -81,6 +80,7 @@ def large_image_sequence(tmp_path):
 def mock_main_window(qtbot):
     """Create mock MainWindow with minimal required components."""
     from unittest.mock import MagicMock
+
     from PySide6.QtWidgets import QWidget
 
     # Create real widget to satisfy qtbot
@@ -98,7 +98,7 @@ def mock_main_window(qtbot):
 @pytest.fixture
 def data_service_with_sequence(temp_image_sequence):
     """DataService with loaded image sequence."""
-    test_dir, expected_files = temp_image_sequence
+    test_dir, _expected_files = temp_image_sequence
     service = DataService()
     service.load_image_sequence(str(test_dir))
     return service
@@ -117,7 +117,7 @@ class TestFrameChangeIntegration:
         - get_background_image() triggers DataService.preload_around_frame()
         - preload_around_frame() starts background worker
         """
-        test_dir, expected_files = temp_image_sequence
+        test_dir, _expected_files = temp_image_sequence
 
         # Setup: Load image sequence using singleton DataService
         data_service = get_data_service()
@@ -154,7 +154,7 @@ class TestFrameChangeIntegration:
 
     def test_background_image_updated_on_frame_change(self, qtbot, temp_image_sequence, mock_main_window):
         """Verify background image is updated when frame changes."""
-        test_dir, expected_files = temp_image_sequence
+        test_dir, _expected_files = temp_image_sequence
 
         # Setup
         data_service = get_data_service()
@@ -169,7 +169,6 @@ class TestFrameChangeIntegration:
         assert mock_main_window.curve_widget.background_image is not None
 
         # Store first background
-        first_background = mock_main_window.curve_widget.background_image
 
         # Act: Update to different frame
         view_controller._update_background_image(10)
@@ -190,7 +189,7 @@ class TestCachePerformance:
 
         Success criteria: Cache hit < 5ms
         """
-        test_dir, expected_files = temp_image_sequence
+        test_dir, _expected_files = temp_image_sequence
 
         # Setup: Load sequence
         data_service = get_data_service()
@@ -231,7 +230,7 @@ class TestCachePerformance:
 
         Success criteria: Average frame switch < 16ms
         """
-        test_dir, expected_files = large_image_sequence
+        test_dir, _expected_files = large_image_sequence
 
         # Setup: Load sequence
         data_service = get_data_service()
@@ -270,14 +269,14 @@ class TestCachePerformance:
         )
 
         # Log performance metrics for analysis
-        print(f"\nScrubbing performance (51 frames):")
+        print("\nScrubbing performance (51 frames):")
         print(f"  Average: {avg_time*1000:.2f}ms")
         print(f"  Max: {max_time*1000:.2f}ms")
         print(f"  95th percentile: {p95_time*1000:.2f}ms")
 
     def test_cache_hit_consistency(self, qtbot, temp_image_sequence):
         """Verify cache hits are consistently fast across multiple accesses."""
-        test_dir, expected_files = temp_image_sequence
+        test_dir, _expected_files = temp_image_sequence
         data_service = get_data_service()
         data_service.load_image_sequence(str(test_dir))
 
@@ -306,7 +305,7 @@ class TestCachePerformance:
         variance = sum((t - avg) ** 2 for t in hit_times) / len(hit_times)
         std_dev = variance ** 0.5
 
-        print(f"\nCache hit consistency (10 accesses):")
+        print("\nCache hit consistency (10 accesses):")
         print(f"  Average: {avg*1000:.2f}ms")
         print(f"  Std dev: {std_dev*1000:.2f}ms")
 
@@ -320,7 +319,7 @@ class TestPreloadEffectiveness:
 
         Simulates real playback: each frame triggers preload for next frames.
         """
-        test_dir, expected_files = large_image_sequence
+        test_dir, _expected_files = large_image_sequence
         data_service = get_data_service()
         data_service.load_image_sequence(str(test_dir))
 
@@ -355,7 +354,7 @@ class TestPreloadEffectiveness:
             f"should be faster than first frame ({first_frame_time*1000:.2f}ms)"
         )
 
-        print(f"\nSequential playback with preload (31 frames):")
+        print("\nSequential playback with preload (31 frames):")
         print(f"  First frame: {first_frame_time*1000:.2f}ms (cache miss)")
         print(f"  Average subsequent: {avg_subsequent*1000:.2f}ms (preloaded)")
 
@@ -365,7 +364,7 @@ class TestPreloadEffectiveness:
 
         Preload window should handle both directions.
         """
-        test_dir, expected_files = large_image_sequence
+        test_dir, _expected_files = large_image_sequence
         data_service = get_data_service()
         data_service.load_image_sequence(str(test_dir))
 

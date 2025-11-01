@@ -534,9 +534,33 @@ class TrackingPointsPanel(QWidget):
 
         selected_points = self.get_selected_points()
 
+        # Get the current item (last clicked) to make it the active curve
+        current_row = self.table.currentRow()
+        current_curve: str | None = None
+        if current_row >= 0:
+            name_item = self.table.item(current_row, 1)  # Name column
+            if name_item:
+                current_curve = name_item.text()
+
+        logger.debug(
+            f"TrackingPanel selection changed: selected={selected_points}, currentRow={current_row}, current_curve={current_curve}"
+        )
+
         # Update ApplicationState (single source of truth)
         # This triggers selection_state_changed signal → MultiPointTrackingController
         self._app_state.set_selected_curves(set(selected_points))
+
+        # Set the current (last clicked) curve as active
+        # This fixes the bug where Ctrl+clicking a curve with a gap doesn't make it active
+        # Root cause: set_selected_curves() uses a set which loses ordering, so the
+        # signal pathway can't determine which curve was just clicked
+        if current_curve and current_curve in selected_points:
+            logger.debug(f"Setting active curve to: {current_curve}")
+            self._app_state.set_active_curve(current_curve)
+        else:
+            logger.warning(
+                f"Cannot set active curve: current_curve={current_curve}, selected_points={selected_points}, in_selected={current_curve in selected_points if current_curve else 'N/A'}"
+            )
 
     def _on_item_changed(self, item: QTableWidgetItem) -> None:
         """Handle item editing (point renaming)."""

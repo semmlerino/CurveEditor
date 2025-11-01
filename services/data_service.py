@@ -876,6 +876,14 @@ class DataService:
         """Set maximum cache size."""
         self._max_cache_size = size
 
+    def set_image_sequence(self, image_paths: list[str]) -> None:
+        """Set the image sequence for the cache manager.
+
+        Args:
+            image_paths: List of full paths to image files
+        """
+        self._safe_image_cache.set_image_sequence(image_paths)
+
     # ==================== Legacy Methods (Minimal) ====================
 
     # Keep these minimal legacy methods for compatibility

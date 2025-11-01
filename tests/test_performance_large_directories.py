@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import QApplication
 
 from core.directory_scan_worker import DirectoryScanWorker, ThumbnailCache
@@ -107,8 +107,13 @@ class TestPerformanceLargeDirectories:
             thumbnails_loaded = []
             errors = []
 
-            def on_thumbnail_loaded(frame_num, pixmap):
-                thumbnails_loaded.append((frame_num, pixmap))
+            def on_thumbnail_loaded(frame_num, qimage):
+                # Convert QImage to QPixmap for storage (main thread)
+                if isinstance(qimage, QImage):
+                    pixmap = QPixmap.fromImage(qimage)
+                    thumbnails_loaded.append((frame_num, pixmap))
+                else:
+                    errors.append((frame_num, f"Invalid image type: {type(qimage)}"))
 
             def on_thumbnail_error(frame_num, error):
                 errors.append((frame_num, error))
@@ -154,6 +159,13 @@ class TestPerformanceLargeDirectories:
             avg_time_per_thumbnail = load_duration / len(thumbnails_loaded)
             print(f"Generated {len(thumbnails_loaded)} thumbnails in {load_duration:.2f}s " +
                   f"({avg_time_per_thumbnail*1000:.1f}ms per thumbnail)")
+
+            # CRITICAL: Cleanup QThread to prevent resource accumulation
+            try:
+                loader.deleteLater()
+                qapp.processEvents()  # Process deleteLater
+            except RuntimeError:
+                pass  # Already deleted
 
     @pytest.mark.performance
     def test_thumbnail_cache_performance(self):
@@ -290,8 +302,11 @@ class TestPerformanceLargeDirectories:
             loader = ThumbnailLoader()
             thumbnails_loaded = []
 
-            def on_thumbnail_loaded(frame_num, pixmap):
-                thumbnails_loaded.append((frame_num, pixmap))
+            def on_thumbnail_loaded(frame_num, qimage):
+                # Convert QImage to QPixmap for storage (main thread)
+                if isinstance(qimage, QImage):
+                    pixmap = QPixmap.fromImage(qimage)
+                    thumbnails_loaded.append((frame_num, pixmap))
 
             loader.thumbnail_loaded.connect(on_thumbnail_loaded, Qt.ConnectionType.DirectConnection)
 
@@ -326,6 +341,14 @@ class TestPerformanceLargeDirectories:
             assert len(thumbnails_loaded) == 10, f"Expected 10 thumbnails, got {len(thumbnails_loaded)}"
 
             print(f"Concurrent scan + thumbnail generation: {total_time:.2f}s")
+
+            # CRITICAL: Cleanup QThread objects to prevent resource accumulation
+            try:
+                scanner.deleteLater()
+                loader.deleteLater()
+                qapp.processEvents()  # Process deleteLater
+            except RuntimeError:
+                pass  # Already deleted
 
     @pytest.mark.performance
     def test_ui_responsiveness_large_dataset(self, qapp):

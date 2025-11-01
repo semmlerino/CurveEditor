@@ -474,18 +474,24 @@ class TestTrackingPointsSelection:
         # Assert
         assert main_window.active_timeline_point == curve_name
 
-    def test_on_tracking_points_selected_sets_active_curve(
+    def test_on_tracking_points_selected_does_not_set_active_curve(
         self,
         controller: TrackingSelectionController,
         main_window: MockMainWindow,
         app_state,
         multi_curve_data: dict[str, list[tuple[int, float, float, str]]],
     ) -> None:
-        """Test that point selection updates active curve in ApplicationState.
+        """Test that point selection DOES NOT set active curve (moved to TrackingPanel).
+
+        As of the Ctrl+click fix (Oct 2025), active curve setting is now handled
+        exclusively by TrackingPanel._on_selection_changed() using currentRow().
+
+        This prevents race conditions where both TrackingPanel and controller try to set
+        active curve with different values.
 
         Verifies:
-        - Active curve set to selected point name
-        - state synchronization works
+        - Active curve is NOT modified by controller
+        - TrackingPanel is the single source of truth for active curve determination
         """
         # Arrange
         for curve_name, data in multi_curve_data.items():
@@ -496,11 +502,14 @@ class TestTrackingPointsSelection:
         display_controller = TrackingDisplayController(main_window)
         point_names = ["pp56_TM_139H"]
 
+        # Set a different active curve to verify controller doesn't change it
+        app_state.set_active_curve("pp56_TM_141J")
+
         # Act
         controller.on_tracking_points_selected(point_names, display_controller)
 
-        # Assert
-        assert app_state.active_curve == "pp56_TM_139H"
+        # Assert - active curve should remain unchanged (controller doesn't set it)
+        assert app_state.active_curve == "pp56_TM_141J"
 
     def test_on_tracking_points_selected_with_multiple_points(
         self,
@@ -509,11 +518,15 @@ class TestTrackingPointsSelection:
         app_state,
         multi_curve_data: dict[str, list[tuple[int, float, float, str]]],
     ) -> None:
-        """Test selecting multiple points - last becomes active.
+        """Test selecting multiple points - active_timeline_point set, but NOT active_curve.
+
+        As of Ctrl+click fix (Oct 2025):
+        - active_timeline_point is still set by controller (for UI display)
+        - active_curve is NOT set by controller (moved to TrackingPanel)
 
         Verifies:
-        - Last selected point in list becomes active
-        - Multi-selection last-wins behavior
+        - Last selected point becomes active_timeline_point (for UI)
+        - active_curve is NOT modified (TrackingPanel's responsibility)
         """
         # Arrange
         for curve_name, data in multi_curve_data.items():
@@ -524,12 +537,18 @@ class TestTrackingPointsSelection:
         display_controller = TrackingDisplayController(main_window)
         point_names = ["pp56_TM_138G", "pp56_TM_139H"]
 
+        # Set a different active curve to verify controller doesn't change it
+        app_state.set_active_curve("pp56_TM_141J")
+
         # Act
         controller.on_tracking_points_selected(point_names, display_controller)
 
-        # Assert - Last point should be active
-        assert app_state.active_curve == "pp56_TM_139H"
+        # Assert
+        # active_timeline_point is set by controller (for UI display)
         assert main_window.active_timeline_point == "pp56_TM_139H"
+
+        # active_curve should remain unchanged (TrackingPanel sets this, not controller)
+        assert app_state.active_curve == "pp56_TM_141J"
 
     def test_on_tracking_points_selected_with_invalid_display_controller(
         self,

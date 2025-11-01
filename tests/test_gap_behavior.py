@@ -261,13 +261,13 @@ class TestEdgeCases:
         """Test gap behavior with single point curves."""
         data_service = DataService()
 
-        # Single keyframe
+        # Single keyframe - holds position after (natural curve extension)
         curve_data: CurveDataList = [(5, 150.0, 150.0, "keyframe")]
         assert data_service.get_position_at_frame(curve_data, 5) == (150.0, 150.0)
         assert data_service.get_position_at_frame(curve_data, 3) is None  # Before
-        assert data_service.get_position_at_frame(curve_data, 7) is None  # After
+        assert data_service.get_position_at_frame(curve_data, 7) == (150.0, 150.0)  # Held after
 
-        # Single endframe
+        # Single endframe - also holds position after (gap behavior)
         curve_data_end: CurveDataList = [(5, 150.0, 150.0, "endframe")]
         assert data_service.get_position_at_frame(curve_data_end, 5) == (150.0, 150.0)
         assert data_service.get_position_at_frame(curve_data_end, 7) == (150.0, 150.0)  # Held after

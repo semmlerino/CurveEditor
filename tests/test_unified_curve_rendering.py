@@ -231,16 +231,23 @@ class TestUnifiedCurveRendering:
             calls = mock_render_points.call_args_list
 
             # First call should be for curve1
+            # Renderer densifies curves by filling interpolated frames between keyframes
+            # curve1 has explicit points at frames 5, 10, 15, 20
+            # Densified: frames 5-15 (11 points) + frame 20 (explicit point in gap) = 12 points
             curve1_call = calls[0]
             curve1_points_data = curve1_call[1]["points_data"]
-            assert len(curve1_points_data) == 4
-            assert curve1_points_data[1][0] == 10  # Current frame point
+            assert len(curve1_points_data) == 12  # Frames 5-15 + 20 (explicit point in gap)
+            # Current frame (10) is at index 5 in densified data (frames 5,6,7,8,9,10,...)
+            assert curve1_points_data[5][0] == 10  # Current frame point
 
             # Second call should be for curve2
+            # curve2 has explicit points at frames 8, 10, 12
+            # Densified: frames 8-12 (5 points)
             curve2_call = calls[1]
             curve2_points_data = curve2_call[1]["points_data"]
-            assert len(curve2_points_data) == 3
-            assert curve2_points_data[1][0] == 10  # Current frame point
+            assert len(curve2_points_data) == 5  # Frames 8-12 densified
+            # Current frame (10) is at index 2 in densified data (frames 8,9,10,...)
+            assert curve2_points_data[2][0] == 10  # Current frame point
 
     def test_selection_highlighting_in_multi_curve_mode(self, renderer, mock_curve_view, mock_painter):
         """Test that selected points are highlighted correctly in multi-curve mode."""

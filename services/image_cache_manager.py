@@ -17,9 +17,9 @@ Key Design Decisions:
 import logging
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, ClassVar, override
 
-from PySide6.QtCore import QObject, QThread, Qt, Signal, Slot
+from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
 
 if TYPE_CHECKING:
     from PySide6.QtGui import QImage
@@ -44,8 +44,8 @@ class SafeImagePreloadWorker(QThread):
         - Graceful stop via _stop_requested flag
     """
 
-    image_loaded = Signal(int, object)  # (frame, QImage) - use object for QImage type
-    progress = Signal(int, int)  # (loaded_count, total_count)
+    image_loaded: ClassVar[Signal] = Signal(int, object)  # (frame, QImage) - use object for QImage type
+    progress: ClassVar[Signal] = Signal(int, int)  # (loaded_count, total_count)
 
     def __init__(self, image_files: list[str], frames_to_load: list[int]) -> None:
         """
@@ -56,11 +56,11 @@ class SafeImagePreloadWorker(QThread):
             frames_to_load: Frame numbers to preload (filtered to exclude cached frames)
         """
         super().__init__()
-        self._image_files = image_files
-        self._frames_to_load = frames_to_load
+        self._image_files: list[str] = image_files
+        self._frames_to_load: list[int] = frames_to_load
         # Thread-safe: Python GIL ensures atomic bool assignment
         # Worker reads, main thread writes (write-once: False → True)
-        self._stop_requested = False
+        self._stop_requested: bool = False
 
     @override
     def run(self) -> None:
@@ -178,7 +178,7 @@ class SafeImageCacheManager(QObject):
         cache.preload_around_frame(42, window_size=20)  # Preload ±20 frames
     """
 
-    cache_progress = Signal(int, int)  # (loaded_count, total_count)
+    cache_progress: ClassVar[Signal] = Signal(int, int)  # (loaded_count, total_count)
 
     def __init__(self, max_cache_size: int = 100) -> None:
         """
@@ -197,7 +197,7 @@ class SafeImageCacheManager(QObject):
         super().__init__()
 
         self._max_cache_size: int = max_cache_size
-        self._cache: dict[int, "QImage"] = {}
+        self._cache: dict[int, QImage] = {}
         self._lru_order: list[int] = []
         self._image_files: list[str] = []
         self._lock: threading.Lock = threading.Lock()

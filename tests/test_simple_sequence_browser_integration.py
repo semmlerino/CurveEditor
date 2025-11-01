@@ -11,6 +11,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QImage
 from PySide6.QtWidgets import QApplication
 from pytestqt.qtbot import QtBot
 
@@ -45,18 +46,30 @@ class TestSimpleSequenceBrowserIntegration:
 
     @pytest.fixture
     def sample_image_directory(self):
-        """Create temporary directory with sample image sequence."""
+        """Create temporary directory with sample image sequence.
+
+        CRITICAL: Creates real image files, not fake text files.
+        ThumbnailLoader runs in background thread and Qt's image codec will
+        crash if it tries to decode corrupted/invalid image files.
+        """
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
 
-            # Create sample image sequence files
+            # Create sample image sequence files (REAL images)
             for i in range(1, 6):
                 image_file = temp_path / f"render_{i:04d}.jpg"
-                image_file.write_text(f"fake image data {i}")
+                # Create real 100x100 image (thread-safe pattern)
+                image = QImage(100, 100, QImage.Format.Format_RGB32)
+                image.fill(0xFF000000 + (i * 32))  # Different color per frame
+                image.save(str(image_file))
 
             # Create some non-sequence files
             (temp_path / "readme.txt").write_text("readme")
-            (temp_path / "single_image.png").write_text("single image")
+
+            # Create real single image (not fake)
+            single_image = QImage(100, 100, QImage.Format.Format_RGB32)
+            single_image.fill(0xFF00FF00)  # Green
+            single_image.save(str(temp_path / "single_image.png"))
 
             yield str(temp_path)
 

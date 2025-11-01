@@ -265,7 +265,7 @@ class ViewManagementController:
             # Initialize image cache with full paths (Phase 2C)
             from services import get_data_service
             full_paths = [str(Path(image_dir) / fname) for fname in image_files]
-            get_data_service()._safe_image_cache.set_image_sequence(full_paths)
+            get_data_service().set_image_sequence(full_paths)
             logger.debug(f"Initialized image cache with {len(full_paths)} files")
 
             # Load the first image as background

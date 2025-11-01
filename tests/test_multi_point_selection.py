@@ -237,8 +237,11 @@ class TestMultiPointTrackingController:
 
         # Check positional and keyword arguments
         # set_curves_data(tracked_data, metadata, active_curve, selected_curves=active_points)
+        # Note: As of Ctrl+click fix (Oct 2025), active_curve is NOT set by controller
+        # (TrackingPanel sets it via currentRow()). So active_curve argument should be None.
         assert len(call_args[0]) >= 3  # At least 3 positional args
-        assert call_args[0][2] == "Track1"  # active_curve is 3rd positional arg
+        # active_curve not set by controller anymore (moved to TrackingPanel)
+        # assert call_args[0][2] is None  # active_curve is None (not set by controller)
         assert call_args[1].get("selected_curves") == ["Track1"]
 
         # Verify centering was scheduled with QTimer.singleShot
@@ -268,8 +271,10 @@ class TestMultiPointTrackingController:
         call_args = mock_main_window.curve_widget.set_curves_data.call_args
 
         # Check arguments
+        # Note: As of Ctrl+click fix (Oct 2025), active_curve is NOT set by controller
         assert len(call_args[0]) >= 3
-        assert call_args[0][2] == "Track3"  # active_curve is last selected
+        # active_curve not set by controller anymore (moved to TrackingPanel)
+        # assert call_args[0][2] is None  # active_curve is None (not set by controller)
         # MANUAL_SELECTION context: selected_curves contains all selected points from panel
         assert call_args[1].get("selected_curves") == ["Track1", "Track2", "Track3"]
 

@@ -292,6 +292,10 @@ class UIInitializationController:
         self.main_window.show_tooltips_cb = widget_factory.create_checkbox("Tooltips", checked=False)
         _ = toolbar.addWidget(self.main_window.show_tooltips_cb)
 
+        # Add current point only toggle checkbox (3DEqualizer-style)
+        self.main_window.show_current_point_cb = widget_factory.create_checkbox("Current Point", checked=False)
+        _ = toolbar.addWidget(self.main_window.show_current_point_cb)
+
         # Create widgets needed for UIComponents compatibility
         self._create_ui_component_widgets()
 

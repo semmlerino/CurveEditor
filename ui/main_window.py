@@ -125,6 +125,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     show_grid_cb: QCheckBox | None = None
     show_info_cb: QCheckBox | None = None
     show_tooltips_cb: QCheckBox | None = None
+    show_current_point_cb: QCheckBox | None = None
     point_size_label: QLabel | None = None
     line_width_label: QLabel | None = None
     point_size_slider: QSlider | None = None

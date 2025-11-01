@@ -96,16 +96,20 @@ def sample_multi_curve_data() -> dict[str, CurveDataList]:
 class TestSelectionSignalPathway:
     """Test the critical signal pathway for tracking point selection."""
 
-    def test_selection_state_changed_updates_active_curve(self, controller, sample_multi_curve_data, qapp):
+    def test_selection_state_changed_does_not_update_active_curve(self, controller, sample_multi_curve_data, qapp):
         """
-        REGRESSION TEST for 2025-10-21 bug.
+        UPDATED TEST for Ctrl+click fix (Oct 2025).
 
-        Verifies that selecting a tracking point via ApplicationState
-        triggers the selection_state_changed signal, which updates
-        the active curve.
+        As of the Ctrl+click fix, the signal pathway NO LONGER sets the active curve.
+        Active curve setting is now the exclusive responsibility of TrackingPanel._on_selection_changed()
+        using currentRow() to determine which curve was actually clicked.
 
-        This is the exact pathway that was broken when the signal
-        connection was removed during sub-controller refactoring.
+        This test verifies that the signal pathway does NOT interfere with active curve,
+        preventing the race condition where both TrackingPanel and signal pathway tried
+        to set active curve with potentially different values.
+
+        Original regression test (2025-10-21): Verified signal connection was wired.
+        Updated (2025-10-30): Verifies signal pathway doesn't set active curve.
         """
         app_state = get_application_state()
 
@@ -117,33 +121,33 @@ class TestSelectionSignalPathway:
         app_state.set_active_curve("Point02")
         assert app_state.active_curve == "Point02"
 
-        # ACT: Simulate user selecting Point04 in the tracking panel
-        # This is what TrackingPointsPanel._on_selection_changed() does
+        # ACT: Simulate ApplicationState.set_selected_curves (part of signal pathway)
+        # Note: Real user interaction also calls app_state.set_active_curve from TrackingPanel
         app_state.set_selected_curves({"Point04"})
 
         # Process Qt signals
         qapp.processEvents()
 
-        # ASSERT: Active curve should be updated to Point04
-        # This verifies the signal pathway works:
-        # ApplicationState.selection_state_changed
-        # → MultiPointTrackingController._on_selection_state_changed
-        # → on_tracking_points_selected
-        # → TrackingSelectionController.on_tracking_points_selected
-        # → ApplicationState.set_active_curve("Point04")
-        assert app_state.active_curve == "Point04", (
-            "Active curve should update when selection changes. "
-            "If this fails, the selection_state_changed signal connection is broken!"
+        # ASSERT: Active curve should NOT change (signal pathway doesn't set it anymore)
+        # TrackingPanel._on_selection_changed() is responsible for setting active curve
+        assert app_state.active_curve == "Point02", (
+            "Signal pathway should NOT change active curve. "
+            "Only TrackingPanel._on_selection_changed() should set active curve."
         )
 
-        # Verify the display was updated
+        # Verify the display was updated (this part still works)
         assert controller.display_controller.update_call_count > 0
         assert controller.display_controller.last_selected_curves == ["Point04"]
 
-    def test_multi_selection_uses_last_as_active(self, controller, sample_multi_curve_data, qapp):
+    def test_multi_selection_does_not_change_active_via_signal_pathway(self, controller, sample_multi_curve_data, qapp):
         """
-        Verify that when multiple curves are selected, the last one
-        becomes the active curve (matching user's last click).
+        UPDATED TEST for Ctrl+click fix (Oct 2025).
+
+        Verifies that selecting multiple curves via ApplicationState.set_selected_curves()
+        does NOT change active curve through signal pathway.
+
+        In real usage, TrackingPanel._on_selection_changed() would set the active curve
+        based on currentRow(), but this test only exercises the signal pathway.
         """
         app_state = get_application_state()
 
@@ -154,14 +158,16 @@ class TestSelectionSignalPathway:
         # Initial state
         app_state.set_active_curve("Point02")
 
-        # ACT: Select multiple curves (Point04, Point09)
-        # In real usage, Point09 would be the last clicked
+        # ACT: Select multiple curves (Point04, Point09) via signal pathway only
+        # Note: In real usage, TrackingPanel also calls set_active_curve()
         app_state.set_selected_curves({"Point04", "Point09"})
         qapp.processEvents()
 
-        # ASSERT: Active curve should be one of the selected
-        # (The specific one depends on set ordering, but should be in selection)
-        assert app_state.active_curve in ["Point04", "Point09"]
+        # ASSERT: Active curve should NOT change (signal pathway doesn't set it)
+        assert app_state.active_curve == "Point02", (
+            "Signal pathway should not change active curve. "
+            "TrackingPanel._on_selection_changed() sets active curve in real usage."
+        )
 
     def test_empty_selection_handles_gracefully(self, controller, qapp):
         """
@@ -212,6 +218,10 @@ class TestSignalIntegration:
         """
         Integration test: Verify the complete flow from panel selection
         to curve view update works end-to-end.
+
+        UPDATED TEST for Ctrl+click fix (Oct 2025).
+        TrackingPanel now calls both set_selected_curves() and set_active_curve().
+        This test simulates that complete behavior.
         """
         app_state = get_application_state()
 
@@ -222,8 +232,10 @@ class TestSignalIntegration:
         app_state.set_active_curve("Point02")
 
         # Simulate rapid selection changes (user clicking multiple points)
+        # In real usage, TrackingPanel calls both methods
         for curve_name in ["Point04", "Point09", "Point02"]:
             app_state.set_selected_curves({curve_name})
+            app_state.set_active_curve(curve_name)  # TrackingPanel does this
             qapp.processEvents()
 
             # Verify active curve tracks selection

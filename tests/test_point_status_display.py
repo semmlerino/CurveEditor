@@ -110,23 +110,26 @@ class TestPointStatusDisplay:
         assert main_window.type_label.text() == "Status: TRACKED"
 
     def test_status_label_shows_inactive_when_frame_has_no_point(self, main_window):
-        """Test that status label shows Inactive when current frame has no point (gap)."""
+        """Test that status label shows Inactive when current frame is in inactive segment (tracked points after endframe)."""
         app_state = get_application_state()
 
-        # Create curve with gap at frame 5
+        # Create curve with inactive segment: tracked points after endframe (3DE behavior)
         curve_data = [
             (1, 10.0, 10.0, "keyframe"),
-            (10, 30.0, 30.0, "keyframe"),
+            (5, 20.0, 20.0, "endframe"),
+            (6, 22.0, 22.0, "tracked"),  # Tracked point in gap
+            (7, 24.0, 24.0, "tracked"),  # Tracked point in gap
+            (10, 30.0, 30.0, "keyframe"),  # Keyframe ends the gap
         ]
 
         app_state.set_curve_data("test_curve", curve_data)
         app_state.set_active_curve("test_curve")
-        app_state.set_frame(5)  # Frame 5 has no point
+        app_state.set_frame(6)  # Frame 6 has tracked point in inactive segment
 
         # Update UI
         main_window.update_ui_state()
 
-        # Should show Inactive (gap segment)
+        # Should show Inactive (tracked point in gap after endframe)
         assert main_window.type_label.text() == "Status: Inactive"
 
     def test_status_label_updates_on_frame_change(self, main_window):
@@ -439,27 +442,27 @@ class TestPointStatusDisplayEdgeCases:
         assert main_window.type_label.text() == "Status: TRACKED"
 
     def test_status_just_after_segment_boundary(self, main_window):
-        """Test status one frame after ENDFRAME (entering gap).
+        """Test status of tracked point after ENDFRAME (inactive segment).
 
-        Edge case: First frame after ENDFRAME should be in inactive
-        segment if no keyframe immediately follows.
+        Edge case: Tracked points after ENDFRAME are in inactive segment
+        until a keyframe starts a new active segment (3DE behavior).
         """
         app_state = get_application_state()
 
         curve_data = [
             (1, 10.0, 10.0, "keyframe"),
             (5, 20.0, 20.0, "endframe"),
-            # Frame 6 is first frame after ENDFRAME (gap)
-            (10, 30.0, 30.0, "keyframe"),
+            (6, 22.0, 22.0, "tracked"),  # Tracked point after ENDFRAME = inactive
+            (10, 30.0, 30.0, "keyframe"),  # Keyframe ends inactive segment
         ]
 
         app_state.set_curve_data("test_curve", curve_data)
         app_state.set_active_curve("test_curve")
-        app_state.set_frame(6)  # One frame after ENDFRAME
+        app_state.set_frame(6)  # Tracked point in inactive segment
 
         main_window.update_ui_state()
 
-        # Should show Inactive (in gap after ENDFRAME)
+        # Should show Inactive (tracked point after ENDFRAME, before keyframe)
         assert main_window.type_label.text() == "Status: Inactive"
 
     def test_status_single_point_curve(self, main_window, qtbot):
@@ -509,16 +512,17 @@ class TestPointStatusDisplayEdgeCases:
         assert main_window.type_label.text() == "Status: --"
 
     def test_status_curve_with_only_endframe(self, main_window):
-        """Test curve that starts with ENDFRAME (immediate gap).
+        """Test curve that starts with ENDFRAME (immediate gap with tracked points).
 
-        Edge case: Unusual but valid - curve begins with ENDFRAME.
-        Tests handling of gap starting at first frame.
+        Edge case: Unusual but valid - curve begins with ENDFRAME followed by tracked points.
+        Tests handling of inactive segment starting at first frame (3DE behavior).
         """
         app_state = get_application_state()
 
         curve_data = [
             (1, 10.0, 10.0, "endframe"),  # First point is ENDFRAME
-            (5, 20.0, 20.0, "keyframe"),  # Gap ends here
+            (3, 15.0, 15.0, "tracked"),  # Tracked point in inactive segment
+            (5, 20.0, 20.0, "keyframe"),  # Keyframe ends inactive segment
         ]
 
         app_state.set_curve_data("test_curve", curve_data)
@@ -529,7 +533,7 @@ class TestPointStatusDisplayEdgeCases:
         main_window.update_ui_state()
         assert main_window.type_label.text() == "Status: ENDFRAME"
 
-        # Frame 3 - in gap after ENDFRAME (should show Inactive)
+        # Frame 3 - tracked point in inactive segment after ENDFRAME
         app_state.set_frame(3)
         main_window.update_ui_state()
         assert main_window.type_label.text() == "Status: Inactive"
@@ -669,14 +673,20 @@ class TestPointStatusDisplayEdgeCases:
         """
         app_state = get_application_state()
 
-        # Curve with two gaps
+        # Curve with two gaps (tracked points required for inactive segments)
         curve_data = [
             (1, 10.0, 10.0, "keyframe"),
             (5, 20.0, 20.0, "endframe"),  # First gap starts
-            # Gap 1: frames 6-9
+            (6, 22.0, 22.0, "tracked"),  # Gap 1: tracked points after endframe
+            (7, 24.0, 24.0, "tracked"),
+            (8, 26.0, 26.0, "tracked"),
+            (9, 28.0, 28.0, "tracked"),
             (10, 30.0, 30.0, "keyframe"),  # First gap ends
             (15, 40.0, 40.0, "endframe"),  # Second gap starts
-            # Gap 2: frames 16-19
+            (16, 42.0, 42.0, "tracked"),  # Gap 2: tracked points after endframe
+            (17, 44.0, 44.0, "tracked"),
+            (18, 46.0, 46.0, "tracked"),
+            (19, 48.0, 48.0, "tracked"),
             (20, 50.0, 50.0, "keyframe"),  # Second gap ends
         ]
 
@@ -730,16 +740,21 @@ class TestPointStatusDisplayEdgeCases:
         """
         app_state = get_application_state()
 
-        # Curve ending with gap
+        # Curve ending with gap (tracked points extend past test frame)
         curve_data = [
             (1, 10.0, 10.0, "keyframe"),
             (10, 30.0, 30.0, "endframe"),  # Last point is ENDFRAME
+            (11, 32.0, 32.0, "tracked"),  # Tracked points after endframe
+            (12, 34.0, 34.0, "tracked"),
+            (13, 36.0, 36.0, "tracked"),
+            (14, 38.0, 38.0, "tracked"),
+            (20, 50.0, 50.0, "tracked"),  # Extend inactive segment past frame 15
         ]
 
         app_state.set_curve_data("test_curve", curve_data)
         app_state.set_active_curve("test_curve")
 
-        # Frame after last ENDFRAME (beyond curve data)
+        # Frame 15 is in inactive segment (after endframe, before end of tracked points)
         app_state.set_frame(15)
         main_window.update_ui_state()
 
@@ -1125,7 +1140,7 @@ class TestPointStatusDisplayBoundaries:
         """
         app_state = get_application_state()
 
-        # Create curve with 50 gaps (100 segments)
+        # Create curve with 50 gaps (tracked points required for inactive segments)
         curve_data = []
         for i in range(50):
             start_frame = i * 10 + 1
@@ -1133,7 +1148,11 @@ class TestPointStatusDisplayBoundaries:
             # Active segment
             curve_data.append((start_frame, float(i), float(i), "keyframe"))
             curve_data.append((end_frame, float(i + 0.5), float(i + 0.5), "endframe"))
-            # Gap until next segment
+            # Gap: add tracked points after endframe (before next keyframe)
+            if i < 49:  # Don't add beyond last segment
+                for j in range(1, 5):  # Add 4 tracked points in gap
+                    gap_frame = end_frame + j
+                    curve_data.append((gap_frame, float(i + 0.5 + j * 0.1), float(i + 0.5 + j * 0.1), "tracked"))
 
         app_state.set_curve_data("complex_curve", curve_data)
         app_state.set_active_curve("complex_curve")

@@ -250,6 +250,10 @@ class SignalConnectionManager:
             _ = self.main_window.show_tooltips_cb.stateChanged.connect(
                 self.main_window.view_management_controller.toggle_tooltips
             )
+        if self.main_window.show_current_point_cb:
+            _ = self.main_window.show_current_point_cb.stateChanged.connect(
+                self.main_window.view_management_controller.toggle_current_point_only  # pyright: ignore[reportAttributeAccessIssue]
+            )
         if self.main_window.point_size_slider:
             _ = self.main_window.point_size_slider.valueChanged.connect(
                 self.main_window.view_management_controller.update_curve_point_size

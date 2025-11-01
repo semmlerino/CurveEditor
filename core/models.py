@@ -163,7 +163,8 @@ class PointStatus(Enum):
         else:
             # Must be str at this point due to type annotation
             try:
-                return cls(value)
+                # Convert to lowercase to match enum values
+                return cls(value.lower())
             except ValueError:
                 return cls.NORMAL
 

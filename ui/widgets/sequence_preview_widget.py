@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, override
 
 from PySide6.QtCore import QSize, Qt, QThread, Signal
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QCloseEvent, QImage, QPixmap
 from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
@@ -115,12 +115,16 @@ class ThumbnailWidget(QLabel):
 class ThumbnailLoader(QThread):
     """
     Background thread for loading thumbnails with priority queue and cancellation.
+
+    Thread Safety:
+        - Creates only QImage (thread-safe), never QPixmap (main-thread-only)
+        - Emits QImage via signal to main thread for QPixmap conversion
     """
 
     # Signals
-    thumbnail_loaded: Signal = Signal(int, QPixmap)  # frame_number, pixmap
-    thumbnail_error: Signal = Signal(int, str)       # frame_number, error_message
-    progress_updated: Signal = Signal(int, int)      # current, total
+    thumbnail_loaded: Signal = Signal(int, object)  # frame_number, qimage (QImage)
+    thumbnail_error: Signal = Signal(int, str)      # frame_number, error_message
+    progress_updated: Signal = Signal(int, int)     # current, total
 
     def __init__(self, parent: QWidget | None = None):
         """Initialize thumbnail loader."""
@@ -176,11 +180,14 @@ class ThumbnailLoader(QThread):
             # Emit progress
             self.progress_updated.emit(current, self._current_total)
 
-            # Load thumbnail
+            # Load thumbnail as QImage (thread-safe)
             try:
-                pixmap = QPixmap(file_path)
-                if not pixmap.isNull():
-                    self.thumbnail_loaded.emit(frame_number, pixmap)
+                # CRITICAL: Use QImage (thread-safe), NOT QPixmap (main-thread-only)
+                # Explicitly convert to str() for Qt compatibility (matches Feature 2 pattern)
+                qimage = QImage(str(file_path))
+                if not qimage.isNull():
+                    # Emit QImage to main thread for QPixmap conversion
+                    self.thumbnail_loaded.emit(frame_number, qimage)
                 else:
                     self.thumbnail_error.emit(frame_number, "Failed to load image")
             except Exception as e:
@@ -455,9 +462,24 @@ class SequencePreviewWidget(QWidget):
 
         return selected_frames
 
-    def _on_thumbnail_loaded(self, frame_number: int, pixmap: QPixmap) -> None:
-        """Handle thumbnail loaded signal."""
+    def _on_thumbnail_loaded(self, frame_number: int, qimage: object) -> None:
+        """
+        Handle thumbnail loaded signal (runs in main thread).
+
+        Converts QImage to QPixmap on main thread (Qt requirement).
+
+        Args:
+            frame_number: Frame number
+            qimage: Loaded QImage from worker thread
+        """
+        # Type guard - qimage should always be QImage from worker
+        if not isinstance(qimage, QImage):
+            logger.error(f"Invalid image type received for frame {frame_number}: {type(qimage)}")
+            return
+
         if frame_number in self._thumbnail_widgets:
+            # Convert QImage to QPixmap on main thread (Qt requirement)
+            pixmap = QPixmap.fromImage(qimage)
             self._thumbnail_widgets[frame_number].set_thumbnail(pixmap)
 
     def _on_thumbnail_error(self, frame_number: int, error_message: str) -> None:
@@ -490,6 +512,49 @@ class SequencePreviewWidget(QWidget):
 
         self.progress_bar.setVisible(False)
         self.cancel_button.setVisible(False)
+
+    def __del__(self) -> None:
+        """
+        Destructor - stop thumbnail loader thread before widget destruction.
+
+        CRITICAL: Stop thumbnail loader thread to prevent
+        "QThread: Destroyed while thread is still running" crash.
+        Called during Python object cleanup (e.g., qtbot cleanup in tests).
+        """
+        try:
+            if hasattr(self, 'thumbnail_loader') and self.thumbnail_loader.isRunning():
+                self.thumbnail_loader.stop_loading()
+                self.thumbnail_loader.wait(2000)  # Wait up to 2 seconds
+
+                # Force terminate if still running
+                if self.thumbnail_loader.isRunning():
+                    logger.warning("ThumbnailLoader did not stop gracefully in destructor, terminating")
+                    self.thumbnail_loader.terminate()
+                    self.thumbnail_loader.wait()
+        except (RuntimeError, AttributeError):
+            # Widget or thread already deleted - safe to ignore
+            pass
+
+    @override
+    def closeEvent(self, event: "QCloseEvent") -> None:
+        """
+        Handle widget close event.
+
+        CRITICAL: Stop thumbnail loader thread before widget destruction
+        to prevent "QThread: Destroyed while thread is still running" crash.
+        """
+        # Stop thumbnail loader if running
+        if hasattr(self, 'thumbnail_loader') and self.thumbnail_loader.isRunning():
+            self.thumbnail_loader.stop_loading()
+            self.thumbnail_loader.wait(2000)  # Wait up to 2 seconds
+
+            # Force terminate if still running
+            if self.thumbnail_loader.isRunning():
+                logger.warning("ThumbnailLoader did not stop gracefully, terminating")
+                self.thumbnail_loader.terminate()
+                self.thumbnail_loader.wait()
+
+        super().closeEvent(event)
 
     def get_current_sequence(self) -> "ImageSequence | None":
         """

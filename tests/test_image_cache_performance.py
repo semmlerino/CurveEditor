@@ -109,7 +109,7 @@ class TestSmallSequencePerformance:
         - No evictions occur
         - Cache hits < 5ms
         """
-        test_dir, expected_files = small_sequence
+        _test_dir, expected_files = small_sequence
 
         # Setup: Load sequence
         cache = SafeImageCacheManager(max_cache_size=100)  # Much larger than sequence
@@ -150,14 +150,14 @@ class TestSmallSequencePerformance:
         # Assert: No evictions (all frames cached)
         assert cache.cache_size == 10, "All frames should remain cached"
 
-        print(f"\nSmall sequence (10 frames):")
+        print("\nSmall sequence (10 frames):")
         print(f"  First pass avg: {avg_first*1000:.2f}ms (cache miss)")
         print(f"  Second pass avg: {avg_second*1000:.2f}ms (cache hit)")
         print(f"  Cache size: {cache.cache_size}")
 
     def test_no_evictions_on_random_access(self, qtbot, small_sequence):
         """Verify no evictions with random access to small sequence."""
-        test_dir, expected_files = small_sequence
+        _test_dir, expected_files = small_sequence
         cache = SafeImageCacheManager(max_cache_size=100)
         cache.set_image_sequence(expected_files)
 
@@ -190,7 +190,7 @@ class TestLargeSequencePerformance:
         - Cache stays at max_size (100 frames)
         - Performance within acceptable bounds
         """
-        test_dir, expected_files = large_sequence
+        _test_dir, expected_files = large_sequence
 
         # Setup: Load sequence with cache size 100
         cache = SafeImageCacheManager(max_cache_size=100)
@@ -229,14 +229,14 @@ class TestLargeSequencePerformance:
         # Most old frames should be evicted (allow small margin for edge cases)
         assert old_in_cache < 10, f"{old_in_cache}/51 old frames still in cache (expected <10)"
 
-        print(f"\nLarge sequence (500 frames, cache=100):")
+        print("\nLarge sequence (500 frames, cache=100):")
         print(f"  Cache size: {cache.cache_size}")
         print(f"  Recent frames cached: {recent_cached}/100")
         print(f"  Old frames in cache: {old_in_cache}/51")
 
     def test_cache_performance_under_load(self, qtbot, large_sequence):
         """Test cache performance with large sequence."""
-        test_dir, expected_files = large_sequence
+        _test_dir, expected_files = large_sequence
         cache = SafeImageCacheManager(max_cache_size=100)
         cache.set_image_sequence(expected_files)
 
@@ -258,7 +258,7 @@ class TestLargeSequencePerformance:
         avg_hit_time = sum(hit_times) / len(hit_times)
         assert avg_hit_time < 0.005, f"Average cache hit {avg_hit_time*1000:.2f}ms exceeds 5ms"
 
-        print(f"\nLarge sequence cache hits:")
+        print("\nLarge sequence cache hits:")
         print(f"  Average: {avg_hit_time*1000:.2f}ms")
 
 
@@ -275,7 +275,7 @@ class TestPreloadWindowEffectiveness:
         - Cache hits within window
         - Cache misses outside window
         """
-        test_dir, expected_files = medium_sequence
+        test_dir, _expected_files = medium_sequence
 
         # Setup: Load sequence with DataService (has preload)
         service = DataService()
@@ -336,7 +336,7 @@ class TestMemoryUsage:
 
         Success criteria: <2GB for 100 frames at 1080p
         """
-        test_dir, expected_files = hd_sequence
+        _test_dir, expected_files = hd_sequence
         process = psutil.Process(os.getpid())
 
         # Force garbage collection to get baseline
@@ -361,7 +361,7 @@ class TestMemoryUsage:
         mem_after = process.memory_info().rss / (1024 ** 3)  # GB
         mem_delta = mem_after - mem_before
 
-        print(f"\nMemory usage (100 frames @ 1920x1080):")
+        print("\nMemory usage (100 frames @ 1920x1080):")
         print(f"  Before: {mem_before:.2f}GB")
         print(f"  After: {mem_after:.2f}GB")
         print(f"  Delta: {mem_delta:.2f}GB")
@@ -380,9 +380,9 @@ class TestMemoryUsage:
         process = psutil.Process(os.getpid())
 
         # Create 3 sequences (50 frames each, 640x480)
-        seq1_dir, seq1_files = create_test_sequence(tmp_path, 50, (640, 480), "seq1")
-        seq2_dir, seq2_files = create_test_sequence(tmp_path, 50, (640, 480), "seq2")
-        seq3_dir, seq3_files = create_test_sequence(tmp_path, 50, (640, 480), "seq3")
+        _seq1_dir, seq1_files = create_test_sequence(tmp_path, 50, (640, 480), "seq1")
+        _seq2_dir, seq2_files = create_test_sequence(tmp_path, 50, (640, 480), "seq2")
+        _seq3_dir, seq3_files = create_test_sequence(tmp_path, 50, (640, 480), "seq3")
 
         # Measure baseline memory
         gc.collect()
@@ -418,7 +418,7 @@ class TestMemoryUsage:
         # Calculate absolute growth
         mem_delta = mem_after - mem_baseline
 
-        print(f"\nMemory leak test (3 sequence loads, 50 frames each):")
+        print("\nMemory leak test (3 sequence loads, 50 frames each):")
         print(f"  Baseline: {mem_baseline:.1f}MB")
         print(f"  After 3 loads: {mem_after:.1f}MB")
         print(f"  Delta: {mem_delta:.1f}MB")
@@ -431,7 +431,7 @@ class TestMemoryUsage:
 
     def test_cache_clear_releases_memory(self, qtbot, medium_sequence):
         """Verify clearing cache releases memory."""
-        test_dir, expected_files = medium_sequence
+        _test_dir, expected_files = medium_sequence
         process = psutil.Process(os.getpid())
 
         cache = SafeImageCacheManager(max_cache_size=100)
@@ -457,7 +457,7 @@ class TestMemoryUsage:
         # At minimum, verify no increase
         assert mem_after_clear <= mem_with_cache * 1.05, "Memory should not increase after cache clear"
 
-        print(f"\nCache clear memory release:")
+        print("\nCache clear memory release:")
         print(f"  With cache: {mem_with_cache:.1f}MB")
         print(f"  After clear: {mem_after_clear:.1f}MB")
 
@@ -474,7 +474,7 @@ class TestCacheEvictionStressTest:
         - Cache doesn't grow unbounded
         - No crashes or deadlocks
         """
-        test_dir, expected_files = large_sequence
+        _test_dir, expected_files = large_sequence
 
         # Setup: Small cache size (20 frames)
         cache = SafeImageCacheManager(max_cache_size=20)
@@ -501,7 +501,7 @@ class TestCacheEvictionStressTest:
 
         assert cached_count >= 18, f"Only {cached_count}/20 recent frames cached (expected >=18)"
 
-        print(f"\nEviction stress test (200 frames, cache=20):")
+        print("\nEviction stress test (200 frames, cache=20):")
         print(f"  Final cache size: {cache.cache_size}")
         print(f"  Recent frames cached: {cached_count}/20")
 
@@ -516,7 +516,7 @@ class TestCacheEvictionStressTest:
         """
         from concurrent.futures import ThreadPoolExecutor
 
-        test_dir, expected_files = medium_sequence
+        _test_dir, expected_files = medium_sequence
 
         # Setup: Initialize cache
         cache = SafeImageCacheManager(max_cache_size=50)
@@ -539,16 +539,16 @@ class TestCacheEvictionStressTest:
             f"Cache size {cache.cache_size} exceeds max {cache.max_cache_size}"
         )
 
-        print(f"\nConcurrent access stress test (10 threads x 50 frames):")
+        print("\nConcurrent access stress test (10 threads x 50 frames):")
         print(f"  Cache size: {cache.cache_size}/{cache.max_cache_size}")
-        print(f"  Test completed without deadlock")
+        print("  Test completed without deadlock")
 
     def test_rapid_sequence_switching(self, qtbot, tmp_path):
         """Test rapid switching between sequences."""
         # Create 5 small sequences
         sequences = []
         for i in range(5):
-            seq_dir, seq_files = create_test_sequence(
+            _seq_dir, seq_files = create_test_sequence(
                 tmp_path, count=20, size=(640, 480), name=f"rapid_{i}"
             )
             sequences.append(seq_files)
@@ -567,6 +567,6 @@ class TestCacheEvictionStressTest:
         # Cache should be valid (no crashes)
         assert cache.cache_size <= cache.max_cache_size
 
-        print(f"\nRapid sequence switching (5 sequences x 10 cycles):")
+        print("\nRapid sequence switching (5 sequences x 10 cycles):")
         print(f"  Final cache size: {cache.cache_size}")
-        print(f"  Test completed without errors")
+        print("  Test completed without errors")

@@ -178,7 +178,7 @@ class SetEndframeCommand(ShortcutCommand):
             if (cd := app_state.active_curve_data) is None:
                 logger.warning("No active curve set, cannot toggle endframe")
                 return False
-            curve_name, curve_data = cd
+            _curve_name, curve_data = cd
             curve_data = list(curve_data)  # Mutable copy
 
             # Find the point at the current frame

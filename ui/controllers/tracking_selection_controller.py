@@ -145,9 +145,11 @@ class TrackingSelectionController(BaseTrackingController):
         active_curve = point_names[-1] if point_names else None
         self.main_window.active_timeline_point = active_curve
 
-        # Set active curve in ApplicationState so display knows which curve is active
-        if active_curve:
-            self._app_state.set_active_curve(active_curve)
+        # REMOVED: Active curve setting (moved to TrackingPanel._on_selection_changed)
+        # TrackingPanel now uses currentRow() to determine which curve was last clicked,
+        # which is more reliable than using point_names[-1] from a set-to-list conversion.
+        # Keeping this code would create a race condition where both places try to set active curve.
+        # See ui/tracking_points_panel.py:554 for the authoritative active curve setting.
 
         # REMOVED: Synchronization loop (Phase 5.1)
         # TrackingPanel already updates ApplicationState directly (Phase 2)

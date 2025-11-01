@@ -37,7 +37,7 @@ def test_two_keyframes_beyond_original_range_with_endframe():
     keyframe_44 = CurvePoint(frame=44, x=440.0, y=440.0, status=PointStatus.KEYFRAME)
     keyframe_47 = CurvePoint(frame=47, x=470.0, y=470.0, status=PointStatus.KEYFRAME)
 
-    all_points = original_points + [keyframe_44, keyframe_47]
+    all_points = [*original_points, keyframe_44, keyframe_47]
     curve = SegmentedCurve.from_points(all_points)
 
     # Verify segment structure
@@ -92,7 +92,7 @@ def test_two_keyframes_beyond_range_without_endframe():
     keyframe_44 = CurvePoint(frame=44, x=440.0, y=440.0, status=PointStatus.KEYFRAME)
     keyframe_47 = CurvePoint(frame=47, x=470.0, y=470.0, status=PointStatus.KEYFRAME)
 
-    all_points = original_points + [keyframe_44, keyframe_47]
+    all_points = [*original_points, keyframe_44, keyframe_47]
     curve = SegmentedCurve.from_points(all_points)
 
     # Verify: all points in ONE segment (no ENDFRAME to split them)
@@ -120,7 +120,7 @@ def test_three_keyframes_beyond_endframe():
     kf_40 = CurvePoint(frame=40, x=400.0, y=400.0, status=PointStatus.KEYFRAME)
     kf_50 = CurvePoint(frame=50, x=500.0, y=500.0, status=PointStatus.KEYFRAME)
 
-    all_points = original_points + [kf_30, kf_40, kf_50]
+    all_points = [*original_points, kf_30, kf_40, kf_50]
     curve = SegmentedCurve.from_points(all_points)
 
     # Verify segment structure

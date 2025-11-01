@@ -23,8 +23,7 @@ Tests cover:
 # pyright: reportUnusedParameter=none
 
 import threading
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from PySide6.QtGui import QImage
@@ -462,7 +461,6 @@ class TestThreadSafety:
         # We verify this by checking that the lock is locked during execution
         lock_was_held = False
 
-        original_load = cache._load_image_from_disk
 
         def check_lock_held(file_path: str):
             nonlocal lock_was_held
@@ -758,7 +756,7 @@ class TestImagePreloading:
             frames_to_load = call_args[0][1]
 
             # Should exclude 5-9 (already cached)
-            expected = list(range(0, 5)) + list(range(10, 15))
+            expected = list(range(5)) + list(range(10, 15))
             assert frames_to_load == expected
 
     def test_preload_with_all_frames_cached(self):
@@ -933,16 +931,17 @@ class TestWorkerThreadSafety:
             mock_image.isNull.return_value = False
             mock_qimage_class.return_value = mock_image
 
-            with patch("services.image_cache_manager.Path.exists", return_value=True):
-                # Mock QPixmap to track if it's created
-                with patch("PySide6.QtGui.QPixmap") as mock_qpixmap_class:
-                    result = worker._load_image("/path/frame_0001.png")
+            with (
+                patch("services.image_cache_manager.Path.exists", return_value=True),
+                patch("PySide6.QtGui.QPixmap") as mock_qpixmap_class,
+            ):
+                result = worker._load_image("/path/frame_0001.png")
 
-                    # Verify QPixmap never created
-                    mock_qpixmap_class.assert_not_called()
+                # Verify QPixmap never created
+                mock_qpixmap_class.assert_not_called()
 
-                    # Verify QImage was created
-                    assert result is mock_image
+                # Verify QImage was created
+                assert result is mock_image
 
     def test_worker_handles_missing_file(self):
         """Test that worker handles missing files gracefully."""

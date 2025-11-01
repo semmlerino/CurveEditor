@@ -7,7 +7,7 @@ Tests Phase 1C: UI Integration for multi-curve timeline aggregate view.
 import pytest
 from PySide6.QtCore import Qt
 
-from core.models import FrameStatus, PointStatus
+from core.models import PointStatus
 from core.type_aliases import CurveDataList
 from stores.application_state import get_application_state
 from ui.timeline_tabs import TimelineTabWidget
@@ -26,19 +26,19 @@ def multi_curve_data() -> dict[str, CurveDataList]:
     """Create test data with multiple curves."""
     return {  # pyright: ignore[reportReturnType]
         "Track1": [
-            (1, 10.0, 20.0, PointStatus.KEYFRAME),
+            (1, 10.0, 20.0, "keyframe"),
             (2, 11.0, 21.0, PointStatus.INTERPOLATED),
-            (3, 12.0, 22.0, PointStatus.KEYFRAME),
+            (3, 12.0, 22.0, "keyframe"),
         ],
         "Track2": [
-            (1, 30.0, 40.0, PointStatus.TRACKED),
-            (2, 31.0, 41.0, PointStatus.TRACKED),
-            (3, 32.0, 42.0, PointStatus.ENDFRAME),
+            (1, 30.0, 40.0, "tracked"),
+            (2, 31.0, 41.0, "tracked"),
+            (3, 32.0, 42.0, "endframe"),
         ],
         "Track3": [
             (1, 50.0, 60.0, PointStatus.NORMAL),
             (2, 51.0, 61.0, PointStatus.INTERPOLATED),
-            (3, 52.0, 62.0, PointStatus.TRACKED),
+            (3, 52.0, 62.0, "tracked"),
         ],
     }
 
@@ -337,15 +337,15 @@ class TestFrameRangeCalculation:
         app_state.set_curve_data(
             "Track1",
             [
-                (5, 10.0, 20.0, PointStatus.KEYFRAME),
-                (10, 11.0, 21.0, PointStatus.KEYFRAME),
+                (5, 10.0, 20.0, "keyframe"),
+                (10, 11.0, 21.0, "keyframe"),
             ],
         )
         app_state.set_curve_data(
             "Track2",
             [
-                (1, 30.0, 40.0, PointStatus.TRACKED),
-                (15, 31.0, 41.0, PointStatus.TRACKED),
+                (1, 30.0, 40.0, "tracked"),
+                (15, 31.0, 41.0, "tracked"),
             ],
         )
 
@@ -365,15 +365,15 @@ class TestFrameRangeCalculation:
         app_state.set_curve_data(
             "Track1",
             [
-                (5, 10.0, 20.0, PointStatus.KEYFRAME),
-                (10, 11.0, 21.0, PointStatus.KEYFRAME),
+                (5, 10.0, 20.0, "keyframe"),
+                (10, 11.0, 21.0, "keyframe"),
             ],
         )
         app_state.set_curve_data(
             "Track2",
             [
-                (1, 30.0, 40.0, PointStatus.TRACKED),
-                (15, 31.0, 41.0, PointStatus.TRACKED),
+                (1, 30.0, 40.0, "tracked"),
+                (15, 31.0, 41.0, "tracked"),
             ],
         )
         app_state.set_active_curve("Track1")
@@ -398,7 +398,7 @@ class TestIntegrationWithApplicationState:
 
         # Load initial curves (test uses 4-tuple format)
         app_state = get_application_state()
-        app_state.set_curve_data("Track1", [(1, 10.0, 20.0, PointStatus.KEYFRAME)])
+        app_state.set_curve_data("Track1", [(1, 10.0, 20.0, "keyframe")])
 
         # Verify initial status (1 point exists)
         timeline_widget._on_curves_changed(app_state.get_all_curves())  # pyright: ignore[reportPrivateUsage]
@@ -416,7 +416,7 @@ class TestIntegrationWithApplicationState:
         assert initial_total == 1, f"Expected 1 point initially, got {initial_total}"
 
         # Add another curve
-        app_state.set_curve_data("Track2", [(1, 30.0, 40.0, PointStatus.TRACKED)])
+        app_state.set_curve_data("Track2", [(1, 30.0, 40.0, "tracked")])
 
         # Verify aggregated status includes new curve (2 points total)
         timeline_widget._on_curves_changed(app_state.get_all_curves())  # pyright: ignore[reportPrivateUsage]
@@ -439,7 +439,7 @@ class TestIntegrationWithApplicationState:
         """Verify cache is invalidated when toggling modes."""
         # Load curves (test uses 4-tuple format)
         app_state = get_application_state()
-        app_state.set_curve_data("Track1", [(1, 10.0, 20.0, PointStatus.KEYFRAME)])
+        app_state.set_curve_data("Track1", [(1, 10.0, 20.0, "keyframe")])
 
         # Populate cache in single-curve mode
         timeline_widget._on_curves_changed(app_state.get_all_curves())  # pyright: ignore[reportPrivateUsage]

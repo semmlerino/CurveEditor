@@ -202,7 +202,7 @@ class TestNavigationIntegration:
         # Navigate to different frame types and verify colors
         test_frames = [
             (1, "keyframe"),  # Has keyframe
-            (7, "gap"),  # Gap (no data)
+            (16, "gap"),  # Gap (after endframe at 15)
             (11, "tracked"),  # Has tracked point
             (15, "endframe"),  # Has endframe
         ]
@@ -218,10 +218,11 @@ class TestNavigationIntegration:
                 color = tab._get_background_color()
 
                 if expected_type == "gap":
-                    # Should show no_points color
-                    expected_color = tab._colors_cache["no_points"]
+                    # Should show inactive color (gaps after endframe have higher priority than no_points)
+                    expected_color = tab._colors_cache["inactive"]
                     assert color.red() == expected_color.red()
                     assert tab.point_count == 0
+                    assert tab.is_inactive  # Verify it's truly an inactive segment
                 else:
                     # Should NOT be no_points color
                     no_points = tab._colors_cache["no_points"]

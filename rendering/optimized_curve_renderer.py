@@ -412,6 +412,14 @@ class OptimizedCurveRenderer:
             logger.warning("No points to render - curve_view.points is empty")
             return
 
+        # Filter to current frame only if enabled (3DEqualizer-style)
+        if render_state.show_current_point_only:
+            current_frame = render_state.current_frame
+            points = [p for p in points if p[0] == current_frame]
+            if not points:
+                # No point at current frame - nothing to render
+                return
+
         # Convert to NumPy array for vectorized operations
         if not isinstance(points, np.ndarray):
             # Convert list of tuples to NumPy array - handle variable tuple lengths
@@ -671,30 +679,33 @@ class OptimizedCurveRenderer:
             frame_to_index: Mapping from frame numbers to indices
             pen: Pen to use for drawing (should be dashed)
         """
+        # Only draw if we have at least 2 points (need 2 points to draw a line)
+        if segment.point_count < 2:
+            return
+
         painter.setPen(pen)
 
         # Draw dashed lines connecting the actual tracked points in the segment
-        if segment.point_count > 1:
-            gap_path = QPainterPath()
-            first_point = True
+        gap_path = QPainterPath()
+        first_point = True
 
-            for point in segment.points:
-                # Get the screen position for this point
-                point_idx = frame_to_index.get(point.frame, -1)
+        for point in segment.points:
+            # Get the screen position for this point
+            point_idx = frame_to_index.get(point.frame, -1)
 
-                if point_idx >= 0 and point_idx < len(screen_points):
-                    screen_x = screen_points[point_idx][0]
-                    screen_y = screen_points[point_idx][1]
+            if point_idx >= 0 and point_idx < len(screen_points):
+                screen_x = screen_points[point_idx][0]
+                screen_y = screen_points[point_idx][1]
 
-                    if first_point:
-                        gap_path.moveTo(screen_x, screen_y)
-                        first_point = False
-                    else:
-                        gap_path.lineTo(screen_x, screen_y)
+                if first_point:
+                    gap_path.moveTo(screen_x, screen_y)
+                    first_point = False
+                else:
+                    gap_path.lineTo(screen_x, screen_y)
 
-            # Draw the dashed path
-            if not first_point:  # Only draw if we had at least one valid point
-                painter.drawPath(gap_path)
+        # Draw the dashed path
+        if not first_point:  # Only draw if we had at least one valid point
+            painter.drawPath(gap_path)
 
     def _render_lines_with_segments(
         self,
@@ -753,11 +764,11 @@ class OptimizedCurveRenderer:
         line_width: int,
     ) -> None:
         """Render lines with segment awareness for gaps at ENDFRAME points."""
-        # ALWAYS create SegmentedCurve from the curve_data being rendered
-        # This ensures correct segmentation for multi-curve rendering where each curve
-        # has its own segment structure (DataService only stores ONE curve's segments)
-        points = [CurvePoint.from_tuple(pt) for pt in curve_data]
-        segmented_curve = SegmentedCurve.from_points(points)
+        # Create SegmentedCurve from EXPLICIT points only (exclude INTERPOLATED frames)
+        # This ensures correct segment detection based on explicit ENDFRAME/KEYFRAME points
+        # Densified data includes interpolated frames which would create incorrect segments
+        explicit_points = [CurvePoint.from_tuple(pt) for pt in curve_data if len(pt) > 3 and pt[3] != "INTERPOLATED"]
+        segmented_curve = SegmentedCurve.from_points(explicit_points)
 
 
         # Set line styles for different segment types
@@ -1140,26 +1151,27 @@ class OptimizedCurveRenderer:
         max_frame = max(p.frame for p in points)
 
         for frame in range(min_frame, max_frame + 1):
-            # Check if this frame is in an active segment
+            # Check if this frame has explicit point data first
+            existing_point = next((p for p in points if p.frame == frame), None)
             segment = segmented_curve.get_segment_at_frame(frame)
 
-            if segment and segment.is_active:
-                # Get position at this frame (uses interpolation if needed)
+            if existing_point:
+                # Always include explicit points (even in gap segments)
                 position = data_service.get_position_at_frame(curve_data, frame)
                 if position is None:
                     continue
                 x, y = position
-
-                # Check if this frame has explicit point data
-                existing_point = next((p for p in points if p.frame == frame), None)
-
-                if existing_point:
-                    # Use existing point with its status
-                    status_str = existing_point.status.name
-                    densified.append((frame, x, y, status_str))
-                else:
-                    # Interpolated frame - mark as INTERPOLATED
-                    densified.append((frame, x, y, "INTERPOLATED"))
+                status_str = existing_point.status.name
+                densified.append((frame, x, y, status_str))
+            elif segment and segment.is_active:
+                # Interpolate frames only in active segments
+                position = data_service.get_position_at_frame(curve_data, frame)
+                if position is None:
+                    continue
+                x, y = position
+                densified.append((frame, x, y, "INTERPOLATED"))
+            # Note: Frames in inactive gaps without explicit points are NOT included
+            # This keeps densified data compact while preserving explicit gap points
 
         return densified
 
@@ -1208,6 +1220,14 @@ class OptimizedCurveRenderer:
 
             if not curve_points:
                 continue
+
+            # Filter to current frame only if enabled (3DEqualizer-style)
+            if render_state.show_current_point_only:
+                current_frame = render_state.current_frame
+                curve_points = [p for p in curve_points if p[0] == current_frame]
+                if not curve_points:
+                    # No point at current frame for this curve - skip it
+                    continue
 
             # Determine curve styling
             is_active = curve_name == active_curve
