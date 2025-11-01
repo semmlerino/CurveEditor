@@ -514,10 +514,15 @@ class TimelineTabWidget(QWidget):
         logger.debug(f"Timeline updated from ApplicationState: {len(frame_status)} frames")
 
     @safe_slot
-    def _on_active_curve_changed(self, _curve_name: str) -> None:
+    def _on_active_curve_changed(self, curve_name: str | None) -> None:
         """Handle ApplicationState active_curve_changed signal."""
-        # Refresh timeline with new active curve data
-        self._on_curves_changed(self._app_state.get_all_curves())
+        # Handle None case (cleared active curve)
+        if curve_name is None:
+            # Clear timeline display
+            self.active_point_label.setText("No active curve")
+        else:
+            # Refresh timeline with new active curve data
+            self._on_curves_changed(self._app_state.get_all_curves())
 
     @safe_slot
     def _on_selection_changed(self, selection: set[int], curve_name: str | None = None) -> None:

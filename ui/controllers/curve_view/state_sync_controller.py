@@ -126,12 +126,13 @@ class StateSyncController:
             logger.debug(f"ApplicationState selection changed for '{curve_name}': {len(indices)} selected")
 
     @safe_slot
-    def _on_app_state_active_curve_changed(self, curve_name: str) -> None:
+    def _on_app_state_active_curve_changed(self, curve_name: str | None) -> None:
         """Handle ApplicationState active_curve_changed signal."""
-        # Update display to show new active curve
-        self.widget.invalidate_caches()
-        self.widget.update()
-        logger.debug(f"ApplicationState active curve changed to: '{curve_name}'")
+        # Update display to show new active curve (handle None case)
+        if curve_name is not None:
+            self.widget.invalidate_caches()
+            self.widget.update()
+            logger.debug(f"ApplicationState active curve changed to: '{curve_name}'")
 
     @safe_slot
     def _on_app_state_visibility_changed(self, curve_name: str, visible: bool) -> None:

@@ -425,7 +425,7 @@ def test_signal_migration_completeness():
     def on_curves_changed(curves: dict[str, CurveDataList]) -> None:
         signals_received.append("curves_changed")
 
-    def on_active_curve_changed(curve_name: str) -> None:
+    def on_active_curve_changed(curve_name: str | None) -> None:
         signals_received.append("active_curve_changed")
 
     app_state.curves_changed.connect(on_curves_changed)

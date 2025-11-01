@@ -213,7 +213,7 @@ class SignalConnectionManager:
 
         logger.info("Connected ApplicationState signals for status label updates")
 
-    def _on_active_curve_changed_update_status(self, _curve_name: str) -> None:
+    def _on_active_curve_changed_update_status(self, _curve_name: str | None) -> None:
         """Handle active curve change by updating status label (ignores curve name)."""
         self.main_window.update_point_status_label()
 

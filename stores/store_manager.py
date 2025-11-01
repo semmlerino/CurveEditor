@@ -148,7 +148,7 @@ class StoreManager(QObject):
             curve_data = curves[active]
             self.frame_store.sync_with_curve_data(curve_data)
 
-    def _on_active_curve_changed(self, curve_name: str) -> None:
+    def _on_active_curve_changed(self, curve_name: str | None) -> None:
         """Sync FrameStore when active curve switches (without data change)."""
         if curve_name:
             curve_data = self._app_state.get_curve_data(curve_name)

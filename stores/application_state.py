@@ -113,7 +113,7 @@ class ApplicationState(QObject):
     state_changed: Signal = Signal()  # Emitted on any state change
     curves_changed: Signal = Signal(dict)  # curves_data changed: dict[str, CurveDataList]
     selection_changed: Signal = Signal(set, str)  # Point-level (frame indices)
-    active_curve_changed: Signal = Signal(str)  # active_curve_name: str
+    active_curve_changed: Signal = Signal(object)  # active_curve_name: str | None (matches StateManager pattern)
     frame_changed: Signal = Signal(int)  # current_frame: int
     curve_visibility_changed: Signal = Signal(str, bool)  # (curve_name, visible)
 
@@ -490,7 +490,7 @@ class ApplicationState(QObject):
         # If active curve was deleted, clear it
         if self._active_curve == curve_name:
             self._active_curve = None
-            self._emit(self.active_curve_changed, ("",))
+            self._emit(self.active_curve_changed, (None,))  # Pass None as-is
 
         # Emit selection state changed if curve was in selection
         if selection_modified:
@@ -627,7 +627,7 @@ class ApplicationState(QObject):
         if self._active_curve != curve_name:
             old_curve = self._active_curve
             self._active_curve = curve_name
-            self._emit(self.active_curve_changed, (curve_name or "",))
+            self._emit(self.active_curve_changed, (curve_name,))
 
             logger.info(f"Active curve changed: '{old_curve}' -> '{curve_name}'")
 
