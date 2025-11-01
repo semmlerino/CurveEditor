@@ -29,9 +29,10 @@ def load_exr_as_qimage(file_path: str) -> "QImage | None":
     Load an OpenEXR image file and convert it to QImage.
 
     Tries multiple backends in order of preference:
-    1. OpenEXR (official library - best quality)
-    2. Pillow (if compiled with OpenEXR support)
-    3. imageio (if compatible backend installed)
+    1. OpenImageIO (OIIO - common in VFX facilities)
+    2. OpenEXR (official library - best quality)
+    3. Pillow (if compiled with OpenEXR support)
+    4. imageio (if compatible backend installed)
 
     Args:
         file_path: Path to the EXR file
@@ -39,7 +40,12 @@ def load_exr_as_qimage(file_path: str) -> "QImage | None":
     Returns:
         QImage object or None if loading failed
     """
-    # Try OpenEXR first (best quality, most reliable)
+    # Try OpenImageIO first (commonly available in VFX facilities)
+    qimage = _load_exr_with_oiio(file_path)
+    if qimage is not None:
+        return qimage
+
+    # Try OpenEXR (best quality, most reliable)
     qimage = _load_exr_with_openexr(file_path)
     if qimage is not None:
         return qimage
@@ -57,6 +63,83 @@ def load_exr_as_qimage(file_path: str) -> "QImage | None":
     # All backends failed
     logger.error(f"Failed to load EXR file {file_path}. " + "Consider installing: pip install OpenEXR")
     return None
+
+
+def _load_exr_with_oiio(file_path: str) -> "QImage | None":
+    """
+    Load EXR using OpenImageIO (commonly available in VFX facilities).
+
+    Args:
+        file_path: Path to the EXR file
+
+    Returns:
+        QImage object or None if loading failed
+    """
+    try:
+        import OpenImageIO as oiio
+        from PySide6.QtGui import QImage
+
+        # Open the image file
+        img_input = oiio.ImageInput.open(file_path)
+        if img_input is None:
+            logger.debug(f"OIIO couldn't open {file_path}")
+            return None
+
+        # Get image spec
+        spec = img_input.spec()
+        width = spec.width
+        height = spec.height
+        channels = spec.nchannels
+
+        # Read pixels as float
+        pixels = img_input.read_image(oiio.FLOAT)
+        img_input.close()
+
+        if pixels is None:
+            logger.debug(f"OIIO couldn't read pixels from {file_path}")
+            return None
+
+        # Convert to numpy array and reshape
+        img_data = np.array(pixels, dtype=np.float32).reshape(height, width, channels)
+
+        # Extract RGB channels (handle RGBA or other channel counts)
+        if channels >= 3:
+            img_data = img_data[:, :, :3]  # Take first 3 channels as RGB
+        elif channels == 1:
+            # Grayscale - replicate to RGB
+            img_data = np.stack([img_data[:, :, 0]] * 3, axis=-1)
+        else:
+            logger.debug(f"Unsupported channel count: {channels}")
+            return None
+
+        # Apply tone mapping (HDR -> LDR conversion)
+        img_data = _tone_map_hdr(img_data)
+
+        # Convert to 8-bit
+        img_8bit = (img_data * 255).astype(np.uint8)
+
+        # Create QImage
+        bytes_per_line = width * 3
+        qimage = QImage(
+            img_8bit.data,
+            width,
+            height,
+            bytes_per_line,
+            QImage.Format.Format_RGB888,
+        )
+
+        # Copy to ensure data persists
+        qimage = qimage.copy()
+
+        logger.debug(f"Loaded EXR with OIIO: {file_path} ({width}x{height})")
+        return qimage
+
+    except ImportError:
+        logger.debug("OpenImageIO not available")
+        return None
+    except Exception as e:
+        logger.debug(f"OIIO couldn't load {file_path}: {e}")
+        return None
 
 
 def _load_exr_with_openexr(file_path: str) -> "QImage | None":
