@@ -540,7 +540,7 @@ get_application_state().set_curve_data(curve_name, data)
 ---
 *Last Updated: October 2025*
 
-<!-- Testing auto-push debug logging -->
+<!-- Testing auto-push debug logging - second test -->
 
 # Important Reminders
 - Do what's asked; nothing more, nothing less
