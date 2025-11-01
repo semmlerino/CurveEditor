@@ -39,10 +39,10 @@ The project uses protocol-based typing for loose coupling and type safety:
 
 **Controller Migration Status** (`ui/controllers/`):
 - ✅ ActionHandlerController: Uses StateManagerProtocol, MainWindowProtocol (100% migrated)
-- ⚠️ 7 other controllers: Still use concrete types (ViewManagementController, TimelineController, etc.)
+- ⚠️ 13 other controllers: Still use concrete types (ViewManagementController, TimelineController, etc.)
 
 **Current Approach (Pragmatic Migration)**
-Protocol adoption proved architecturally sound. Remaining 7 controllers use concrete types:
+Protocol adoption proved architecturally sound. Remaining 13 controllers use concrete types:
 - **Migration effort**: 3-4 hours to add 15-20 missing UI widget attributes to MainWindowProtocol
 - **Current priority**: Test coverage and functional improvements provide higher value
 - **Personal tool context**: Concrete types acceptable (no team coordination needs)
