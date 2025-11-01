@@ -574,7 +574,7 @@ get_application_state().set_curve_data(curve_name, data)
 7. Validate before integration to prevent silent failures
 
 ---
-*Last Updated: October 2025*
+*Last Updated: November 2025*
 
 # Important Reminders
 - Do what's asked; nothing more, nothing less
