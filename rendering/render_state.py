@@ -74,6 +74,9 @@ class RenderState:
     # Pre-computed visibility (performance optimization)
     visible_curves: frozenset[str] | None = None  # Pre-computed set of curves that should render
 
+    # Display mode options
+    show_current_point_only: bool = False  # 3DEqualizer-style: show only point at current frame
+
     def __post_init__(self) -> None:
         """Validate render state after initialization."""
         # Ensure widget dimensions are positive
@@ -175,6 +178,7 @@ class RenderState:
             manual_offset_x=widget.manual_offset_x,
             manual_offset_y=widget.manual_offset_y,
             flip_y_axis=widget.flip_y_axis,
+            show_current_point_only=widget._state_manager.show_current_point_only if widget._state_manager else False,
             # Background settings
             show_background=widget.show_background,
             background_image=widget.background_image,

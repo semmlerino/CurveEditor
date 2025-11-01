@@ -157,6 +157,25 @@ class ViewManagementController:
                     widget.setToolTip("")
             logger.info("Tooltips disabled")
 
+    @Slot()
+    def toggle_current_point_only(self) -> None:
+        """Toggle current point only mode (3DEqualizer-style).
+        
+        When enabled, only shows the point at the current frame,
+        hiding the rest of the curve trajectory.
+        """
+        if not self.main_window.show_current_point_cb:
+            return
+        
+        show_current_only = self.main_window.show_current_point_cb.isChecked()
+        self.main_window.state_manager.show_current_point_only = show_current_only
+        
+        # Trigger curve view repaint
+        if self.main_window.curve_widget:
+            self.main_window.curve_widget.update()
+        
+        logger.info(f"Current point only mode: {'enabled' if show_current_only else 'disabled'}")
+
     def get_view_options(self) -> ViewOptions:
         """
         Get current view options as a dictionary.
@@ -242,6 +261,12 @@ class ViewManagementController:
 
             # Update ApplicationState with image sequence
             get_application_state().set_image_files(image_files, directory=image_dir)
+
+            # Initialize image cache with full paths (Phase 2C)
+            from services import get_data_service
+            full_paths = [str(Path(image_dir) / fname) for fname in image_files]
+            get_data_service()._safe_image_cache.set_image_sequence(full_paths)
+            logger.debug(f"Initialized image cache with {len(full_paths)} files")
 
             # Load the first image as background
             self._load_initial_background(image_dir, image_files)
