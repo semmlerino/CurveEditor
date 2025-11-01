@@ -350,6 +350,42 @@ uv run ruff check .         → .venv/bin/python3 -m ruff check .
 uv run ./bpr                → .venv/bin/python3 ./bpr
 ```
 
+### VFX Facility Deployment (Rez)
+
+**EXR Loading Requirement**: The application requires an EXR-capable backend to display EXR image sequences. In VFX facility environments using Rez, you must include an EXR package in your Rez environment.
+
+**Tested Working Configuration (BlueBolt VFX platform):**
+```bash
+rez env oiio-3.0.4.0 PySide6_Essentials pillow typing_extensions psutil imageio numpy Jinja2 -- python3 main.py
+```
+
+**EXR Backend Priority** (`io_utils/exr_loader.py`):
+1. **OpenImageIO (OIIO)** - Primary backend for VFX facilities (recommended: `oiio-3.0.4.0` or `oiio-3.0.1.0.py311`)
+2. **OpenEXR** - Fallback (try `openexr-3.3.2` or `openexr-3.1.11`)
+3. **Pillow** - If compiled with EXR support (rarely available)
+4. **imageio** - Auto-detection fallback (limited EXR support)
+
+**Finding Available Packages:**
+```bash
+# Search for EXR-capable packages
+rez search oiio
+rez search openexr
+
+# Test which package works
+./test_rez_exr_packages.sh [/path/to/test.exr]
+```
+
+**Diagnostic Tools** (in repository):
+- `check_exr_backends.py` - Check which Python backends are available
+- `test_imageio_exr.py` - Test if imageio can load a specific EXR file
+- `test_rez_exr_packages.sh` - Comprehensive tester for all available Rez packages
+
+**If EXR loading fails**, the application will log:
+```
+ERROR - Failed to load EXR file <path>. Consider installing: pip install OpenEXR
+```
+This indicates the Rez environment is missing an EXR-capable package.
+
 ### Linting & Testing
 
 ```bash
