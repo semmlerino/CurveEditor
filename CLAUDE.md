@@ -24,22 +24,17 @@ Quick reference for CurveEditor - a Python/PySide6 application for editing anima
 - Pragmatic over defensive (e.g., trust local filesystem, not untrusted network input)
 - Readable over clever (but don't sacrifice performance where it matters)
 - "Good enough for single-user" over "scales to enterprise"
-
-**Professional-quality code for a personal tool, not enterprise software.**
-
-## Refactoring Status (October 2025)
-
-**Phase 1 Complete:** Quick wins delivered (docstrings, cleanup, nesting reduction)
-**Phase 2 In Progress:** Protocol foundation established, ongoing controller migration
+ 
 
 ### Protocol Adoption Status
 
 The project uses protocol-based typing for loose coupling and type safety:
 
-**Protocols Defined** (`protocols/ui.py`):
-- ✅ 16 protocols fully defined (QLabelProtocol, ServicesProtocol, FileOperationsProtocol, etc.)
-- ✅ StateManagerProtocol extended with 4 properties (zoom_level, pan_offset, smoothing_window_size, smoothing_filter_type)
-- ✅ MainWindowProtocol complete (226 lines, 80+ members)
+**Protocols Defined** (organized in `protocols/` package):
+- ✅ **`protocols/ui.py`**: 16 UI component protocols (MainWindowProtocol, CurveViewProtocol, StateManagerProtocol, etc.)
+- ✅ **`protocols/data.py`**: Data model protocols (PointProtocol, CurveDataProtocol, ImageProtocol, etc.)
+- ✅ **`protocols/services.py`**: Service layer protocols (DataServiceProtocol, InteractionServiceProtocol, TransformServiceProtocol, UIServiceProtocol)
+- ✅ Centralized in `protocols/__init__.py` for single import point
 - ✅ 0 type errors in protocol definitions
 
 **Controller Migration Status** (`ui/controllers/`):
@@ -54,27 +49,6 @@ Protocol adoption proved architecturally sound. Remaining 7 controllers use conc
 
 ActionHandlerController establishes the pattern. Controllers will adopt protocols as they're refactored.
 
-### Controller Tests Status
-
-**Coverage:** 12/14 controllers tested (86%), 220+ tests, 100% pass rate
-
-**October 2025 Update:** Created comprehensive test suites for 4 high-priority components (TrackingDisplayController, TrackingSelectionController, ViewCameraController, CommandManager). Test suite discovered and helped fix cache invalidation bug in ViewCameraController.pan().
-
-**Remaining:** base_tracking_controller (abstract base), progressive_disclosure_controller (lower priority)
-
-### Refactoring Metrics
-
-**Key Metrics:**
-- Quality: 62 → 72/100 (+10 points)
-- Type errors: 47 → 0 (maintained)
-- Test coverage: 3,065 → 3,175 tests (+110 tests)
-- Controller coverage: 57% → 86%
-
-**October 2025:** Completed high-priority test gap closure (+112 controller tests), fixed 2 production bugs (pan_offset sync, cache invalidation), documented 10+ methods, removed 80 lines redundant code, aligned StateManagerProtocol with migration.
-
-**Next:** Protocol migration for remaining controllers, functional improvements, feature development
-
----
 
 ## Code Quality Standards
 
@@ -121,324 +95,93 @@ service.select_all_points(view, main_window)                   # Active curve
 service.select_all_points(view, main_window, curve_name="Track1")  # Specific curve
 ```
 
+## Architectural Map: Where Things Happen
+
+**Selection & Interaction:**
+- `services/interaction_service.py`: Mouse/point selection (_SelectionManager, _MouseHandler)
+- `stores/application_state.py`: Selection storage (active_curve, get_selection, set_selection)
+
+**Rendering:**
+- `rendering/optimized_curve_renderer.py`: Curve/point rendering (OptimizedCurveRenderer)
+- `core/curve_segments.py`: Gap visualization (SegmentedCurve.from_points)
+- `ui/timeline_tabs.py`: Timeline frame status display
+- `rendering/visual_settings.py`: Centralized visual parameters
+
+**Frame Management:**
+- `stores/application_state.py`: Current frame state (set_frame, frame_changed signal)
+- `ui/controllers/frame_change_coordinator.py`: Deterministic frame change ordering
+- `ui/controllers/timeline_controller.py`: Navigation (next_frame, prev_frame, jump_to_frame)
+
+**Data Flow:**
+- `stores/application_state.py`: Central data store (get_curve_data, set_curve_data, active_curve_data)
+- `services/data_service.py`: File I/O (load_csv, save_json, get_position_at_frame)
+- `services/image_cache_manager.py`: Image caching (SafeImageCacheManager)
+
+**Commands:**
+- `core/commands/command_manager.py`: Undo/redo (execute, undo, redo)
+- `core/commands/curve_commands.py`: Base class (CurveDataCommand - automatic target storage)
+- `core/commands/shortcut_commands.py`: Keyboard commands (E, D, Delete, arrows)
+
+**Coordinate Transforms:**
+- `services/transform_service.py`: get_transform(view) - data_to_screen / screen_to_data
+
 ## State Management
 
-**ApplicationState** is the single source of truth for **application data**.
+**Two separate state stores:**
 
+**ApplicationState** - Application data (curves, images, frames):
 ```python
 from stores.application_state import get_application_state
-
 state = get_application_state()
 
-# Explicit multi-curve API (one way to do things)
-active = state.active_curve
-if active:
-    # Curve data
-    state.set_curve_data(active, curve_data)
-    data = state.get_curve_data(active)
+# Multi-curve API
+state.set_curve_data(curve_name, data)
+data = state.get_curve_data(curve_name)
 
-    # Original data (for undo)
-    state.set_original_data(active, original_data)
-    original = state.get_original_data(active)
+# Active curve property (recommended)
+if (curve_data := state.active_curve_data) is None:
+    return
+curve_name, data = curve_data  # Safe access to active curve + data
 
-# Image sequence
-state.set_image_files(files, directory="/path/to/images")
-files = state.get_image_files()
-
-# Frame state
-state.set_frame(42)
-frame = state.get_current_frame()
-
-# Subscribe to changes
-state.curves_changed.connect(self._on_data_changed)
-state.image_sequence_changed.connect(self._on_images_changed)
-
-# Batch operations (prevent signal storms)
-with state.batch_updates():
-    state.set_curve_data("Track1", data1)
-    state.set_curve_data("Track2", data2)
-    # Signals emitted once at end
+# Signals: curves_changed, selection_changed, frame_changed
 ```
 
-### Focused Protocols for ApplicationState (Interface Segregation)
-
-**Phase 1 Addition** (October 2025): Use minimal protocols instead of depending on full ApplicationState.
-
-```python
-from protocols.state import FrameProvider, CurveDataProvider, SelectionProvider
-
-# ✅ RECOMMENDED - Depend on minimal protocol
-class FrameDisplay:
-    def __init__(self, frames: FrameProvider):
-        self._frames = frames  # Only needs current_frame property
-
-    def show_frame(self):
-        print(f"Frame: {self._frames.current_frame}")
-
-# ✅ Test with 1-line mock (98% simpler than mocking ApplicationState)
-class MockFrameProvider:
-    current_frame: int = 42
-
-test_frame_display(MockFrameProvider())  # Done!
-
-# ❌ OLD WAY - Depend on full ApplicationState (50+ methods)
-class FrameDisplay:
-    def __init__(self, state: ApplicationState):
-        self._state = state  # Depends on 50+ methods for 1 property!
-```
-
-**Available Protocols** (see `protocols/state.py` for details):
-- `FrameProvider` - Current frame access only
-- `CurveDataProvider` - Read-only curve data
-- `CurveDataModifier` - Write curve data
-- `SelectionProvider` - Read-only selection
-- `SelectionModifier` - Write selection
-- `ImageSequenceProvider` - Image sequence info
-- Composite: `CurveState`, `SelectionState`, `FrameAndCurveProvider`
-
-**Benefits**:
-- **Test mocks**: 1-3 methods instead of 50+ methods (98% reduction)
-- **Clear dependencies**: Protocol name documents exact needs
-- **Decoupling**: Changes to unrelated features don't affect clients
-- **Flexibility**: Easy to create lightweight test implementations
-
-**Compatibility**: ApplicationState automatically satisfies all protocols via structural typing (duck typing). No code changes needed to existing ApplicationState.
-
----
-
-**StateManager** handles **UI preferences and view state**.
-
+**StateManager** - UI preferences (zoom, pan, window state):
 ```python
 from ui.state_manager import StateManager
 
-# View state
 state_manager.zoom_level = 2.0
 state_manager.pan_offset = (100, 50)
-
-# Tool state
-state_manager.current_tool = "smooth"
-
-# Window state
-state_manager.window_position = (100, 100)
-state_manager.is_fullscreen = True
-
-# History UI state
-state_manager.set_history_state(can_undo=True, can_redo=False)
-
-# Subscribe to UI state changes
-state_manager.view_state_changed.connect(self._on_view_changed)
-state_manager.undo_state_changed.connect(self._update_undo_button)
-state_manager.tool_state_changed.connect(self._update_tool_selection)
+# Signals: view_state_changed, undo_state_changed, tool_state_changed
 ```
 
-**Migration Complete** (October 2025):
-- StateManager Simplified Migration completed in 4 phases
-- Result: Single source of truth, one API, zero technical debt
-- ApplicationState owns all data, StateManager owns all UI state
-
-**⚠️ StateManager has NO data access methods**:
-```python
-# ❌ WRONG - These don't exist
-state_manager.track_data
-state_manager.image_files
-state_manager.total_frames
-
-# ✅ CORRECT - Use ApplicationState directly
-state = get_application_state()
-active = state.active_curve
-if active:
-    data = state.get_curve_data(active)
-    state.set_curve_data(active, new_data)
-```
-
-### Active Curve Data Pattern
-
-**Use `active_curve_data` property for safe access** (Phase 4 Task 4.4):
-
-```python
-from stores.application_state import get_application_state
-
-state = get_application_state()
-
-# ✅ GOOD - Property-based (modern pattern, Phase 4+)
-if (curve_data := state.active_curve_data) is None:
-    return
-curve_name, data = curve_data
-# Use curve_name and data safely
-
-# ❌ BAD - Manual 4-step pattern (pre-Phase 4, avoid in new code)
-active = state.active_curve
-if not active:
-    return
-data = state.get_curve_data(active)
-if not data:
-    return
-# Use active and data
-```
-
-**Pattern Established**: Complex state retrieval patterns should use `@property` or service methods, not be repeated across business logic. This:
-- **Reduces code**: 4 lines → 2 lines (50% reduction)
-- **Improves discoverability**: Property visible in IDE autocomplete
-- **Ensures consistency**: One way to do it
-- **Type safety**: Single source of truth for return type
-
-**When to use**:
-- Command `execute()`/`undo()` methods needing curve data
-- Service operations requiring active curve + data
-- UI event handlers that modify curve data
-- Any code path requiring both curve name AND curve data
-
-**When NOT to use**:
-- Only need curve name (use `state.active_curve` directly)
-- Only need selection (use `state.get_selection(curve_name)`)
-- Only need to check if active curve exists (partial pattern is fine)
-
-**Command Pattern: Automatic Target Storage** (Phase 1 Refactoring - October 2025):
-
-`CurveDataCommand` base class **automatically** stores target curve when you call `_get_active_curve_data()`:
-
-```python
-class SmoothCommand(CurveDataCommand):
-    def __init__(self, ...):
-        super().__init__(...)
-        # self._target_curve inherited from base (stored automatically)
-
-    def execute(self, main_window: MainWindowProtocol) -> bool:
-        # Get active curve - AUTOMATIC target storage!
-        if (result := self._get_active_curve_data()) is None:
-            return False
-        curve_name, data = result
-        # self._target_curve is now set automatically (no manual storage needed)
-
-        # ... execute logic
-
-    def undo(self, main_window: MainWindowProtocol) -> bool:
-        # ✅ Use stored target (set automatically during execute)
-        if not self._target_curve:
-            return False
-        state.set_curve_data(self._target_curve, self._old_data)
-
-    def redo(self, main_window: MainWindowProtocol) -> bool:
-        # ✅ Use stored target (NOT current active)
-        if not self._target_curve:
-            return False
-        state.set_curve_data(self._target_curve, self._new_data)
-```
-
-**Why This Matters**: Undo/redo must target the curve where command executed, not current active curve. Automatic storage eliminates Bug #2 (forgetting to store target manually).
-
-**Key Benefit**: Impossible to forget target storage - it's automatic when you call `_get_active_curve_data()`.
-
-### Data Access Patterns (Architectural Guidance)
-
-**Prefer direct ApplicationState access in MainWindow and services:**
-
-```python
-# ✅ RECOMMENDED - Direct ApplicationState access (MainWindow pattern)
-from stores.application_state import get_application_state
-
-app_state = get_application_state()
-if (cd := app_state.active_curve_data) is None:
-    return []  # No active curve
-curve_name, curve_data = cd
-# Use curve_name and curve_data
-```
-
-**Convenience pattern acceptable for other UI components:**
-
-```python
-# ⚠️ ACCEPTABLE - For UI components outside MainWindow
-curve_data = self.curve_view.curve_data  # Delegates to ApplicationState internally
-```
-
-**Why prefer direct access in MainWindow?**
-- MainWindow is the central coordinator - should use canonical patterns
-- More explicit about data flow and single source of truth
-- Consistent with refactored methods (e.g., `_get_current_point_count_and_bounds`)
-- Sets clear example for future code
-- Direct access to ApplicationState eliminates unnecessary indirection
-
-**Implementation Note**: `CurveViewWidget.curve_data` is a convenience wrapper that delegates to ApplicationState. It's not a separate data source, but direct access is preferred in MainWindow for architectural clarity.
+**⚠️ Critical**: StateManager has NO data access. Use ApplicationState for all curve/image/frame data.
 
 
 ## Command Base Class Pattern
 
-**Use `CurveDataCommand` base class for curve-modifying commands** (Phase KISS/DRY Cleanup):
-
-All commands that modify curve data should inherit from `CurveDataCommand` to leverage:
-- Automatic active curve validation and retrieval
-- Standardized error handling
-- Target curve storage for correct undo/redo
-- Common helper methods for point manipulation
+Commands modifying curve data inherit from `CurveDataCommand`:
 
 ```python
 from core.commands.curve_commands import CurveDataCommand
 
-class MyCustomCommand(CurveDataCommand):
-    def __init__(self, description: str, ...):
-        super().__init__(description)
-        # self._target_curve inherited from base
-
+class MyCommand(CurveDataCommand):
     def execute(self, main_window: MainWindowProtocol) -> bool:
-        """Execute command with base class helpers."""
-        def _execute_operation() -> bool:
-            # Validate and get active curve (AUTOMATIC target storage)
-            if (result := self._get_active_curve_data()) is None:
-                return False
-            curve_name, curve_data = result
-            # self._target_curve is now set automatically!
-
-            # ... perform operation
-
-            return True
-
-        # Automatic error handling
-        return self._safe_execute("executing", _execute_operation)
+        # AUTOMATIC target storage when calling _get_active_curve_data()
+        if (result := self._get_active_curve_data()) is None:
+            return False
+        curve_name, data = result
+        # ... perform operation, save old_data/new_data
+        return self._safe_execute("executing", operation)
 
     def undo(self, main_window: MainWindowProtocol) -> bool:
-        """Undo uses stored target curve."""
-        def _undo_operation() -> bool:
-            if not self._target_curve:
-                logger.error("Missing target curve for undo")
-                return False
-
-            # Restore using stored target
-            app_state = get_application_state()
-            app_state.set_curve_data(self._target_curve, self._old_data)
-            return True
-
-        return self._safe_execute("undoing", _undo_operation)
-
-    def redo(self, main_window: MainWindowProtocol) -> bool:
-        """Redo uses stored target curve (do NOT call execute())."""
-        def _redo_operation() -> bool:
-            if not self._target_curve:
-                logger.error("Missing target curve for redo")
-                return False
-
-            # Apply using stored target (NOT current active curve)
-            app_state = get_application_state()
-            app_state.set_curve_data(self._target_curve, self._new_data)
-            return True
-
-        return self._safe_execute("redoing", _redo_operation)
+        # Use stored self._target_curve (NOT current active)
+        state.set_curve_data(self._target_curve, self._old_data)
 ```
 
-**Available base class methods**:
-- `_get_active_curve_data() -> tuple[str, CurveDataList] | None`: Validates and retrieves active curve, **automatically stores `self._target_curve` for undo/redo** (Phase 1 improvement)
-- `_safe_execute(name: str, operation) -> bool`: Wraps operation in try/except with logging
-- `_update_point_position(point, new_pos) -> LegacyPointData`: Updates x/y while preserving frame/status
-- `_update_point_at_index(data, idx, updater) -> bool`: Safe indexed update with bounds check
+**Key benefits**: Automatic active curve validation, target storage for undo/redo, standardized error handling.
 
-**When to use**:
-- Any command that modifies curve points
-- Commands that need undo/redo support
-- Commands requiring active curve validation
-
-**When NOT to use**:
-- Shortcut commands (use `ShortcutCommand` base if needed)
-- Commands that don't modify curve data
-- Commands that operate on multiple curves simultaneously
+**Base methods**: `_get_active_curve_data()`, `_safe_execute()`, `_update_point_position()`, `_update_point_at_index()`
 
 ## Core Data Models
 
@@ -532,16 +275,16 @@ state.set_show_all_curves(False)  # → DisplayMode.SELECTED or ACTIVE_ONLY
 
 ## UI Controllers
 
-Specialized controllers in `ui/controllers/`:
-1. **ActionHandlerController**: Menu/toolbar actions
-2. **MultiPointTrackingController**: Multi-curve tracking, Insert Track
-3. **PointEditorController**: Point editing logic
-4. **SignalConnectionManager**: Signal/slot connections
-5. **TimelineController**: Frame navigation, playback
-6. **UIInitializationController**: UI component setup
-7. **ViewCameraController**: Camera movement
-8. **ViewManagementController**: View state (zoom, pan, fit)
-9. **FrameChangeCoordinator**: Coordinates frame change responses in deterministic order, eliminating race conditions from Qt signal ordering
+Specialized controllers in `ui/controllers/` handle focused responsibilities:
+- **Action handling**: Menu/toolbar actions (ActionHandlerController)
+- **Tracking**: Multi-curve tracking, Insert Track workflow (MultiPointTrackingController, BaseTrackingController, Tracking*Controller)
+- **Point editing**: Point manipulation, selection (PointEditorController)
+- **Frame management**: Navigation, playback, deterministic frame change coordination (TimelineController, FrameChangeCoordinator)
+- **View management**: Camera movement, zoom, pan, fit-to-view (ViewCameraController, ViewManagementController)
+- **UI setup**: Component initialization, signal connections (UIInitializationController, SignalConnectionManager)
+- **Progressive disclosure**: Collapsible UI sections (ProgressiveDisclosureController)
+
+Key architectural pattern: **FrameChangeCoordinator** eliminates race conditions from Qt signal ordering by enforcing deterministic frame change response order.
 
 ## Keyboard Shortcuts
 
@@ -702,196 +445,87 @@ from ui.main_window import MainWindow
 
 ### Transform Service Pattern
 
-**Recommended**: Use `get_transform()` for coordinate transformations:
-
 ```python
-# ✅ RECOMMENDED - Single method call
 from services import get_transform_service
-
-transform_service = get_transform_service()
-transform = transform_service.get_transform(view)
-
-# Use transform
+transform = get_transform_service().get_transform(view)
 screen_x, screen_y = transform.data_to_screen(data_x, data_y)
-data_x, data_y = transform.screen_to_data(screen_x, screen_y)
 ```
 
-**Legacy Pattern** (still supported but verbose):
+## Common Development Workflows
 
-```python
-# ⚠️ LEGACY - Two-step pattern (still works but verbose)
-view_state = transform_service.create_view_state(view)
-transform = transform_service.create_transform_from_view_state(view_state)
-```
+### Adding a View Option Checkbox
 
-**When to use legacy pattern**:
-- Need to modify `view_state` between creation and transform
-- Advanced test scenarios requiring view state manipulation
-- 99% of code should use `get_transform()` directly
+**Signal Flow**: User toggles checkbox → Signal → StateManager → view_state_changed → CurveWidget.update()
 
-## Adding Configurable Visual Rendering Parameters
+**Files to Touch** (in order):
+1. `ui/state_manager.py` - Add property with getter/setter, emit `view_state_changed`
+2. `ui/main_window.py` - Declare `QCheckBox | None` attribute
+3. `ui/controllers/ui_initialization_controller.py` - Create checkbox in `_init_toolbar()`
+4. `ui/controllers/signal_connection_manager.py` - Connect `stateChanged` signal
+5. `ui/controllers/view_management_controller.py` - Add handler (update StateManager, call `update()`)
+6. `rendering/render_state.py` - Add field if needed for rendering
+7. `rendering/optimized_curve_renderer.py` - Use the state if needed
 
-**Pattern:** All visual rendering parameters are centralized in `VisualSettings` dataclass.
+**Example**: `show_current_point_only` (see `tests/test_current_point_only_mode.py`)
 
-### 4-Step Process
+### Adding a Keyboard Shortcut
 
-1. **Add to VisualSettings** (`rendering/visual_settings.py`):
-   ```python
-   @dataclass
-   class VisualSettings:
-       # ... existing fields
-       new_param: int = 10  # Add new parameter with default
-   ```
+**Signal Flow**: Key press → GlobalEventFilter → ShortcutRegistry → Command.execute()
 
-2. **Add Validation** (if numeric):
-   ```python
-   def __post_init__(self) -> None:
-       # ... existing validations
-       if self.new_param <= 0:
-           raise ValueError(f"new_param must be > 0, got {self.new_param}")
-   ```
+**Files to Touch**:
+1. `core/commands/shortcut_commands.py` - Create command class inheriting from `ShortcutCommand`
+2. `ui/main_window.py:_init_global_shortcuts()` - Register with `shortcut_registry.register()`
 
-3. **Update Renderer** (`rendering/optimized_curve_renderer.py`):
-   ```python
-   # Access via render_state.visual.new_param
-   value = render_state.visual.new_param
-   ```
+**Example**: See `SetEndframeCommand`, `DeletePointsCommand`
 
-4. **Add UI Control** (if user-configurable):
-   ```python
-   # In controller
-   def update_new_param(self, value: int) -> None:
-       self.curve_view.visual.new_param = value
-       self.curve_view.update()
-   ```
+### Adding a Menu/Toolbar Action
 
-### Test Pattern
+**Signal Flow**: Action triggered → ActionHandlerController → Service calls → ApplicationState update
 
-```python
-from rendering.visual_settings import VisualSettings
-from rendering.render_state import RenderState
+**Files to Touch**:
+1. `ui/controllers/ui_initialization_controller.py:_init_actions()` - Create `QAction`
+2. `ui/controllers/ui_initialization_controller.py:_init_menus()` - Add to menu
+3. `ui/controllers/ui_initialization_controller.py:_init_toolbar()` - Add to toolbar (optional)
+4. `ui/controllers/action_handler_controller.py` - Add handler method
+5. `ui/controllers/signal_connection_manager.py` - Connect signal
 
-def test_new_param_default():
-    """Verify default value."""
-    visual = VisualSettings()
-    assert visual.new_param == 10
+### Modifying Rendering Behavior
 
-def test_new_param_validation():
-    """Verify validation rejects invalid values."""
-    with pytest.raises(ValueError, match="new_param must be > 0"):
-        VisualSettings(new_param=0)
+**Data Flow**: ApplicationState → RenderState.compute() → OptimizedCurveRenderer.render()
 
-def test_new_param_integration(curve_widget):
-    """Verify parameter flows through to renderer via RenderState."""
-    # Set custom value
-    curve_widget.visual.new_param = 15
+**Files to Touch**:
+1. `rendering/render_state.py` - Add field, update `compute()` to extract from widget
+2. `rendering/optimized_curve_renderer.py` - Use `render_state.your_field` in render methods
 
-    # Create RenderState from widget
-    render_state = RenderState.compute(curve_widget)
+**Key Insight**: Renderer only accesses state via `RenderState`, never directly from widgets/StateManager
 
-    # Verify value propagated
-    assert render_state.visual is not None
-    assert render_state.visual.new_param == 15
-```
+### Adding Multi-Curve Support
 
-**See also:** `tests/test_visual_settings.py` for 18 comprehensive test examples including parametrized tests, QColor factory validation, and mutability verification.
-
-### Architectural Context
-
-**What belongs in VisualSettings:**
-- Visual rendering parameters that affect **appearance only**
-- Parameters **passed to renderer** (accessed via `render_state.visual.*`)
-- Examples: point_radius, line_width, grid_size, colors, display toggles
-
-**What does NOT belong in VisualSettings:**
-- **Architectural settings** (e.g., `show_background` - controls background image pipeline, not visual styling)
-- **Widget-only state** (e.g., hover state, mouse position - never passed to renderer)
-- **View transform state** (e.g., zoom, pan - managed by StateManager)
-
-**Design Rationale:**
-- **VisualSettings is mutable** - Controllers modify fields directly during UI updates (slider changes, checkbox toggles)
-- **RenderState is frozen** - Immutability contract preserved (visual field is mutable nested object in frozen parent)
-- **Single source of truth** - All 15 visual parameters in one location eliminates duplication and sync bugs
-
-### Key Principles
-- **Single source**: VisualSettings is the ONLY place for visual parameters
-- **Validation**: All numeric fields validated in `__post_init__`
-- **Immutability NOT required**: VisualSettings is mutable for runtime updates
-- **Access pattern**: Always `widget.visual.param` or `render_state.visual.param`
-- **Migration complete**: Deprecated widget properties removed (Phase 5, Oct 2025)
-
-### Example: Adding Grid Opacity
-
-```python
-# 1. Add field (visual_settings.py)
-@dataclass
-class VisualSettings:
-    grid_opacity: float = 0.5  # 0.0-1.0
-
-# 2. Validate (visual_settings.py)
-def __post_init__(self) -> None:
-    if not 0.0 <= self.grid_opacity <= 1.0:
-        raise ValueError(f"grid_opacity must be 0.0-1.0, got {self.grid_opacity}")
-
-# 3. Use in renderer (optimized_curve_renderer.py)
-def _draw_grid(self, painter: QPainter, render_state: RenderState) -> None:
-    opacity = render_state.visual.grid_opacity
-    color = QColor(100, 100, 100, int(opacity * 255))
-
-# 4. Add UI slider (view_management_controller.py)
-def update_grid_opacity(self, value: float) -> None:
-    self.main_window.curve_widget.visual.grid_opacity = value
-    self.main_window.curve_widget.update()
-```
+**Files to Touch**:
+1. `stores/application_state.py` - Already multi-curve aware
+2. `rendering/render_state.py` - Add to `curves_data` dict if needed
+3. `rendering/optimized_curve_renderer.py:_render_multiple_curves()` - Handle per-curve logic
 
 ## Key Design Patterns
 
 1. **Component Container**: UI attributes in `ui/ui_components.py`
 2. **Service Singleton**: Thread-safe service instances
-3. **Protocol-based**: Type-safe interfaces
-4. **Interface Segregation**: Focused protocols in `protocols/state.py` (Phase 1)
+3. **Protocol-based Architecture**: Type-safe interfaces organized in `protocols/` package
+4. **Interface Segregation**: Focused protocols for UI, data, and services
 5. **Immutable Models**: Thread-safe CurvePoint
 6. **Transform Caching**: LRU cache
 7. **Command Pattern**: Undo/redo support with automatic target storage
 
 ## Common Pitfalls
 
-### ❌ WRONG: Modifying controller snapshot dict
-
-Controller properties that return dicts (like `tracked_data`) return **snapshots** (fresh dict each call). Item assignment doesn't persist:
-
+**❌ Don't modify controller snapshot dicts** - Controller properties return fresh dict copies. Modifications are lost:
 ```python
-# ❌ WRONG - Modifications lost immediately
-tracked_data = controller.tracked_data  # Get snapshot
-tracked_data[curve_name] = new_data     # Modify temporary dict - LOST!
+# ❌ WRONG - Modification lost
+controller.tracked_data[curve_name] = data
+
+# ✅ CORRECT - Direct ApplicationState access
+get_application_state().set_curve_data(curve_name, data)
 ```
-
-**Why this fails:**
-- `tracked_data` property returns a new dict on each access
-- Modifying the returned dict doesn't affect ApplicationState
-- Changes disappear when the dict is garbage collected
-- No error is raised - **fails silently**
-
-### ✅ CORRECT: Direct ApplicationState access
-
-```python
-# ✅ CORRECT - Direct ApplicationState access (preferred)
-from stores.application_state import get_application_state
-
-app_state = get_application_state()
-app_state.set_curve_data(curve_name, new_data)  # Persists correctly
-```
-
-**Alternative (bulk operations only):**
-```python
-# ✅ ACCEPTABLE - Bulk replacement via setter
-controller.tracked_data = loaded_data  # Triggers property setter
-```
-
-**When to use which:**
-- **Direct ApplicationState**: All command/service operations (preferred)
-- **Bulk replacement**: File loading, session restore (valid but less common)
-- **Snapshot read**: Read-only iteration over all curves (safe)
 
 ## Development Tips
 
@@ -905,6 +539,8 @@ controller.tracked_data = loaded_data  # Triggers property setter
 
 ---
 *Last Updated: October 2025*
+
+<!-- Testing auto-push debug logging -->
 
 # Important Reminders
 - Do what's asked; nothing more, nothing less
