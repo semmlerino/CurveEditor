@@ -12,7 +12,7 @@ This renderer addresses the critical performance issues identified in the analys
 import time
 from collections.abc import Sequence
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import numpy as np
 from numpy.typing import NDArray
@@ -35,8 +35,8 @@ else:
     RenderState = object
 
 # NumPy array type aliases - performance critical for vectorized operations
-type FloatArray = NDArray[np.float64]  # np.ndarray with float64 elements
-type IntArray = NDArray[np.int32]  # np.ndarray with int32 elements
+FloatArray: TypeAlias = NDArray[np.float64]  # np.ndarray with float64 elements
+IntArray: TypeAlias = NDArray[np.int32]  # np.ndarray with int32 elements
 
 logger = get_logger("optimized_curve_renderer")
 

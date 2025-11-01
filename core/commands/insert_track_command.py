@@ -12,8 +12,8 @@ providing full undo/redo support for all three scenarios:
 from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING, override
-
+from typing import TYPE_CHECKING
+from typing_extensions import override
 if TYPE_CHECKING:
     from protocols.ui import MainWindowProtocol
 

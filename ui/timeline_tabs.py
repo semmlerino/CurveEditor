@@ -8,8 +8,8 @@ Supports horizontal scrolling for many frames with performance optimizations.
 """
 
 import contextlib
-from typing import TYPE_CHECKING, override
-
+from typing import TYPE_CHECKING
+from typing_extensions import override
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QKeyEvent, QMouseEvent, QResizeEvent, QWheelEvent
 from PySide6.QtWidgets import (

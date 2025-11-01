@@ -26,7 +26,8 @@ Type Safety Note:
 # pyright: reportUnusedCallResult=none
 
 import copy
-from typing import Protocol, cast, override
+from typing import Protocol, cast
+from typing_extensions import override
 from unittest.mock import Mock
 
 import pytest

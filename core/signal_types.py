@@ -10,7 +10,7 @@ IDE support.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Protocol, TypeVar
+from typing import TYPE_CHECKING, Generic, Protocol, TypeVar
 
 from protocols.data import PointMovedSignalProtocol, VoidSignalProtocol
 
@@ -42,7 +42,7 @@ class SignalInstance(Protocol):
         ...
 
 
-class TypedSignal[P](Protocol):
+class TypedSignal(Protocol, Generic[P]):
     """Generic protocol for typed Qt signals.
 
     This protocol provides type-safe signal operations with specific parameter types.

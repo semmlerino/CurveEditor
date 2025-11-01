@@ -1,7 +1,7 @@
 """Tracking points panel for displaying and managing multiple tracking points."""
 
-from typing import TypedDict, override
-
+from typing import TypedDict
+from typing_extensions import override
 from PySide6.QtCore import QEvent, QItemSelectionModel, QObject, QPoint, Qt, Signal
 from PySide6.QtGui import QAction, QBrush, QCloseEvent, QColor, QFont, QKeyEvent
 from PySide6.QtWidgets import (

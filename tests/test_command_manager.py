@@ -32,9 +32,10 @@ Focus Areas:
 # pyright: reportUnusedCallResult=none
 
 
-from typing import override
 
 import pytest
+
+from typing_extensions import override
 
 from core.commands.command_manager import CommandManager
 from tests.test_helpers import MockMainWindow

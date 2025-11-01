@@ -36,8 +36,8 @@ import math
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import NamedTuple, TypeGuard, overload, override
-
+from typing import NamedTuple, TypeGuard, overload
+from typing_extensions import override
 # Type aliases for backward compatibility and clarity
 FrameNumber = int
 Coordinate = float

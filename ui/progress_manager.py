@@ -11,8 +11,8 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import cast, override
-
+from typing import cast
+from typing_extensions import override
 from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (

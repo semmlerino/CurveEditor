@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol, TypeAlias
 
 if TYPE_CHECKING:
     from PySide6.QtCore import QPoint, QPointF
@@ -40,11 +40,11 @@ PathLike = str | Path
 
 # Qt types (with better type handling)
 if TYPE_CHECKING:
-    type QtPointF = QPoint | QPointF  # Accept both QPoint and QPointF
-    type QtPixmap = QPixmap
-    type QtImage = QImage
-    type QtWidget = QWidget
-    type QtSignal = object  # Signal[...] - specific types in protocols
+    QtPointF: TypeAlias = QPoint | QPointF  # Accept both QPoint and QPointF
+    QtPixmap: TypeAlias = QPixmap
+    QtImage: TypeAlias = QImage
+    QtWidget: TypeAlias = QWidget
+    QtSignal: TypeAlias = object  # Signal[...] - specific types in protocols
 else:
     # Runtime stubs - avoid Any for better type inference
     QtPointF = QtPixmap = QtImage = QtWidget = QtSignal = object
@@ -97,7 +97,7 @@ HistoryState = dict[str, CurveDataList | str | int | float | bool]  # State snap
 TrackingPointData = dict[str, CurveDataList | str | bool]  # Single tracking point with metadata
 TrackedData = dict[str, TrackingPointData]  # All tracking points keyed by name
 
-type SearchMode = Literal["active", "all_visible"]
+SearchMode: TypeAlias = Literal["active", "all_visible"]
 """
 Search mode for point finding operations.
 

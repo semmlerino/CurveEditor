@@ -58,7 +58,7 @@ def safe_execute(
         return False
 
 
-def safe_execute_optional[T](
+def safe_execute_optional(
     operation_name: str,
     operation: Callable[[], T | None],
     context: str = "",

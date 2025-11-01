@@ -18,8 +18,8 @@ Key architecture components:
 
 # Standard library imports
 import sys
-from typing import TYPE_CHECKING, cast, override
-
+from typing import TYPE_CHECKING, cast
+from typing_extensions import override
 if TYPE_CHECKING:
     from protocols.ui import CurveViewProtocol
     from ui.timeline_tabs import TimelineTabWidget

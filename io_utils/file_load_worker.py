@@ -7,8 +7,8 @@ using Qt threading (QThread) for proper Qt integration and thread safety.
 
 import logging
 from pathlib import Path
-from typing import ClassVar, override
-
+from typing import ClassVar
+from typing_extensions import override
 from PySide6.QtCore import QMutex, QMutexLocker, QThread, Signal
 
 from core.config import get_config

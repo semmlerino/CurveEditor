@@ -8,8 +8,8 @@ keyboard shortcuts in the application.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast, override
-
+from typing import TYPE_CHECKING, cast
+from typing_extensions import override
 from PySide6.QtCore import Qt
 
 if TYPE_CHECKING:

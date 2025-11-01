@@ -1,6 +1,6 @@
 """Point list widget for displaying and editing curve points in a table."""
 
-from typing import override
+from typing_extensions import override
 
 from PySide6.QtCore import QPoint, Qt, Signal
 from PySide6.QtGui import QAction, QKeyEvent

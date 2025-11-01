@@ -29,8 +29,8 @@ Architecture:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast, override
-
+from typing import TYPE_CHECKING, Any, cast
+from typing_extensions import override
 from PySide6.QtCore import (
     QPointF,
     QRect,

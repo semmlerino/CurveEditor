@@ -10,8 +10,8 @@ import os
 import re
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, TypedDict, override
-
+from typing import TYPE_CHECKING, ClassVar, TypedDict
+from typing_extensions import override
 from PySide6.QtCore import QThread, Signal
 
 if TYPE_CHECKING:

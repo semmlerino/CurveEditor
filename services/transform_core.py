@@ -14,8 +14,8 @@ import logging
 import math
 import os
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, cast, override
-
+from typing import TYPE_CHECKING, cast
+from typing_extensions import override
 if TYPE_CHECKING:
     import numpy as np
     from numpy.typing import NDArray

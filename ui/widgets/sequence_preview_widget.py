@@ -8,8 +8,8 @@ Optimized for performance with viewport culling and cancellable operations.
 
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING, override
-
+from typing import TYPE_CHECKING
+from typing_extensions import override
 from PySide6.QtCore import QSize, Qt, QThread, Signal
 from PySide6.QtGui import QCloseEvent, QImage, QPixmap
 from PySide6.QtWidgets import (

@@ -17,8 +17,8 @@ Key Design Decisions:
 import logging
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, override
-
+from typing import TYPE_CHECKING, ClassVar
+from typing_extensions import override
 from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
 
 if TYPE_CHECKING:

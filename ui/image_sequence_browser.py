@@ -13,8 +13,8 @@ import sys
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, cast, override
-
+from typing import TYPE_CHECKING, ClassVar, cast
+from typing_extensions import override
 from PySide6.QtCore import QDir, QEvent, QObject, QPoint, QSize, Qt, Signal
 from PySide6.QtGui import QKeyEvent, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (

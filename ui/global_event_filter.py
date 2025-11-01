@@ -10,8 +10,8 @@ of which widget has focus.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, override
-
+from typing import TYPE_CHECKING
+from typing_extensions import override
 from PySide6.QtCore import QEvent, QObject, Qt
 from PySide6.QtGui import QKeyEvent
 

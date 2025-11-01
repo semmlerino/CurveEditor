@@ -7,7 +7,7 @@ show_all_curves boolean with explicit, self-documenting states.
 """
 
 from enum import Enum, auto
-from typing import override
+from typing_extensions import override
 
 
 class DisplayMode(Enum):

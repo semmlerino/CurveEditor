@@ -12,8 +12,8 @@ Provides a unified interface for all coordinate transformations and view state m
 import hashlib
 import threading
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Protocol, cast, override
-
+from typing import TYPE_CHECKING, Protocol, cast
+from typing_extensions import override
 from core.defaults import DEFAULT_IMAGE_HEIGHT, DEFAULT_IMAGE_WIDTH
 
 if TYPE_CHECKING:
