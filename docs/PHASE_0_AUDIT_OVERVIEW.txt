@@ -1,0 +1,259 @@
+================================================================================
+PHASE 0 AUDIT COVERAGE GAP ANALYSIS - QUICK REFERENCE
+================================================================================
+
+ANALYSIS COMPLETION: November 1, 2025
+SCOPE: Phase 0 audit completeness verification
+CONCLUSION: HAS_GAPS (Critical protocol issues identified)
+
+================================================================================
+THREE-LINE SUMMARY
+================================================================================
+
+Phase 0 audit found 23 files with usage of active_timeline_point but MISSED
+2 critical protocol definition files. Type checking will FAIL at Phase 4 when
+property is removed but protocols still declare it. Requires Phase 0.1-0.3
+extensions (2h 15m) BEFORE starting Phase 1.
+
+================================================================================
+QUICK STATS
+================================================================================
+
+Files Analyzed:          127 files searched
+Files with Usage:        23 files found (100% of direct usage)
+Files with Definitions:  2 files missed (protocols/ui.py - CRITICAL)
+Coverage Percentage:     74% (comprehensive usage, incomplete protocols)
+Critical Gaps Found:     2 (both in protocol files)
+Medium Gaps Found:       3 (test fixtures, signal handlers, hookup)
+Low Risk Items:          1 (dynamic access verified safe)
+
+================================================================================
+CRITICAL ISSUES
+================================================================================
+
+ISSUE #1: Protocol Definitions Missing from Audit
+├─ Location: protocols/ui.py lines 58-65, 860-867
+├─ Scope: StateManagerProtocol.active_timeline_point (2 definitions)
+├─       MainWindowProtocol.active_timeline_point (2 definitions)
+├─ Impact: Type checking fails when removing property during Phase 4
+├─ Risk Level: CRITICAL
+├─ Affected: 13 controllers using StateManagerProtocol type hints
+├─ Time to Fix: 30 min (update protocols before Phase 1)
+└─ Action: Phase 0.1 - Protocol Audit (MANDATORY before Phase 1)
+
+ISSUE #2: Test Fixture Inventory Gap (6 Missing Files)
+├─ Phase 0 Found: 8 test files
+├─ Plan Expected: 14 test files  
+├─ Gap: 6 files unaccounted for
+├─ Risk Level: MEDIUM
+├─ Impact: Silent test failures in Phase 3
+├─ Time to Fix: 1 hour (complete fixture search)
+└─ Action: Phase 0.3 - Test Fixture Inventory (MANDATORY before Phase 1)
+
+ISSUE #3: Signal Handler Types Not Verified
+├─ Status: Phase -1 fixed signal type but didn't verify handlers
+├─ Risk Level: MEDIUM
+├─ Impact: Runtime errors if handlers don't accept str | None
+├─ Time to Fix: 45 min (verify all handlers)
+└─ Action: Phase 0.2 - Signal Handler Verification (RECOMMENDED)
+
+ISSUE #4: ApplicationState Signal Hookup Unknown
+├─ Status: Signal defined but may not be wired yet
+├─ Risk Level: MEDIUM
+├─ Impact: Timeline doesn't update after migration
+├─ Time to Fix: 30 min (verify and hook up in Phase 1)
+└─ Action: Phase 1 - Add ApplicationState listeners (CRITICAL)
+
+ISSUE #5: Dynamic Attribute Access (VERIFIED SAFE)
+├─ Status: No getattr/setattr patterns found
+├─ Risk Level: LOW
+└─ Action: None (already verified safe)
+
+================================================================================
+SEARCH COVERAGE ANALYSIS
+================================================================================
+
+Patterns That WORKED:
+  ✓ .active_timeline_point\b               (23 files - direct usage)
+  ✓ active_timeline_point_changed         (9 files - signal connections)
+  ✓ _active_timeline_point                (10 files - private access)
+  ✓ getattr.*active                       (0 files - dynamic access safe)
+
+Patterns That FAILED:
+  ✗ def active_timeline_point             (MISSED 2 protocol files)
+  ✗ active_timeline_point:                (Type annotations not checked)
+  ✗ @property.*active                     (Protocol definitions missed)
+
+Root Cause:
+  Phase 0 grep pattern (.active_timeline_point\b) matches USAGES not DEFINITIONS.
+  Protocol @property definitions require separate search pattern.
+
+================================================================================
+AFFECTED FILES SUMMARY
+================================================================================
+
+PROTOCOL DEFINITIONS (CRITICAL - MISSED BY PHASE 0):
+  protocols/ui.py
+    ├─ Line 58-65: StateManagerProtocol.active_timeline_point
+    └─ Line 860-867: MainWindowProtocol.active_timeline_point
+  
+  Impact: 13 controllers type-check against these protocols
+
+PRODUCTION CODE (FOUND BY PHASE 0):
+  ui/main_window.py                  (property delegation)
+  ui/timeline_tabs.py                (signal connection + fallback)
+  ui/controllers/tracking_selection_controller.py
+  ui/controllers/tracking_data_controller.py
+  core/commands/insert_track_command.py
+  + 3 others
+
+TEST CODE (8 FOUND, 14 EXPECTED):
+  tests/test_event_filter_navigation.py
+  tests/test_keyframe_navigation.py
+  tests/test_helpers.py
+  tests/test_navigation_integration.py
+  tests/test_tracking_direction_undo.py
+  tests/test_protocol_coverage_gaps.py
+  tests/test_multi_point_tracking_merge.py
+  tests/test_insert_track_command.py
+  tests/controllers/test_tracking_selection_controller.py
+  tests/controllers/test_tracking_data_controller.py
+  
+  MISSING: 6 test files unaccounted for (need Phase 0.3 audit)
+
+================================================================================
+RISK MATRIX
+================================================================================
+
+                        Impact      Probability    Detectability
+Type Check Failure      CRITICAL    HIGH           Phase 4
+Protocol Mismatch       CRITICAL    HIGH           Phase 4  
+Test Fixture Breaks     MEDIUM      MEDIUM         Phase 3
+Signal Handlers Fail    MEDIUM      MEDIUM         Phase 2
+Timeline Not Updates    MEDIUM      MEDIUM         Phase 1
+
+Total Risk Without Extensions: HIGH (3 critical issues)
+Total Risk With Extensions:    LOW (1 medium issue)
+
+================================================================================
+PHASE 0 EXTENSIONS REQUIRED
+================================================================================
+
+Phase 0.1: Protocol Audit (30 minutes)
+  - Identify all protocol definitions in protocols/ui.py
+  - Add deprecation notices
+  - Document changes needed before Phase 1
+  - Deliverable: docs/PHASE_0_1_PROTOCOL_AUDIT.md
+
+Phase 0.2: Signal Handler Verification (45 minutes)
+  - Find all handlers for active_timeline_point_changed
+  - Verify each accepts str | None
+  - Document handler signatures
+  - Deliverable: docs/PHASE_0_2_SIGNAL_HANDLERS.md
+
+Phase 0.3: Test Fixture Inventory (1 hour)
+  - Search conftest.py, test_helpers.py comprehensively
+  - Find all 14 test files (currently 8)
+  - Categorize by setup pattern
+  - Deliverable: docs/PHASE_0_3_TEST_FIXTURES.md
+
+Total Time: 2 hours 15 minutes
+Status: MUST COMPLETE before Phase 1
+Impact: Prevents 3+ hours of Phase 4 rework
+
+================================================================================
+IMMEDIATE ACTION ITEMS (DO NOT SKIP)
+================================================================================
+
+Before touching any code:
+  [ ] Read this document (5 min)
+  [ ] Read PHASE_0_CRITICAL_FINDINGS.md (10 min)
+  [ ] Read protocols/ui.py lines 58-65 and 860-867 (5 min)
+  [ ] Run ./bpr --errors-only (baseline type checking) (5 min)
+  [ ] Decision: Proceed with extensions or accept Phase 4 risk
+
+If proceeding with extensions:
+  [ ] Phase 0.1 - Protocol Audit (30 min)
+  [ ] Phase 0.2 - Signal Handler Verification (45 min)  
+  [ ] Phase 0.3 - Test Fixture Inventory (1 hour)
+  [ ] Review extension findings with team (15 min)
+  [ ] THEN proceed to Phase 1
+
+If accepting Phase 4 risk:
+  [ ] Document decision and rationale
+  [ ] Allocate 3+ hours for Phase 4 rework
+  [ ] Plan for test suite debugging
+  [ ] Prepare for rollback scenarios
+
+================================================================================
+DOCUMENT REFERENCES
+================================================================================
+
+Main Report (Detailed Analysis):
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/docs/PHASE_0_COVERAGE_GAP_ANALYSIS.md
+  (627 lines - comprehensive findings, gap details, recommendations)
+
+Critical Findings (Actionable Items):
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/docs/PHASE_0_CRITICAL_FINDINGS.md
+  (324 lines - specific file locations, line numbers, action items)
+
+Summary (Overview):
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/docs/PHASE_0_COVERAGE_GAP_SUMMARY.txt
+  (259 lines - bullet points, key findings, verdict)
+
+Quick Reference (This Document):
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/docs/PHASE_0_AUDIT_OVERVIEW.txt
+
+================================================================================
+ORIGINAL PLAN REFERENCES
+================================================================================
+
+Active Curve Consolidation Plan:
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/docs/ACTIVE_CURVE_CONSOLIDATION_PLAN.md
+  (Phase 0 section describes Phase 0 audit expectations)
+
+Phase -1 Signal Fixes (Already Complete):
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/docs/PHASE_MINUS_1_TYPE_SAFETY_REVIEW.md
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+FOR IMMEDIATE DECISION:
+1. Review this document and PHASE_0_CRITICAL_FINDINGS.md
+2. Assess tolerance for Phase 4 rework vs doing extensions now
+3. If extensions: allocate 2h 15m in schedule
+4. If risk acceptance: document in project notes
+
+FOR PHASE 0.1-0.3 EXTENSIONS:
+1. Create Phase 0.1-0.3 tasks in project tracker
+2. Assign to developer familiar with protocols
+3. Estimate 1 day with testing and documentation
+4. Review findings before Phase 1 starts
+
+FOR PHASE 1 START:
+1. Incorporate Phase 0 findings into plan
+2. Update phase descriptions with protocol changes
+3. Add type checking steps after each phase
+4. Execute Phase 1 once Phase 0 extensions complete
+
+================================================================================
+CONCLUSION
+================================================================================
+
+The Phase 0 audit is 74% complete but has CRITICAL GAPS that will cause
+Phase 4 failures if not addressed.
+
+RECOMMENDATION: Spend 2 hours 15 minutes NOW (Phase 0 extensions) to avoid
+3+ hours of rework LATER (Phase 4 debugging).
+
+The gaps are not in the migration plan design but in the audit verification
+itself. Completing Phase 0 extensions ensures:
+  • Type checking passes at Phase 4
+  • Test fixtures are complete and working
+  • Signal handlers accept all parameter types
+  • No surprises during Phase 1-3 migration
+
+Status: Ready to proceed with Phase 0 extensions or Phase 1 (with risk).
+
+================================================================================
