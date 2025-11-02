@@ -492,11 +492,12 @@ class InsertTrackCommand(CurveDataCommand):
         # Update tracking panel
         main_window.multi_point_controller.update_tracking_panel()
 
-        # Select only the modified curve
+        # Select only the modified curve and set as active
         app_state = get_application_state()
         app_state.set_show_all_curves(False)
         app_state.set_selected_curves({curve_name})
-        logger.info(f"Selected only modified curve '{curve_name}' after Insert Track")
+        app_state.set_active_curve(curve_name)  # Timeline needs active_curve to update
+        logger.info(f"Selected and activated curve '{curve_name}' after Insert Track")
 
         # Get current active curve for diagnostics
         active_curve = app_state.active_curve
