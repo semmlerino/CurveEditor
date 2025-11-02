@@ -273,7 +273,6 @@ class TimelineTabWidget(QWidget):
         try:
             if self._state_manager is not None:
                 _ = self._state_manager.frame_changed.disconnect(self._on_frame_changed)
-                _ = self._state_manager.active_timeline_point_changed.disconnect(self._on_active_timeline_point_changed)
         except (RuntimeError, AttributeError):
             # Already disconnected or objects destroyed
             pass
@@ -295,7 +294,6 @@ class TimelineTabWidget(QWidget):
         if self._state_manager is not None:
             try:
                 _ = self._state_manager.frame_changed.disconnect(self._on_frame_changed)
-                _ = self._state_manager.active_timeline_point_changed.disconnect(self._on_active_timeline_point_changed)
             except (RuntimeError, TypeError):
                 pass  # Already disconnected
 
@@ -306,15 +304,12 @@ class TimelineTabWidget(QWidget):
         # DirectConnection prevents queue accumulation during rapid playback
         _ = state_manager.frame_changed.connect(self._on_frame_changed)
 
-        # Connect to active timeline point changes
-        _ = state_manager.active_timeline_point_changed.connect(self._on_active_timeline_point_changed)
-
         # Sync initial state
         actual_frame = get_application_state().current_frame
         if actual_frame != self._current_frame:
             self._on_frame_changed(actual_frame)
-        # Sync initial active timeline point from ApplicationState (single source of truth)
-        self._on_active_timeline_point_changed(self._app_state.active_curve)
+        # Sync initial active curve from ApplicationState (single source of truth)
+        self._on_active_curve_changed(self._app_state.active_curve)
 
     def on_frame_changed(self, frame: int) -> None:
         """
@@ -347,19 +342,6 @@ class TimelineTabWidget(QWidget):
         self._update_frame_info()
 
     @safe_slot
-    def _on_active_timeline_point_changed(self, point_name: str | None) -> None:
-        """React to StateManager active timeline point changes.
-
-        Args:
-            point_name: Name of the active tracking point, or None if no point is active
-        """
-        if point_name:
-            self.active_point_label.setText(f"Timeline: {point_name}")
-            # Refresh timeline with the new active timeline point's data
-            self._on_curves_changed(self._app_state.get_all_curves())
-        else:
-            self.active_point_label.setText("No point")
-
     def _setup_ui(self) -> None:
         """Setup the timeline UI components."""
         # Main layout
@@ -509,7 +491,14 @@ class TimelineTabWidget(QWidget):
 
     @safe_slot
     def _on_active_curve_changed(self, curve_name: str | None) -> None:
-        """Handle ApplicationState active_curve_changed signal."""
+        """Handle ApplicationState active_curve_changed signal.
+
+        Updates the timeline display and active curve label when the active curve changes.
+        Triggers a full timeline refresh to display the new curve's data.
+
+        Args:
+            curve_name: Name of the newly active curve, or None if no curve is active
+        """
         # Handle None case (cleared active curve)
         if curve_name is None:
             # Clear timeline display
