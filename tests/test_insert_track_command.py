@@ -43,21 +43,31 @@ class TestInsertTrackCommand:
 
     @pytest.fixture
     def mock_main_window(self):
-        """Create mock MainWindow with multi-point tracking controller."""
-        main_window = Mock()
+        """Create mock MainWindow with multi-point tracking controller and property delegation."""
+        # Create a wrapper class that delegates active_timeline_point to ApplicationState
+        class MockMainWindowWrapper:
+            def __init__(self):
+                self.multi_point_controller = Mock()
+                self.multi_point_controller.tracked_data = {}
+                self.multi_point_controller.update_tracking_panel = Mock()
 
-        # Create multi-point controller with tracked data
-        controller = Mock()
-        controller.tracked_data = {}
-        controller.update_tracking_panel = Mock()
+                self.curve_widget = Mock()
+                self.curve_widget.set_curve_data = Mock()
+                self.update_timeline_tabs = Mock()
 
-        main_window.multi_point_controller = controller
-        main_window.curve_widget = Mock()
-        main_window.curve_widget.set_curve_data = Mock()
-        main_window.active_timeline_point = None
-        main_window.update_timeline_tabs = Mock()
+            @property
+            def active_timeline_point(self) -> str | None:
+                """Delegate to ApplicationState.active_curve."""
+                from stores.application_state import get_application_state
+                return get_application_state().active_curve
 
-        return main_window
+            @active_timeline_point.setter
+            def active_timeline_point(self, value: str | None) -> None:
+                """Delegate to ApplicationState.set_active_curve()."""
+                from stores.application_state import get_application_state
+                get_application_state().set_active_curve(value)
+
+        return MockMainWindowWrapper()
 
     @pytest.fixture
     def curve_with_gap(self):

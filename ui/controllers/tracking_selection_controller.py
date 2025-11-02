@@ -140,11 +140,6 @@ class TrackingSelectionController(BaseTrackingController):
             logger.error("Invalid display_controller type")
             return
 
-        # Set the last selected point as the active timeline point (last clicked becomes active)
-        # Note: point_names can be multiple for visual selection, but only one is "active" for timeline
-        active_curve = point_names[-1] if point_names else None
-        self.main_window.active_timeline_point = active_curve
-
         # REMOVED: Active curve setting (moved to TrackingPanel._on_selection_changed)
         # TrackingPanel now uses currentRow() to determine which curve was last clicked,
         # which is more reliable than using point_names[-1] from a set-to-list conversion.
@@ -186,11 +181,11 @@ class TrackingSelectionController(BaseTrackingController):
         This provides visual feedback in the tracking panel when point selection changes
         in the curve view, completing the bidirectional sync between systems.
 
-        Phase 4: Removed __default__ special handling - use curve_name or active_timeline_point.
+        Phase 4: Removed __default__ special handling - use curve_name or active_curve.
 
         Args:
             selection: Set of selected point indices from CurveDataStore
-            curve_name: Name of curve with selection change (None uses active_timeline_point)
+            curve_name: Name of curve with selection change (None uses active_curve)
         """
         if not self.main_window.tracking_panel:
             return
@@ -202,17 +197,18 @@ class TrackingSelectionController(BaseTrackingController):
                 tracking_panel.set_selected_points([])
             return
 
-        # Use explicit curve_name or fallback to active_timeline_point
-        active_curve_name = curve_name if curve_name else self.main_window.active_timeline_point
+        # Use explicit curve_name or fallback to active_curve
+        active_curve_name = curve_name if curve_name else get_application_state().active_curve
 
         if active_curve_name and active_curve_name in self._app_state.get_all_curve_names():
             # Update TrackingPanel to highlight the curve that contains the selected points
             # This bridges point-level selection (CurveDataStore) with curve-level selection (TrackingPanel)
             selected_curves = [active_curve_name]
 
-            # Ensure active_timeline_point is set (it should already be, but verify consistency)
-            if not self.main_window.active_timeline_point:
-                self.main_window.active_timeline_point = active_curve_name
+            # Ensure active_curve is set (it should already be, but verify consistency)
+            app_state = get_application_state()
+            if not app_state.active_curve:
+                app_state.set_active_curve(active_curve_name)
 
             # Update TrackingPanel visual state
             tracking_panel = self.main_window.tracking_panel

@@ -15,6 +15,7 @@ from core.models import TrackingDirection
 from core.type_aliases import CurveDataInput, CurveDataList
 from data.tracking_direction_utils import update_keyframe_status_for_tracking_direction
 from protocols.ui import MainWindowProtocol
+from stores.application_state import get_application_state
 from ui.controllers.base_tracking_controller import BaseTrackingController
 
 logger = get_logger("tracking_data_controller")
@@ -124,7 +125,7 @@ class TrackingDataController(BaseTrackingController):
             base_name = "Track"
             point_name = self.get_unique_point_name(base_name)
             self._app_state.set_curve_data(point_name, data)
-            self.main_window.active_timeline_point = point_name  # Set as active timeline point
+            self._app_state.set_active_curve(point_name)  # Set as active curve
             # Initialize with default tracking direction
             self.point_tracking_directions[point_name] = TrackingDirection.TRACKING_FW
             logger.info(f"Added single trajectory as '{point_name}' to existing {len(existing_curves)} points")
@@ -132,7 +133,7 @@ class TrackingDataController(BaseTrackingController):
             # No existing data - create initial data with this trajectory
             point_name = "Track1"
             self._app_state.set_curve_data(point_name, data)
-            self.main_window.active_timeline_point = point_name
+            self._app_state.set_active_curve(point_name)
             # Initialize with default tracking direction
             self.point_tracking_directions[point_name] = TrackingDirection.TRACKING_FW
             logger.info("Loaded single trajectory as 'Track1'")
@@ -182,9 +183,9 @@ class TrackingDataController(BaseTrackingController):
                 if unique_name != point_name:
                     logger.info(f"Renamed duplicate point '{point_name}' to '{unique_name}'")
 
-            # If no timeline point is active, select the first new point
-            if not self.main_window.active_timeline_point and new_point_names:
-                self.main_window.active_timeline_point = new_point_names[0]
+            # If no curve is active, select the first new point
+            if not self._app_state.active_curve and new_point_names:
+                self._app_state.set_active_curve(new_point_names[0])
 
             all_curves_after_merge = self._app_state.get_all_curve_names()
             logger.info(f"Total points after merge: {len(all_curves_after_merge)}")
@@ -197,9 +198,9 @@ class TrackingDataController(BaseTrackingController):
             # No existing data - use the new data directly
             for point_name, trajectory in multi_data.items():
                 self._app_state.set_curve_data(point_name, trajectory)
-            # Set first point as active timeline point by default
+            # Set first point as active curve by default
             first_point = next(iter(multi_data.keys())) if multi_data else None
-            self.main_window.active_timeline_point = first_point
+            self._app_state.set_active_curve(first_point)
             # Initialize all points with default tracking direction
             for point_name in multi_data:
                 self.point_tracking_directions[point_name] = TrackingDirection.TRACKING_FW
@@ -241,9 +242,9 @@ class TrackingDataController(BaseTrackingController):
         """
         if point_name in self._app_state.get_all_curve_names():
             self._app_state.delete_curve(point_name)
-            # If this was the active timeline point, clear it
-            if self.main_window.active_timeline_point == point_name:
-                self.main_window.active_timeline_point = None
+            # If this was the active curve, clear it
+            if self._app_state.active_curve == point_name:
+                self._app_state.set_active_curve(None)
             # Clean up tracking direction mapping
             if point_name in self.point_tracking_directions:
                 del self.point_tracking_directions[point_name]
@@ -260,15 +261,17 @@ class TrackingDataController(BaseTrackingController):
             new_name: New name for the tracking point
         """
         if old_name in self._app_state.get_all_curve_names():
+            # Check if this is the active curve BEFORE deleting
+            is_active = self._app_state.active_curve == old_name
             # Get the curve data before deleting
             curve_data = self._app_state.get_curve_data(old_name)
             curve_metadata = self._app_state.get_curve_metadata(old_name)
             # Delete old name and create new name
             self._app_state.delete_curve(old_name)
             self._app_state.set_curve_data(new_name, curve_data, curve_metadata)
-            # If this was the active timeline point, update to new name
-            if self.main_window.active_timeline_point == old_name:
-                self.main_window.active_timeline_point = new_name
+            # If this was the active curve, update to new name
+            if is_active:
+                self._app_state.set_active_curve(new_name)
             # Update tracking direction mapping
             if old_name in self.point_tracking_directions:
                 self.point_tracking_directions[new_name] = self.point_tracking_directions.pop(old_name)
@@ -322,7 +325,7 @@ class TrackingDataController(BaseTrackingController):
         logger.debug(f"Detected {len(status_changes)} status changes for direction change")
 
         # Create and execute command for undo support (only for active curve)
-        if status_changes and self.main_window.active_timeline_point == point_name:
+        if status_changes and self._app_state.active_curve == point_name:
             from core.commands.curve_commands import SetPointStatusCommand
             from services import get_interaction_service
 
@@ -364,7 +367,7 @@ class TrackingDataController(BaseTrackingController):
         # Delete all curves from ApplicationState
         for curve_name in list(self._app_state.get_all_curve_names()):
             self._app_state.delete_curve(curve_name)
-        self.main_window.active_timeline_point = None
+        self._app_state.set_active_curve(None)
         self.point_tracking_directions.clear()
 
         self.data_changed.emit()
@@ -374,9 +377,9 @@ class TrackingDataController(BaseTrackingController):
         """Get the currently active trajectory data.
 
         Returns:
-            Active trajectory data or None if no active timeline point
+            Active trajectory data or None if no active curve
         """
-        active_point = self.main_window.active_timeline_point
+        active_point = self._app_state.active_curve
         if active_point and active_point in self._app_state.get_all_curve_names():
             return self._app_state.get_curve_data(active_point)
         return None

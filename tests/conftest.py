@@ -85,6 +85,13 @@ def reset_all_services() -> Generator[None, None, None]:
             clear_cache_method = getattr(services._data_service, "clear_cache", None)
             if clear_cache_method is not None:
                 clear_cache_method()
+            # CRITICAL: Stop SafeImageCacheManager preload worker thread before service reset
+            # Without cleanup(), the QThread worker remains running and causes Fatal Python abort
+            # during thread.join() in background thread cleanup
+            if hasattr(services._data_service, "_safe_image_cache") and services._data_service._safe_image_cache is not None:
+                cleanup_method = getattr(services._data_service._safe_image_cache, "cleanup", None)
+                if cleanup_method is not None:
+                    cleanup_method()
 
         if hasattr(services, "_interaction_service") and services._interaction_service is not None:
             clear_cache_method = getattr(services._interaction_service, "clear_cache", None)

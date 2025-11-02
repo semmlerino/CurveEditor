@@ -31,6 +31,16 @@ class BaseTrackingController(QObject):
         """
         super().__init__()
         self.main_window: MainWindowProtocol = main_window
-        self._app_state: ApplicationState = get_application_state()
+        # NOTE: Do not cache ApplicationState reference - it can be reset between tests
+        # Use the _app_state property below instead, which gets fresh instance each time
 
         logger.debug(f"{self.__class__.__name__} base initialization complete")
+
+    @property
+    def _app_state(self) -> ApplicationState:
+        """Get current ApplicationState instance (fresh every time for test isolation).
+
+        This is a property to ensure we always get the current singleton instance,
+        even if it's been reset between tests. Do not override with a cached attribute.
+        """
+        return get_application_state()

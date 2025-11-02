@@ -39,63 +39,109 @@ from services import get_interaction_service
 from stores.application_state import get_application_state
 
 
+# ==================== Fixture Helpers ====================
+
+
+def create_mock_main_window() -> object:
+    """Create a mock MainWindow with property delegation for active_timeline_point.
+
+    This is used by tests that don't use the main fixture to ensure
+    active_timeline_point property delegation works consistently.
+    """
+
+    class MockMainWindowWrapper:
+        def __init__(self):
+            self.multi_point_controller = Mock()
+            self.curve_widget = Mock()
+            self.curve_widget.set_curve_data = Mock()
+            self.curve_widget.multi_curve_manager = Mock()
+            self.update_timeline_tabs = Mock()
+
+        @property
+        def active_timeline_point(self) -> str | None:
+            """Delegate to ApplicationState.active_curve."""
+            from stores.application_state import get_application_state
+            return get_application_state().active_curve
+
+        @active_timeline_point.setter
+        def active_timeline_point(self, value: str | None) -> None:
+            """Delegate to ApplicationState.set_active_curve()."""
+            from stores.application_state import get_application_state
+            get_application_state().set_active_curve(value)
+
+    return MockMainWindowWrapper()
+
+
 class TestInsertTrackIntegration:
     """Integration tests for Insert Track feature."""
 
     @pytest.fixture
     def mock_main_window_with_controller(self):
-        """Create mock MainWindow with functional MultiPointTrackingController."""
-        main_window = Mock()
+        """Create mock MainWindow with functional MultiPointTrackingController and property delegation."""
+        # Create a wrapper class that delegates active_timeline_point to ApplicationState
+        class MockMainWindowWrapper:
+            def __init__(self):
+                # Create tracking panel mock
+                tracking_panel = Mock()
+                tracking_panel.get_selected_points.return_value = ["point_01", "point_02"]
+                self.tracking_panel = tracking_panel
 
-        # Create tracking panel mock
-        tracking_panel = Mock()
-        tracking_panel.get_selected_points.return_value = ["point_01", "point_02"]
-        main_window.tracking_panel = tracking_panel
+                # Multi-point controller
+                controller = Mock()
+                controller.update_tracking_panel = Mock()
 
-        # Multi-point controller
-        controller = Mock()
-        controller.update_tracking_panel = Mock()
+                # Setup data in ApplicationState instead of mock tracked_data
+                app_state = get_application_state()
+                app_state.set_curve_data(
+                    "point_01",
+                    [
+                        (1, 100.0, 200.0, "keyframe"),
+                        (2, 110.0, 210.0, "normal"),
+                        (3, 120.0, 220.0, "normal"),
+                        # Gap: frames 4, 5, 6
+                        (7, 160.0, 260.0, "normal"),
+                        (8, 170.0, 270.0, "keyframe"),
+                    ],
+                )
+                app_state.set_curve_data(
+                    "point_02",
+                    [
+                        (1, 200.0, 300.0, "keyframe"),
+                        (2, 210.0, 310.0, "normal"),
+                        (3, 220.0, 320.0, "normal"),
+                        (4, 230.0, 330.0, "normal"),
+                        (5, 240.0, 340.0, "normal"),
+                        (6, 250.0, 350.0, "normal"),
+                        (7, 260.0, 360.0, "normal"),
+                        (8, 270.0, 370.0, "keyframe"),
+                    ],
+                )
 
-        # Setup data in ApplicationState instead of mock tracked_data
-        app_state = get_application_state()
-        app_state.set_curve_data(
-            "point_01",
-            [
-                (1, 100.0, 200.0, "keyframe"),
-                (2, 110.0, 210.0, "normal"),
-                (3, 120.0, 220.0, "normal"),
-                # Gap: frames 4, 5, 6
-                (7, 160.0, 260.0, "normal"),
-                (8, 170.0, 270.0, "keyframe"),
-            ],
-        )
-        app_state.set_curve_data(
-            "point_02",
-            [
-                (1, 200.0, 300.0, "keyframe"),
-                (2, 210.0, 310.0, "normal"),
-                (3, 220.0, 320.0, "normal"),
-                (4, 230.0, 330.0, "normal"),
-                (5, 240.0, 340.0, "normal"),
-                (6, 250.0, 350.0, "normal"),
-                (7, 260.0, 360.0, "normal"),
-                (8, 270.0, 370.0, "keyframe"),
-            ],
-        )
+                self.multi_point_controller = controller
+                self.curve_widget = Mock()
+                self.curve_widget.set_curve_data = Mock()
+                self.curve_widget.multi_curve_manager = Mock()
+                # Note: In real code, selected_curve_names is read from ApplicationState.
+                # This mock directly sets it for testing Insert Track logic.
+                self.curve_widget.multi_curve_manager.selected_curve_names = {"point_01", "point_02"}
 
-        main_window.multi_point_controller = controller
-        main_window.curve_widget = Mock()
-        main_window.curve_widget.set_curve_data = Mock()
-        main_window.curve_widget.multi_curve_manager = Mock()
-        # Note: In real code, selected_curve_names is read from ApplicationState.
-        # This mock directly sets it for testing Insert Track logic.
-        main_window.curve_widget.multi_curve_manager.selected_curve_names = {"point_01", "point_02"}
+                self._active_timeline_point = "point_01"
+                self.current_frame = 5
+                self.update_timeline_tabs = Mock()
 
-        main_window.active_timeline_point = "point_01"
-        main_window.current_frame = 5
-        main_window.update_timeline_tabs = Mock()
+            @property
+            def active_timeline_point(self) -> str | None:
+                """Delegate to ApplicationState.active_curve."""
+                from stores.application_state import get_application_state
+                return get_application_state().active_curve
 
-        return main_window
+            @active_timeline_point.setter
+            def active_timeline_point(self, value: str | None) -> None:
+                """Delegate to ApplicationState.set_active_curve()."""
+                from stores.application_state import get_application_state
+                get_application_state().set_active_curve(value)
+
+        return MockMainWindowWrapper()
 
     # ==================== Keyboard Shortcut Tests ====================
 
@@ -485,7 +531,7 @@ class TestInsertTrackIntegration:
 
     def test_scenario_3_sets_new_curve_as_active(self):
         """Test that Scenario 3 sets newly created curve as active."""
-        main_window = Mock()
+        main_window = create_mock_main_window()
         controller = Mock()
         # Setup data in ApplicationState
         app_state = get_application_state()
@@ -506,10 +552,9 @@ class TestInsertTrackIntegration:
         controller.update_tracking_panel = Mock()
 
         main_window.multi_point_controller = controller
-        main_window.curve_widget = Mock()
-        main_window.curve_widget.set_curve_data = Mock()
+
+        # Set active curve through property delegation
         main_window.active_timeline_point = "point_01"
-        main_window.update_timeline_tabs = Mock()
 
         # Execute Scenario 3
         command = InsertTrackCommand(selected_curves=["point_01", "point_02"], current_frame=1)

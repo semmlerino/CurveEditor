@@ -190,22 +190,37 @@ class TestMultiPointTrackingController:
 
     @pytest.fixture
     def mock_main_window(self):
-        """Create a mock main window with necessary attributes."""
-        mock = Mock(spec=MainWindow)
-        mock.curve_widget = Mock(spec=CurveViewWidget)
-        mock.curve_widget.curve_data = []  # Set as empty list to support iteration
+        """Create a mock main window with necessary attributes and property delegation."""
+        # Create a wrapper class that delegates active_timeline_point to ApplicationState
+        class MockMainWindowWrapper:
+            def __init__(self):
+                self.curve_widget = Mock(spec=CurveViewWidget)
+                self.curve_widget.curve_data = []  # Set as empty list to support iteration
 
-        # Add mock _curve_store for auto-selection functionality
-        mock_curve_store = Mock()
-        mock.curve_widget._curve_store = mock_curve_store
+                # Add mock _curve_store for auto-selection functionality
+                mock_curve_store = Mock()
+                self.curve_widget._curve_store = mock_curve_store
 
-        # Add state manager mock for auto-selection
-        mock.state_manager = Mock()
-        get_application_state().set_frame(1)
+                # Add state manager mock for auto-selection
+                self.state_manager = Mock()
+                get_application_state().set_frame(1)
 
-        mock.tracking_panel = Mock(spec=TrackingPointsPanel)
-        mock.tracking_panel.point_metadata = {}
-        return mock
+                self.tracking_panel = Mock(spec=TrackingPointsPanel)
+                self.tracking_panel.point_metadata = {}
+
+            @property
+            def active_timeline_point(self) -> str | None:
+                """Delegate to ApplicationState.active_curve."""
+                from stores.application_state import get_application_state
+                return get_application_state().active_curve
+
+            @active_timeline_point.setter
+            def active_timeline_point(self, value: str | None) -> None:
+                """Delegate to ApplicationState.set_active_curve()."""
+                from stores.application_state import get_application_state
+                get_application_state().set_active_curve(value)
+
+        return MockMainWindowWrapper()
 
     @pytest.fixture
     def controller(self, mock_main_window) -> MultiPointTrackingController:
@@ -222,14 +237,20 @@ class TestMultiPointTrackingController:
 
     @patch("ui.controllers.tracking_selection_controller.QTimer")
     def test_on_tracking_points_selected_single(self, mock_qtimer, controller, mock_main_window):
-        """Test selecting a single tracking point."""
+        """Test selecting a single tracking point - controller updates display, not active curve.
+
+        As of Phase 3 migration:
+        - Controller no longer sets active_timeline_point (TrackingPanel.py handles this)
+        - Controller only updates display with selected points
+        """
         # Configure tracking_panel.get_selected_points() to return the selected point
         mock_main_window.tracking_panel.get_selected_points.return_value = ["Track1"]
         # Select single point
         controller.on_tracking_points_selected(["Track1"])
 
-        # Verify active timeline point updated (moved from controller.active_points to main_window.active_timeline_point)
-        assert mock_main_window.active_timeline_point == "Track1"
+        # Controller no longer modifies active_timeline_point (TrackingPanel handles it)
+        # Just verify it's still None (not set by controller)
+        assert mock_main_window.active_timeline_point is None
 
         # Verify set_curves_data was called with correct selection
         mock_main_window.curve_widget.set_curves_data.assert_called_once()
@@ -253,7 +274,12 @@ class TestMultiPointTrackingController:
 
     @patch("ui.controllers.tracking_selection_controller.QTimer")
     def test_on_tracking_points_selected_multiple(self, mock_qtimer, controller, mock_main_window):
-        """Test selecting multiple tracking points."""
+        """Test selecting multiple tracking points - controller updates display, not active curve.
+
+        As of Phase 3 migration:
+        - Controller no longer sets active_timeline_point (TrackingPanel.py handles this)
+        - Controller only updates display with selected points
+        """
         # Mock the necessary methods
         mock_main_window.curve_widget.set_curves_data = Mock()
         mock_main_window.curve_widget.center_on_selection = Mock()
@@ -263,8 +289,9 @@ class TestMultiPointTrackingController:
         # Select multiple points
         controller.on_tracking_points_selected(["Track1", "Track2", "Track3"])
 
-        # Verify active timeline point updated (last selected point becomes active)
-        assert mock_main_window.active_timeline_point == "Track3"
+        # Controller no longer modifies active_timeline_point (TrackingPanel handles it)
+        # Just verify it's still None (not set by controller)
+        assert mock_main_window.active_timeline_point is None
 
         # Verify set_curves_data was called with all selected
         mock_main_window.curve_widget.set_curves_data.assert_called_once()

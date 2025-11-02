@@ -492,14 +492,19 @@ class InsertTrackCommand(CurveDataCommand):
         # Update tracking panel
         main_window.multi_point_controller.update_tracking_panel()
 
+        # Select only the modified curve
+        app_state = get_application_state()
+        app_state.set_show_all_curves(False)
+        app_state.set_selected_curves({curve_name})
+        logger.info(f"Selected only modified curve '{curve_name}' after Insert Track")
+
         # Get current active curve for diagnostics
-        active_curve = main_window.active_timeline_point
+        active_curve = app_state.active_curve
         logger.info(f"Insert Track update: modified='{curve_name}', active='{active_curve}'")
 
         # If this is the active curve, update the display
-        if (main_window.active_timeline_point is not None and main_window.active_timeline_point == curve_name
+        if (app_state.active_curve is not None and app_state.active_curve == curve_name
                 and main_window.curve_widget):
-            app_state = get_application_state()
             curve_data = app_state.get_curve_data(curve_name)
             if curve_data is not None:  # pyright: ignore[reportUnnecessaryComparison]
                 main_window.curve_widget.set_curve_data(curve_data)
@@ -514,7 +519,6 @@ class InsertTrackCommand(CurveDataCommand):
 
         # Update timeline
         if main_window.update_timeline_tabs is not None:
-            app_state = get_application_state()
             curve_data = app_state.get_curve_data(curve_name)
             if curve_data is not None:  # pyright: ignore[reportUnnecessaryComparison]
                 main_window.update_timeline_tabs(curve_data)
@@ -534,11 +538,17 @@ class InsertTrackCommand(CurveDataCommand):
         # Update tracking panel
         main_window.multi_point_controller.update_tracking_panel()
 
+        # Select only the new curve
+        app_state = get_application_state()
+        app_state.set_show_all_curves(False)
+        app_state.set_selected_curves({curve_name})
+        logger.info(f"Selected only new curve '{curve_name}' after Insert Track")
+
         # Set as active curve - always do this for newly created curves
-        main_window.active_timeline_point = curve_name
+        app_state = get_application_state()
+        app_state.set_active_curve(curve_name)
 
         # Get curve data (needed for both curve widget and timeline updates)
-        app_state = get_application_state()
         curve_data = app_state.get_curve_data(curve_name)
         if curve_data is None:  # pyright: ignore[reportUnnecessaryComparison]
             logger.warning(f"Cannot update UI: no data for new curve '{curve_name}'")

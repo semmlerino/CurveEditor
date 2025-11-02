@@ -857,7 +857,8 @@ class MockMainWindow:
         self.total_frames_label: object = None
         self.tracked_data: object = None
         self.active_points: object = None
-        self.active_timeline_point: str | None = None
+        # active_timeline_point is now a property that delegates to ApplicationState
+        # (defined below as @property)
         self.current_image_idx: int = 0
         self.session_manager: object = None
         self.view_update_manager: object = None
@@ -899,6 +900,7 @@ class MockMainWindow:
         self.show_grid_cb: object = MagicMock()
         self.show_info_cb: object = MagicMock()
         self.show_tooltips_cb: object = MagicMock()
+        self.show_current_point_cb: object = MagicMock()
         self.point_size_slider: object = MagicMock()
         self.line_width_slider: object = MagicMock()
 
@@ -964,6 +966,24 @@ class MockMainWindow:
     def state_manager(self) -> MockStateManager:
         """Get state manager (MainWindowProtocol)."""
         return self._state_manager
+
+    @property
+    def active_timeline_point(self) -> str | None:
+        """Get the active timeline point (which tracking point's timeline is displayed).
+
+        Delegates to ApplicationState.active_curve for consistency with production code.
+        """
+        from stores.application_state import get_application_state
+        return get_application_state().active_curve
+
+    @active_timeline_point.setter
+    def active_timeline_point(self, point_name: str | None) -> None:
+        """Set the active timeline point (which tracking point's timeline to display).
+
+        Delegates to ApplicationState.set_active_curve() for consistency with production code.
+        """
+        from stores.application_state import get_application_state
+        get_application_state().set_active_curve(point_name)
 
     def _create_timeline_components(self):
         """Create timeline UI components using real Qt widgets."""
