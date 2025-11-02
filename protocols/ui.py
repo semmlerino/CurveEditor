@@ -55,6 +55,16 @@ class StateManagerProtocol(Protocol):
         ...
 
     @property
+    def active_timeline_point(self) -> str | None:
+        """Get the active timeline point (which tracking point's timeline is displayed)."""
+        ...
+
+    @active_timeline_point.setter
+    def active_timeline_point(self, value: str | None) -> None:
+        """Set the active timeline point (which tracking point's timeline to display)."""
+        ...
+
+    @property
     def image_directory(self) -> str | None:
         """Get image directory."""
         ...
@@ -844,6 +854,16 @@ class MainWindowProtocol(Protocol):
     @active_points.setter
     def active_points(self, value: list[str]) -> None:
         """Set active points."""
+        ...
+
+    @property
+    def active_timeline_point(self) -> str | None:
+        """Get the active timeline point (which tracking point's timeline is displayed)."""
+        ...
+
+    @active_timeline_point.setter
+    def active_timeline_point(self, value: str | None) -> None:
+        """Set the active timeline point (which tracking point's timeline to display)."""
         ...
 
     @property

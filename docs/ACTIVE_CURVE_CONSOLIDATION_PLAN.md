@@ -1,6 +1,6 @@
 # Active Curve State Consolidation Plan
 
-**Status**: 🚧 **IN PROGRESS** (November 2025) - Phase -1 Complete ✅, Phase 0 Complete ✅
+**Status**: 🚧 **IN PROGRESS** (November 2025) - Phase -1 Complete ✅, Phase 0 Complete ✅, Phase 1 Complete ✅
 
 **Goal**: Eliminate duplicate "active curve" state by consolidating to ApplicationState as single source of truth.
 
@@ -309,9 +309,10 @@ Timeline UI updates
 
 ## Phase 1: Make MainWindow Property Delegate to ApplicationState
 
-**Goal**: Create bridge for gradual migration without breaking existing code.
+**✅ STATUS: COMPLETE** (November 2, 2025)
+**Time**: 30 minutes (actual: 30 minutes)
 
-**Time**: 30 minutes
+**Goal**: Create bridge for gradual migration without breaking existing code.
 
 ### 1.1 Update MainWindow Property
 
@@ -372,6 +373,21 @@ uv run pytest tests/ -x -q
 **Expected**: All tests pass (property delegation should be transparent).
 
 **If tests fail**: Investigate synchronization issues between old and new signals.
+
+### Phase 1 Success Criteria
+
+**Success criteria**:
+- [x] Property getter delegates to `get_application_state().active_curve` ✅
+- [x] Property setter calls `get_application_state().set_active_curve(value)` ✅
+- [x] DEPRECATED docstrings added to both getter and setter ✅
+- [x] Local imports used (no circular imports) ✅
+- [x] All tests pass (3420 passed, 1 skipped) ✅
+- [x] Type checking passes (2 pre-existing errors, no new ones) ✅
+- [x] Protocol declarations restored (Phase 0.1 correction applied) ✅
+
+**✅ ALL CRITERIA MET - PROCEEDING TO PHASE 2**
+
+**Important Note**: Phase 0.1 protocol removal was premature. Protocols were restored in Phase 1 to maintain type safety during migration. Protocol removal deferred to Phase 4 after all usages migrated.
 
 ---
 

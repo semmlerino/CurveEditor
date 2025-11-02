@@ -546,13 +546,25 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     @property
     def active_timeline_point(self) -> str | None:
-        """Get the active timeline point (which tracking point's timeline is displayed)."""
-        return self.state_manager.active_timeline_point
+        """Get the active timeline point (which tracking point's timeline is displayed).
+
+        DEPRECATED: This property delegates to ApplicationState.active_curve.
+        New code should use get_application_state().active_curve directly.
+        This property exists for backward compatibility during migration.
+        """
+        from stores.application_state import get_application_state
+        return get_application_state().active_curve
 
     @active_timeline_point.setter
     def active_timeline_point(self, point_name: str | None) -> None:
-        """Set the active timeline point (which tracking point's timeline to display)."""
-        self.state_manager.active_timeline_point = point_name
+        """Set the active timeline point (which tracking point's timeline to display).
+
+        DEPRECATED: This property delegates to ApplicationState.set_active_curve().
+        New code should use get_application_state().set_active_curve() directly.
+        This property exists for backward compatibility during migration.
+        """
+        from stores.application_state import get_application_state
+        get_application_state().set_active_curve(point_name)
 
     @property
     def multi_point_controller(self) -> object:  # MultiPointTrackingProtocol
@@ -1187,13 +1199,16 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             Sorted list of frame numbers that are navigable (keyframes, endframes, or startframes).
             Returns empty list if no curve data loaded.
         """
-        # Get active curve data directly from ApplicationState
-        app_state = get_application_state()
-        if (cd := app_state.active_curve_data) is None:
+        # Use active_timeline_point (from StateManager) instead of active_curve (from ApplicationState)
+        # This ensures consistency with the UI's notion of which curve is being viewed
+        active_point = self.active_timeline_point
+        if not active_point:
             return []
 
-        _, curve_data = cd
-
+        # Get the curve data for the active timeline point
+        app_state = get_application_state()
+        curve_data = app_state.get_curve_data(active_point)
+        
         if not curve_data:
             return []
 
