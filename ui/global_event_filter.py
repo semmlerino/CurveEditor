@@ -77,6 +77,33 @@ class GlobalEventFilter(QObject):
             event.accept()
             return True
 
+        # Handle Left/Right arrows for frame navigation (when no points selected)
+        if key == Qt.Key.Key_Left or key == Qt.Key.Key_Right:
+            # Check if curve points are selected - if so, let InteractionService handle nudging
+            if self.main_window.curve_widget is not None and self.main_window.curve_widget.selected_indices:
+                # Points are selected, let event pass through for nudging
+                logger.debug(f"[GLOBAL_EVENT_FILTER] {key} pressed with points selected, allowing nudge")
+                return False
+
+            # No points selected - navigate frames globally
+            from stores.application_state import get_application_state
+            state = get_application_state()
+            current_frame = state.current_frame
+
+            if key == Qt.Key.Key_Left:
+                # Navigate to previous frame
+                if current_frame > 1:
+                    logger.debug(f"[GLOBAL_EVENT_FILTER] Left arrow pressed, navigating to frame {current_frame - 1}")
+                    state.set_frame(current_frame - 1)
+                    event.accept()
+                    return True
+            else:  # Key_Right
+                # Navigate to next frame (no upper limit check - timeline handles max)
+                logger.debug(f"[GLOBAL_EVENT_FILTER] Right arrow pressed, navigating to frame {current_frame + 1}")
+                state.set_frame(current_frame + 1)
+                event.accept()
+                return True
+
         # Don't interfere with text input in certain widgets
         if self._should_skip_widget(watched):
             return False

@@ -83,6 +83,9 @@ class TestEventFilterNavigation:
         state.set_curve_data(test_curve_name, test_data)
         state.set_active_curve(test_curve_name)
 
+        # Set active_timeline_point to match active curve (required for Page Up/Down navigation)
+        window.active_timeline_point = test_curve_name
+
         # Verify the setup
         assert state.active_curve == test_curve_name, f"Active curve not set: {state.active_curve}"
         assert state.get_curve_data(test_curve_name) == test_data, "Curve data not set correctly"

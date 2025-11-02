@@ -1,8 +1,8 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Skipping large file (143.6MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
-Found 210 files to bundle
+Skipping large file (145.0MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
+Found 212 files to bundle
 Bundled: .pre-commit-config.yaml
 Bundled: .txt
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
@@ -15,6 +15,7 @@ Bundled: 3de_tracking_analysis_20250911_084452.txt
 Bundled: ARCHITECTURAL_CONSOLIDATION_ANALYSIS.md
 Bundled: BASEDPYRIGHT_STRATEGY.md
 Bundled: BUG_FIX_CTRL_CLICK_GAP_CURVE.md
+Bundled: check_exr_backends.py
 Bundled: CLAUDE.md
 Bundled: COMPLIANCE_ANALYSIS_INDEX.md
 Bundled: COMPLIANCE_PATTERNS_FOUND.txt
@@ -50,6 +51,7 @@ Bundled: run_tests.sh
 Bundled: run_typecheck.sh
 Bundled: testspline.txt
 Bundled: test_normalized_3de.txt
+Bundled: test_rez_exr_packages.sh
 Bundled: TEST_SUITE_COMPLIANCE_ANALYSIS.md
 Bundled: transfer_config.json
 Bundled: TYPE_SAFETY_CODE_PATTERNS.md
@@ -216,9 +218,9 @@ Bundled: ui/widgets/__init__.py
 Bundle created at: /tmp/curveeditor_bundle_temp
 Encoding bundle...
 Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/curveeditor_bundle_temp -o curveeditor_latest.txt -c 5120 --single-file --metadata -v
-Folder size: 2.60 MB
+Folder size: 2.61 MB
 Encoding folder: /tmp/curveeditor_bundle_temp
-Encoded size: 840760 bytes
+Encoded size: 845604 bytes
 Creating 1 chunks of 5120KB each
 Saved combined chunks to: curveeditor_latest.txt
 Saved metadata to: curveeditor_latest_metadata.json

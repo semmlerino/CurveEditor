@@ -1,6 +1,6 @@
 {
   "tracking_file": "2DTrackDatav2.txt",
-  "image_directory": "footage/Burger",
+  "image_directory": null,
   "current_frame": 1,
   "zoom_level": 0.296875,
   "pan_offset": [
@@ -8,59 +8,19 @@
     0.0
   ],
   "window_geometry": [
-    154,
-    60,
+    0,
+    0,
     1400,
     900
   ],
   "active_points": [],
   "view_bounds": null,
   "recent_directories": [],
-  "selected_curves": [
-    "Point02"
-  ],
+  "selected_curves": [],
   "show_all_curves": false,
-  "image_files": [
-    "Burger.001.png",
-    "Burger.002.png",
-    "Burger.003.png",
-    "Burger.004.png",
-    "Burger.005.png",
-    "Burger.006.png",
-    "Burger.007.png",
-    "Burger.008.png",
-    "Burger.009.png",
-    "Burger.010.png",
-    "Burger.011.png",
-    "Burger.012.png",
-    "Burger.013.png",
-    "Burger.014.png",
-    "Burger.015.png",
-    "Burger.016.png",
-    "Burger.017.png",
-    "Burger.018.png",
-    "Burger.019.png",
-    "Burger.020.png",
-    "Burger.021.png",
-    "Burger.022.png",
-    "Burger.023.png",
-    "Burger.024.png",
-    "Burger.025.png",
-    "Burger.026.png",
-    "Burger.027.png",
-    "Burger.028.png",
-    "Burger.029.png",
-    "Burger.030.png",
-    "Burger.031.png",
-    "Burger.032.png",
-    "Burger.033.png",
-    "Burger.034.png",
-    "Burger.035.png",
-    "Burger.036.png",
-    "Burger.037.png"
-  ],
+  "image_files": [],
   "_metadata": {
-    "saved_at": "C:\\CustomScripts\\Python\\Work\\Linux\\CurveEditor",
+    "saved_at": "/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor",
     "version": "1.0"
   }
 }

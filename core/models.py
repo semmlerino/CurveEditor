@@ -162,10 +162,13 @@ class PointStatus(Enum):
             return status_map.get(value, cls.NORMAL)
         else:
             # Must be str at this point due to type annotation
+            # Handle invalid types gracefully (e.g., list, dict, etc.)
             try:
                 # Convert to lowercase to match enum values
                 return cls(value.lower())
-            except ValueError:
+            except (ValueError, AttributeError):
+                # ValueError: Invalid enum value
+                # AttributeError: value doesn't have .lower() method (not a string)
                 return cls.NORMAL
 
     def to_legacy_string(self) -> str:

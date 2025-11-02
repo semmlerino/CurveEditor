@@ -27,14 +27,16 @@ class TestFrameChangeCoordinator:
     @pytest.fixture
     def main_window(self, qtbot):
         """Create main window fixture."""
+        from stores.application_state import reset_application_state
         from stores.store_manager import StoreManager
         from ui.main_window import MainWindow
 
         window = MainWindow()
         qtbot.addWidget(window)
         yield window
-        # Cleanup after test
+        # Cleanup after test - reset both singletons to prevent signal leaks
         StoreManager.reset()
+        reset_application_state()  # CRITICAL: Prevents orphaned signal connections
 
     @pytest.fixture
     def coordinator(self, main_window):

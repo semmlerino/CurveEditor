@@ -147,6 +147,10 @@ def main_window_with_data(qtbot, make_navigation_dataset):
         window = MainWindow(auto_load_data=False)
         qtbot.addWidget(window)
 
+        # Set active_timeline_point to match active curve (required for Page Up/Down navigation)
+        if processed_data:
+            window.active_timeline_point = "__default__"
+
         # Update frame range via timeline controller (updates spinbox max)
         if test_data and processed_data:
             max_frame = max(point[0] for point in processed_data)
@@ -472,6 +476,9 @@ class TestNavigationPerformance:
         window = MainWindow()
         qtbot.addWidget(window)
 
+        # Set active_timeline_point to match active curve (required for Page Up/Down navigation)
+        window.active_timeline_point = "__default__"
+
         # Update frame range
         window.timeline_controller.set_frame_range(1, 200)
 
@@ -561,6 +568,9 @@ class TestRealFileNavigation:
         # Create window with real data
         window = MainWindow()
         qtbot.addWidget(window)
+
+        # Set active_timeline_point to match active curve (required for Page Up/Down navigation)
+        window.active_timeline_point = "__default__"
 
         # Update frame range based on data
         if test_data:

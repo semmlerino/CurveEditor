@@ -104,6 +104,13 @@ class TestNavigationIntegration:
         window.curve_widget.set_curve_data(test_data)
         window.update_timeline_tabs(test_data)
 
+        # Set up ApplicationState for navigation (Page Up/Down needs this)
+        test_curve_name = "TestCurve"
+        app_state = get_application_state()
+        app_state.set_curve_data(test_curve_name, test_data)
+        app_state.set_active_curve(test_curve_name)
+        window.active_timeline_point = test_curve_name
+
         # Install event filter (mimics main.py setup)
         app.installEventFilter(window)
 
