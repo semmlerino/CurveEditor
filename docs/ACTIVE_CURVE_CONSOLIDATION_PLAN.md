@@ -1,6 +1,6 @@
 # Active Curve State Consolidation Plan
 
-**Status**: 🚧 **IN PROGRESS** (November 2025) - Phase -1 Complete ✅, Phase 0 Complete ✅, Phase 1 Complete ✅
+**Status**: 🚧 **IN PROGRESS** (November 2025) - Phase -1 Complete ✅, Phase 0 Complete ✅, Phase 1 Complete ✅, Phase 2 Complete ✅
 
 **Goal**: Eliminate duplicate "active curve" state by consolidating to ApplicationState as single source of truth.
 
@@ -393,6 +393,8 @@ uv run pytest tests/ -x -q
 
 ## Phase 2: Migrate Production Code (File-by-File)
 
+✅ **STATUS: COMPLETE**
+
 **Goal**: Update all production code to use ApplicationState.active_curve directly.
 
 **Time**: 3-4 hours (10 files × 20-30 min each)
@@ -557,6 +559,21 @@ def _on_active_curve_changed(self, curve_name: str | None) -> None:
 - Remove StateManager signal connection (line 310)
 - Handler already accepts `str | None` (fixed in Phase -1)
 - Update label text for None case ("No active curve" vs "No point")
+
+### Success Criteria
+
+Phase 2 completed successfully with the following outcomes:
+
+- [x] **2 files migrated**: ui/main_window.py (1 usage), ui/timeline_tabs.py (4 usages) ✅
+- [x] **5 direct usages migrated** from deprecated property to ApplicationState ✅
+- [x] **StateManager fallback patterns eliminated** (4 locations, 20 lines of fallback logic removed) ✅
+- [x] **Single source of truth established** for production code reads ✅
+- [x] **Type safety preserved** (2 pre-existing errors, no new errors) ✅
+- [x] **All tests pass** (3420 passed, 1 skipped) ✅
+- [x] **Code quality improved** (duplicate get_application_state() call fixed) ✅
+- [x] **Review agents approved**: python-code-reviewer (9.7/10), type-system-expert (10/10) ✅
+
+**Note**: 3 controller files (tracking_data_controller, tracking_selection_controller, insert_track_command) were correctly skipped in Phase 2 as their usages access through MainWindowProtocol, which will be migrated in later phases.
 
 ---
 

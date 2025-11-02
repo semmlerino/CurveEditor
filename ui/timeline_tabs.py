@@ -313,8 +313,8 @@ class TimelineTabWidget(QWidget):
         actual_frame = get_application_state().current_frame
         if actual_frame != self._current_frame:
             self._on_frame_changed(actual_frame)
-        # Sync initial active timeline point
-        self._on_active_timeline_point_changed(self._state_manager.active_timeline_point)
+        # Sync initial active timeline point from ApplicationState (single source of truth)
+        self._on_active_timeline_point_changed(self._app_state.active_curve)
 
     def on_frame_changed(self, frame: int) -> None:
         """
@@ -438,14 +438,8 @@ class TimelineTabWidget(QWidget):
 
         else:
             # Single-curve mode - use active timeline point
-            # Use active_timeline_point from StateManager, fallback to active_curve if not set
-            active_timeline_point = None
-            if self._state_manager:
-                active_timeline_point = self._state_manager.active_timeline_point
-
-            # Fallback to active_curve if active_timeline_point not set (e.g., in tests)
-            if not active_timeline_point:
-                active_timeline_point = self._app_state.active_curve
+            # Use ApplicationState.active_curve as single source of truth
+            active_timeline_point = self._app_state.active_curve
 
             if not active_timeline_point or active_timeline_point not in curves:
                 # Check if image sequence is loaded even without tracking data
@@ -532,15 +526,11 @@ class TimelineTabWidget(QWidget):
 
         Args:
             selection: Selected indices
-            curve_name: Curve with selection change (None uses active timeline point)
+            curve_name: Curve with selection change (None uses active_curve from ApplicationState)
         """
-        # Use StateManager's active_timeline_point, fallback to active_curve if not set
+        # Use ApplicationState.active_curve as single source of truth
         if not curve_name:
-            if self._state_manager:
-                curve_name = self._state_manager.active_timeline_point
-            # Fallback to active_curve if active_timeline_point not set (e.g., in tests)
-            if not curve_name:
-                curve_name = self._app_state.active_curve
+            curve_name = self._app_state.active_curve
 
         if not curve_name:
             return
@@ -628,11 +618,8 @@ class TimelineTabWidget(QWidget):
         else:
             self.mode_toggle_btn.setText("Aggregate Mode")
             # Restore single-curve display label
-            active_timeline_point = None
-            if self._state_manager:
-                active_timeline_point = self._state_manager.active_timeline_point
-            if not active_timeline_point:
-                active_timeline_point = self._app_state.active_curve
+            # Use ApplicationState.active_curve as single source of truth
+            active_timeline_point = self._app_state.active_curve
             if active_timeline_point:
                 self.active_point_label.setText(f"Timeline: {active_timeline_point}")
             else:

@@ -1199,14 +1199,13 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             Sorted list of frame numbers that are navigable (keyframes, endframes, or startframes).
             Returns empty list if no curve data loaded.
         """
-        # Use active_timeline_point (from StateManager) instead of active_curve (from ApplicationState)
-        # This ensures consistency with the UI's notion of which curve is being viewed
-        active_point = self.active_timeline_point
+        # Use ApplicationState.active_curve as single source of truth
+        app_state = get_application_state()
+        active_point = app_state.active_curve
         if not active_point:
             return []
 
         # Get the curve data for the active timeline point
-        app_state = get_application_state()
         curve_data = app_state.get_curve_data(active_point)
         
         if not curve_data:
