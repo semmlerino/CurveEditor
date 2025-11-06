@@ -254,7 +254,7 @@ class OptimizedCurveRenderer:
             return self._segmented_curves[points_id]
 
         # Create new
-        segmented_curve = self._get_segmented_curve(points)
+        segmented_curve = SegmentedCurve.from_points(points)
 
         # Add to cache with LRU eviction
         if len(self._segmented_curves) >= self._max_segmented_cache_size:

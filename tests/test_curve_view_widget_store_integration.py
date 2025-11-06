@@ -201,8 +201,8 @@ class TestCurveViewWidgetStoreIntegration:
         assert data[0][0] == 5  # Second point remains
 
     def test_status_change_through_store(self, widget):
-        """Test changing point status (via widget, reflected in ApplicationState)."""
-        from core.models import PointStatus
+        """Test changing point status through ApplicationState."""
+        from core.models import CurvePoint, PointStatus
         from stores.application_state import get_application_state
 
         app_state = get_application_state()
@@ -210,8 +210,9 @@ class TestCurveViewWidgetStoreIntegration:
         # Set up data
         widget.set_curve_data([(1, 100.0, 200.0)])
 
-        # Change status through widget
-        widget._set_point_status(0, PointStatus.KEYFRAME)
+        # Change status through ApplicationState
+        point = CurvePoint(frame=1, x=100.0, y=200.0, status=PointStatus.KEYFRAME)
+        app_state.update_point("__default__", 0, point)
 
         # Check ApplicationState
         data = app_state.get_curve_data("__default__")

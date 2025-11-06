@@ -254,13 +254,23 @@ class MockFileOperations:
 
     def __init__(self) -> None:
         self.next_data: CurveDataList | dict[str, CurveDataList] | None = None
-        self.file_loaded_signal: MockSignal = MockSignal()
+        self.tracking_data_loaded: MockSignal = MockSignal()
+        self.multi_point_data_loaded: MockSignal = MockSignal()
 
-    def open_file(self, parent: object) -> CurveDataList | dict[str, CurveDataList] | None:
-        """Simulate opening a file."""
+    def open_file(self, parent: object) -> bool:
+        """Simulate opening a file.
+
+        Returns True to indicate file dialog succeeded (async loading started).
+        Data will be delivered via signals.
+        """
         if self.next_data is not None:
-            self.file_loaded_signal.emit(self.next_data)
-        return self.next_data
+            # Emit appropriate signal based on data type
+            if isinstance(self.next_data, dict):
+                self.multi_point_data_loaded.emit(self.next_data)
+            else:
+                self.tracking_data_loaded.emit(self.next_data)
+            return True
+        return False
 
     def set_next_file_data(self, data: CurveDataList | dict[str, CurveDataList]) -> None:
         """Set data to return on next open_file call."""
@@ -282,6 +292,10 @@ class MockMainWindow:
         self.tracking_controller: MultiPointTrackingController | None = None
         self.timeline_controller: object = None  # Add missing attribute
 
+        # Connect file operation signals (matches real MainWindow behavior)
+        self.file_operations.tracking_data_loaded.connect(self.on_tracking_data_loaded)
+        self.file_operations.multi_point_data_loaded.connect(self.on_multi_point_data_loaded)
+
     @property
     def active_timeline_point(self) -> str | None:
         """Get the active timeline point (which tracking point's timeline is displayed).
@@ -299,6 +313,16 @@ class MockMainWindow:
         """
         from stores.application_state import get_application_state
         get_application_state().set_active_curve(point_name)
+
+    def on_tracking_data_loaded(self, data: CurveDataList) -> None:
+        """Handle tracking data loaded (delegated to MultiPointTrackingController)."""
+        if self.tracking_controller is not None:
+            self.tracking_controller.on_tracking_data_loaded(data)
+
+    def on_multi_point_data_loaded(self, multi_data: dict[str, CurveDataList]) -> None:
+        """Handle multi-point data loaded (delegated to MultiPointTrackingController)."""
+        if self.tracking_controller is not None:
+            self.tracking_controller.on_multi_point_data_loaded(multi_data)
 
     def update_tracking_panel(self) -> None:
         """Update tracking panel."""
