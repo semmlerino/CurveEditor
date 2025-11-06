@@ -152,8 +152,7 @@ class TestDialogMethods:
             call_count[0] += 1
             if call_count[0] == 1:
                 return (10.0, True)
-            else:
-                return (0.0, False)
+            return (0.0, False)
 
         monkeypatch.setattr(QInputDialog, "getDouble", mock_double)
 

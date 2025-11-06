@@ -7,6 +7,7 @@ show_all_curves boolean with explicit, self-documenting states.
 """
 
 from enum import Enum, auto
+
 from typing_extensions import override
 
 
@@ -129,10 +130,9 @@ class DisplayMode(Enum):
         """
         if show_all_curves:
             return cls.ALL_VISIBLE
-        elif has_selection:
+        if has_selection:
             return cls.SELECTED
-        else:
-            return cls.ACTIVE_ONLY
+        return cls.ACTIVE_ONLY
 
     def to_legacy(self) -> tuple[bool, bool]:
         """
@@ -173,10 +173,10 @@ class DisplayMode(Enum):
         """
         if self == DisplayMode.ALL_VISIBLE:
             return (True, False)
-        elif self == DisplayMode.SELECTED:
+        if self == DisplayMode.SELECTED:
             return (False, True)
-        else:  # ACTIVE_ONLY
-            return (False, False)
+        # ACTIVE_ONLY
+        return (False, False)
 
     @property
     def display_name(self) -> str:
@@ -198,10 +198,10 @@ class DisplayMode(Enum):
         """
         if self == DisplayMode.ALL_VISIBLE:
             return "All Visible Curves"
-        elif self == DisplayMode.SELECTED:
+        if self == DisplayMode.SELECTED:
             return "Selected Curves"
-        else:  # ACTIVE_ONLY
-            return "Active Curve Only"
+        # ACTIVE_ONLY
+        return "Active Curve Only"
 
     @property
     def description(self) -> str:
@@ -217,10 +217,10 @@ class DisplayMode(Enum):
         """
         if self == DisplayMode.ALL_VISIBLE:
             return "Display all curves marked as visible in the viewport"
-        elif self == DisplayMode.SELECTED:
+        if self == DisplayMode.SELECTED:
             return "Display only the curves selected in the tracking points panel"
-        else:  # ACTIVE_ONLY
-            return "Display only the currently active curve for editing"
+        # ACTIVE_ONLY
+        return "Display only the currently active curve for editing"
 
     @override
     def __str__(self) -> str:

@@ -166,14 +166,14 @@ class ViewManagementController:
         """
         if not self.main_window.show_current_point_cb:
             return
-        
+
         show_current_only = self.main_window.show_current_point_cb.isChecked()
         self.main_window.state_manager.show_current_point_only = show_current_only
-        
+
         # Trigger curve view repaint
         if self.main_window.curve_widget:
             self.main_window.curve_widget.update()
-        
+
         logger.info(f"Current point only mode: {'enabled' if show_current_only else 'disabled'}")
 
     def get_view_options(self) -> ViewOptions:

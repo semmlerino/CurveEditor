@@ -12,7 +12,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import cast
-from typing_extensions import override
+
 from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QWidget,
 )
+from typing_extensions import override
 
 from core.logger_utils import get_logger
 
@@ -180,14 +181,13 @@ class ProgressDialog(QProgressDialog):
         """Format time in seconds to human-readable string."""
         if seconds < 60:
             return f"{int(seconds)}s"
-        elif seconds < 3600:
+        if seconds < 3600:
             minutes = int(seconds / 60)
             secs = int(seconds % 60)
             return f"{minutes}m {secs}s"
-        else:
-            hours = int(seconds / 3600)
-            minutes = int((seconds % 3600) / 60)
-            return f"{hours}h {minutes}m"
+        hours = int(seconds / 3600)
+        minutes = int((seconds % 3600) / 60)
+        return f"{hours}h {minutes}m"
 
 
 class StatusBarProgress(QWidget):
@@ -447,14 +447,12 @@ def with_progress(
                     sig = inspect.signature(func)
                     if "progress_worker" in sig.parameters:
                         return func(*op_args, progress_worker=worker, **op_kwargs)
-                    else:
-                        return func(*op_args, **op_kwargs)
+                    return func(*op_args, **op_kwargs)
 
                 return manager.show_progress_dialog(info, operation, None, *args, **kwargs)
-            else:
-                # Just show busy cursor
-                with manager.busy_cursor():
-                    return func(*args, **kwargs)
+            # Just show busy cursor
+            with manager.busy_cursor():
+                return func(*args, **kwargs)
 
         return wrapper
 

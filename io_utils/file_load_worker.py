@@ -8,8 +8,9 @@ using Qt threading (QThread) for proper Qt integration and thread safety.
 import logging
 from pathlib import Path
 from typing import ClassVar
-from typing_extensions import override
+
 from PySide6.QtCore import QMutex, QMutexLocker, QThread, Signal
+from typing_extensions import override
 
 from core.config import get_config
 from core.coordinate_detector import detect_coordinate_system
@@ -306,16 +307,15 @@ class FileLoadWorker(QThread):
                 total_frames = sum(len(points) for points in multi_point_data.values())
                 logger.info(f"Loaded {num_points} points with {total_frames} total frames from {file_path}")
                 return multi_point_data  # pyright: ignore[reportReturnType]
-            elif num_points == 1 and multi_point_data:
+            if num_points == 1 and multi_point_data:
                 # For single point, return the list directly for backward compatibility
                 point_name = next(iter(multi_point_data.keys()))
                 logger.info(
                     f"Loaded single point '{point_name}' with {len(multi_point_data[point_name])} frames from {file_path}"
                 )
                 return multi_point_data[point_name]  # pyright: ignore[reportReturnType]
-            else:
-                logger.info(f"No valid tracking points loaded from {file_path}")
-                return []
+            logger.info(f"No valid tracking points loaded from {file_path}")
+            return []
 
         except Exception as e:
             logger.error(f"Error loading tracking data from {file_path}: {e}")
@@ -359,7 +359,7 @@ class FileLoadWorker(QThread):
                 + f"dimensions={metadata.width}x{metadata.height}"
             )
             return result
-        elif raw_data:
+        if raw_data:
             # Single point data - backward compatibility (raw_data is a list at this point)
             # Type narrowing: raw_data is a list at this point, compatible with CurveDataList
             curve_data = CurveDataWithMetadata(data=raw_data, metadata=metadata)
@@ -371,9 +371,8 @@ class FileLoadWorker(QThread):
             )
 
             return curve_data
-        else:
-            # Empty data case
-            return CurveDataWithMetadata(data=[], metadata=metadata)
+        # Empty data case
+        return CurveDataWithMetadata(data=[], metadata=metadata)
 
     def _load_2dtrack_data_legacy_wrapper(
         self, file_path: str, flip_y: bool = False, image_height: float = 720
@@ -411,18 +410,15 @@ class FileLoadWorker(QThread):
                         result_dict[point_name] = point_curve.to_legacy_format()
                 # Runtime type is compatible despite variance rules
                 return result_dict  # pyright: ignore[reportReturnType]
-            else:
-                # Single point data (CurveDataWithMetadata) - to_legacy_format returns CurveDataList
-                if flip_y and curve_data.needs_y_flip_for_display:
-                    # Convert to normalized then back with flip
-                    return curve_data.to_normalized().to_legacy_format()  # pyright: ignore[reportReturnType]
-                else:
-                    return curve_data.to_legacy_format()  # pyright: ignore[reportReturnType]
-        else:
-            # Use direct loading with flip_y parameter
-            result = self._load_2dtrack_data_direct(file_path, flip_y, image_height)
-            # Runtime type is compatible despite variance rules
-            return result
+            # Single point data (CurveDataWithMetadata) - to_legacy_format returns CurveDataList
+            if flip_y and curve_data.needs_y_flip_for_display:
+                # Convert to normalized then back with flip
+                return curve_data.to_normalized().to_legacy_format()  # pyright: ignore[reportReturnType]
+            return curve_data.to_legacy_format()  # pyright: ignore[reportReturnType]
+        # Use direct loading with flip_y parameter
+        result = self._load_2dtrack_data_direct(file_path, flip_y, image_height)
+        # Runtime type is compatible despite variance rules
+        return result
 
     def _scan_image_directory(self, dir_path: str) -> list[str]:
         """Scan directory for image files without using DataService."""

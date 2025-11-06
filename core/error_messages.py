@@ -62,7 +62,7 @@ def format_precision_error(precision: float) -> str:
             f"Precision must be a positive number, but got {precision}.\n"
             f"  → Use a value like 0.1 for coarse precision or 0.01 for fine precision."
         )
-    elif not math.isfinite(precision):
+    if not math.isfinite(precision):
         return (
             f"Precision must be a finite number, but got {precision}.\n" f"  → Use a standard value like 0.1 or 0.01."
         )
@@ -79,24 +79,23 @@ def format_scale_error(scale: float, context: str = "transform") -> str:
             f"  Received: {scale}\n"
             f"  → Reset to default zoom level (1.0) or check calculation inputs."
         )
-    elif scale <= 0:
+    if scale <= 0:
         if scale == 0:
             return (
                 f"Scale factor for {context} cannot be zero (would cause division by zero).\n"
                 f"  → Use a small positive value like 0.001 for minimum zoom."
             )
-        else:
-            return (
-                f"Scale factor for {context} cannot be negative ({scale}).\n"
-                f"  → Use positive values only. For flipping, use the flip_y option instead."
-            )
-    elif scale < 1e-10:
+        return (
+            f"Scale factor for {context} cannot be negative ({scale}).\n"
+            f"  → Use positive values only. For flipping, use the flip_y option instead."
+        )
+    if scale < 1e-10:
         return (
             f"Scale factor for {context} is too small ({scale:.2e}).\n"
             f"  Minimum allowed: 1e-10\n"
             f"  → This prevents numerical instability. Use a larger zoom value."
         )
-    elif scale > 1e10:
+    if scale > 1e10:
         return (
             f"Scale factor for {context} is too large ({scale:.2e}).\n"
             f"  Maximum allowed: 1e10\n"
@@ -111,12 +110,12 @@ def format_dimension_error(dimension: int, name: str) -> str:
         return (
             f"{name} cannot be negative ({dimension} pixels).\n" f"  → Check window initialization or resize handling."
         )
-    elif dimension == 0:
+    if dimension == 0:
         return (
             f"{name} cannot be zero (would cause division errors).\n"
             f"  → Ensure window is properly initialized before use."
         )
-    elif dimension > 1_000_000:
+    if dimension > 1_000_000:
         return (
             f"{name} is unrealistically large ({dimension:,} pixels).\n"
             f"  Maximum allowed: 1,000,000 pixels\n"

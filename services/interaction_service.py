@@ -120,25 +120,24 @@ class _MouseHandler:
 
                         # No drag for cross-curve selection
                         return
+                    # Ctrl+click on ACTIVE curve: Toggle point-level selection
+                    current_selection = view.selected_points if view.selected_points else set()
+
+                    if point_idx in current_selection:
+                        # Remove from selection
+                        current_selection = current_selection - {point_idx}
+                        view.selected_points = current_selection
+                        # Update selected_point_idx
+                        view.selected_point_idx = max(current_selection) if current_selection else -1
                     else:
-                        # Ctrl+click on ACTIVE curve: Toggle point-level selection
-                        current_selection = view.selected_points if view.selected_points else set()
+                        # Add to selection
+                        current_selection = current_selection | {point_idx}
+                        view.selected_points = current_selection
+                        view.selected_point_idx = point_idx
 
-                        if point_idx in current_selection:
-                            # Remove from selection
-                            current_selection = current_selection - {point_idx}
-                            view.selected_points = current_selection
-                            # Update selected_point_idx
-                            view.selected_point_idx = max(current_selection) if current_selection else -1
-                        else:
-                            # Add to selection
-                            current_selection = current_selection | {point_idx}
-                            view.selected_points = current_selection
-                            view.selected_point_idx = point_idx
-
-                        # No drag for Ctrl+click point toggle
-                        return
-                elif event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
+                    # No drag for Ctrl+click point toggle
+                    return
+                if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
                     # Range selection (simplified - just add to selection, no drag)
                     current_selection = view.selected_points if view.selected_points else set()
                     # Add point to selection
@@ -591,7 +590,7 @@ class _SelectionManager:
             idx = self._point_index.find_point_at_position(data, transform, x, y, threshold, view)
             return PointSearchResult(index=idx, curve_name=curve_name if idx >= 0 else None, distance=0.0)
 
-        elif mode == "all_visible":
+        if mode == "all_visible":
             # Multi-curve mode - search all visible curves
             all_curve_names = self._app_state.get_all_curve_names()
             visible_curves = [

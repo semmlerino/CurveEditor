@@ -60,24 +60,19 @@ class ActionHandlerController:
 
     @Slot()
     def on_action_open(self) -> None:
-        """Handle open file action."""
-        data = self.main_window.file_operations.open_file(self.main_window)
+        """Handle open file action.
 
-        if data:
-            # Check if it's multi-point data
-            if isinstance(data, dict):
-                # Successfully loaded multi-point data - delegate to tracking controller
-                self.main_window.tracking_controller.on_multi_point_data_loaded(data)
-            else:
-                # Single curve data - also delegate to tracking controller for proper merging
-                self.main_window.tracking_controller.on_tracking_data_loaded(data)
+        File loading is now async - data will arrive via signal handlers:
+        - tracking_data_loaded -> MainWindow.on_tracking_data_loaded()
+        - multi_point_data_loaded -> MainWindow.on_multi_point_data_loaded()
+        """
+        success = self.main_window.file_operations.open_file(self.main_window)
 
-                # Update timeline tabs with frame range and point data
-                self.main_window.update_timeline_tabs(data)
-
-            self.main_window.update_ui_state()
+        if success:
+            # File loading started successfully (async)
+            # Data processing will happen automatically via signal handlers
             if self.main_window.status_label:
-                self.main_window.status_label.setText("File loaded successfully")
+                self.main_window.status_label.setText("Loading file...")
 
     @Slot()
     def on_action_save(self) -> None:

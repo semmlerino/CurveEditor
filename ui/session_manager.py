@@ -71,9 +71,8 @@ class SessionManager:
                 relative_path = abs_path.relative_to(project_root_abs)
                 logger.debug(f"Converted to relative path: {relative_path}")
                 return relative_path.as_posix()  # Use POSIX format for cross-platform compatibility
-            else:
-                logger.debug(f"File outside project, keeping absolute path: {abs_path}")
-                return abs_path.as_posix()  # Use POSIX format for cross-platform compatibility
+            logger.debug(f"File outside project, keeping absolute path: {abs_path}")
+            return abs_path.as_posix()  # Use POSIX format for cross-platform compatibility
         except (ValueError, OSError) as e:
             logger.warning(f"Error making relative path for {file_path}: {e}")
             return file_path
@@ -99,9 +98,8 @@ class SessionManager:
             if resolved_path.exists():
                 logger.debug(f"Resolved path: {path} -> {resolved_path}")
                 return str(resolved_path)
-            else:
-                logger.warning(f"Stored path no longer exists: {resolved_path}")
-                return None
+            logger.warning(f"Stored path no longer exists: {resolved_path}")
+            return None
 
         except (ValueError, OSError) as e:
             logger.warning(f"Error resolving path {path}: {e}")

@@ -99,6 +99,9 @@ select = [
     "ERA",   # eradicate (find commented-out code)
     "PIE",   # flake8-pie (misc linting improvements)
     "T20",   # flake8-print (catch leftover print statements)
+    "RET",   # flake8-return (return statement improvements)
+    "RSE",   # flake8-raise (raise statement improvements)
+    "PL",    # pylint rules (selected subset via ignores)
 ]
 
 # Ignore specific rules
@@ -111,6 +114,28 @@ ignore = [
     "ARG002",  # unused method argument (Qt signals/slots require specific signatures)
     "ARG005",  # unused lambda argument (Qt signal callbacks often unused)
     "ERA001",  # commented-out code (often intentional for documentation)
+
+    # Phase 1 additions - Qt-unfriendly or noisy rules
+    "PLR6301",  # no-self-use (Qt callbacks require self)
+    "PLR2004",  # magic-value-comparison (2000+ violations, adopt incrementally)
+    "PLC0415",  # import-outside-top-level (intentional for circular import handling)
+    "PLW1514",  # unspecified-encoding (58 occurrences - adopt incrementally)
+    "FBT001",   # boolean-type-hint-positional-argument (common in Qt APIs)
+    "FBT002",   # boolean-default-value-positional-argument (common in Qt)
+    "FBT003",   # boolean-positional-value-in-call (Qt uses extensively)
+    "TRY003",   # raise-vanilla-args (110 violations - adopt incrementally)
+    "TRY400",   # error-instead-of-exception (66 violations)
+
+    # Complexity rules - acceptable for personal tool
+    "PLR0911",  # too-many-return-statements
+    "PLR0912",  # too-many-branches
+    "PLR0913",  # too-many-arguments
+    "PLR0914",  # too-many-locals
+    "PLR0915",  # too-many-statements
+    "PLR0917",  # too-many-positional-arguments
+    "PLR1702",  # too-many-nested-blocks
+    "PLR0904",  # too-many-public-methods
+    "PLR0916",  # too-many-boolean-expressions
 ]
 
 [tool.ruff.lint.per-file-ignores]

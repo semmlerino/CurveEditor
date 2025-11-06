@@ -19,7 +19,9 @@ Key architecture components:
 # Standard library imports
 import sys
 from typing import TYPE_CHECKING, cast
+
 from typing_extensions import override
+
 if TYPE_CHECKING:
     from protocols.ui import CurveViewProtocol
     from ui.timeline_tabs import TimelineTabWidget
@@ -684,12 +686,22 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         logger.info("[PYTHON-THREAD] _cleanup_file_load_thread called - delegating to FileOperations")
         # file_operations is always initialized in __init__
         self.file_operations.cleanup_threads()
-        return
 
     @Slot(list)
     def on_tracking_data_loaded(self, data: CurveDataInput) -> None:
         """Handle tracking data loaded (delegated to MultiPointTrackingController)."""
         self.tracking_controller.on_tracking_data_loaded(data)
+
+        # Update timeline tabs with frame range and point data
+        self.update_timeline_tabs(data)
+
+        # Update UI state (enable/disable actions based on data)
+        self.update_ui_state()
+
+        # Update status message
+        if self.status_label:
+            self.status_label.setText("File loaded successfully")
+
         # Save session after loading new data
         self._save_current_session()
 
@@ -697,6 +709,14 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     def on_multi_point_data_loaded(self, multi_data: dict[str, CurveDataList]) -> None:
         """Handle multi-point data loaded (delegated to MultiPointTrackingController)."""
         self.tracking_controller.on_multi_point_data_loaded(multi_data)
+
+        # Update UI state (enable/disable actions based on data)
+        self.update_ui_state()
+
+        # Update status message
+        if self.status_label:
+            self.status_label.setText("File loaded successfully")
+
         # Save session after loading new data
         self._save_current_session()
 
@@ -975,7 +995,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                     return super().eventFilter(watched, event)  # Proper delegation
 
                 # If C key pressed elsewhere, redirect to curve widget
-                elif watched != self.curve_widget and self.curve_widget:
+                if watched != self.curve_widget and self.curve_widget:
                     logger.debug("[EVENT_FILTER] Redirecting C key to curve_widget")
                     self.curve_widget.setFocus()
                     _ = QApplication.sendEvent(self.curve_widget, event)
@@ -1207,7 +1227,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         # Get the curve data for the active timeline point
         curve_data = app_state.get_curve_data(active_point)
-        
+
         if not curve_data:
             return []
 
@@ -1284,13 +1304,13 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             return
 
         # PageUp: Navigate to previous keyframe
-        elif event.key() == Qt.Key.Key_PageUp:
+        if event.key() == Qt.Key.Key_PageUp:
             self.navigate_to_prev_keyframe()
             event.accept()
             return
 
         # PageDown: Navigate to next keyframe
-        elif event.key() == Qt.Key.Key_PageDown:
+        if event.key() == Qt.Key.Key_PageDown:
             self.navigate_to_next_keyframe()
             event.accept()
             return

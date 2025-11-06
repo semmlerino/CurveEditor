@@ -11,8 +11,9 @@ import re
 import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, TypedDict
-from typing_extensions import override
+
 from PySide6.QtCore import QThread, Signal
+from typing_extensions import override
 
 if TYPE_CHECKING:
     from PySide6.QtGui import QPixmap

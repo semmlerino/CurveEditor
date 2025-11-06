@@ -7,10 +7,11 @@ Similar to 3DEqualizer frame tabs with visual indicators for tracking status.
 """
 
 from typing import ClassVar
-from typing_extensions import override
+
 from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtGui import QBrush, QColor, QContextMenuEvent, QEnterEvent, QMouseEvent, QPainter, QPaintEvent, QPen
 from PySide6.QtWidgets import QSizePolicy, QWidget
+from typing_extensions import override
 
 
 class StatusColorResolver:

@@ -288,7 +288,7 @@ class ServiceFacade:
             # Cast protocol to QWidget for service compatibility
             result = self._data_service.load_track_data(cast("QWidget", widget))
             return cast(list[tuple[int, float, float]] | list[tuple[int, float, float, str]] | None, result)
-        elif self._file_service and widget:
+        if self._file_service and widget:
             # Fallback to legacy service
             result = self._file_service.load_track_data(cast("QWidget", widget))
             return cast(list[tuple[int, float, float]] | list[tuple[int, float, float, str]] | None, result)
@@ -310,10 +310,10 @@ class ServiceFacade:
             if file_path.endswith(".json"):
                 result = self._data_service.load_json(file_path)
                 return cast(list[tuple[int, float, float]] | list[tuple[int, float, float, str]] | None, result)
-            elif file_path.endswith(".csv"):
+            if file_path.endswith(".csv"):
                 result = self._data_service.load_csv(file_path)
                 return cast(list[tuple[int, float, float]] | list[tuple[int, float, float, str]] | None, result)
-            elif file_path.endswith(".txt"):
+            if file_path.endswith(".txt"):
                 result = self._data_service.load_2dtrack_data(file_path)
                 return cast(list[tuple[int, float, float]] | list[tuple[int, float, float, str]] | None, result)
         return None
@@ -328,7 +328,7 @@ class ServiceFacade:
         if self._data_service and widget:
             # Cast protocol to QWidget and data to CurveDataList for service compatibility
             return self._data_service.save_track_data(cast("QWidget", widget), cast("CurveDataList", data))
-        elif self._file_service and widget:
+        if self._file_service and widget:
             # Fallback to legacy service
             return self._file_service.save_track_data(cast("QWidget", widget), cast("CurveDataList", data))
         return False

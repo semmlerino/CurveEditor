@@ -10,8 +10,9 @@ from __future__ import annotations
 import os
 import re
 from typing import ClassVar
-from typing_extensions import override
+
 from PySide6.QtCore import QThread, Signal
+from typing_extensions import override
 
 # Configure logger
 from core.logger_utils import get_logger

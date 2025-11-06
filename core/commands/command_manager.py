@@ -10,7 +10,9 @@ undo, and redo of commands throughout the application.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+
 from typing_extensions import override
+
 if TYPE_CHECKING:
     from protocols.ui import MainWindowProtocol
 
@@ -65,9 +67,8 @@ class CommandManager:
                         self._history[self._current_index] = merged_command
                         logger.debug(f"Merged and executed command: {merged_command}")
                         return True
-                    else:
-                        logger.error(f"Failed to execute merged command: {merged_command}")
-                        return False
+                    logger.error(f"Failed to execute merged command: {merged_command}")
+                    return False
 
             # Execute the command
             if not command.execute(main_window):
@@ -168,9 +169,8 @@ class CommandManager:
                 self._update_ui_state(main_window)
                 logger.debug(f"Undid command: {command}")
                 return True
-            else:
-                logger.error(f"Failed to undo command: {command}")
-                return False
+            logger.error(f"Failed to undo command: {command}")
+            return False
 
         except Exception as e:
             logger.error(f"Error undoing command: {e}")
@@ -197,10 +197,9 @@ class CommandManager:
                 self._update_ui_state(main_window)
                 logger.debug(f"Redid command: {command}")
                 return True
-            else:
-                logger.error(f"Failed to redo command: {command}")
-                self._current_index -= 1  # Revert index change
-                return False
+            logger.error(f"Failed to redo command: {command}")
+            self._current_index -= 1  # Revert index change
+            return False
 
         except Exception as e:
             logger.error(f"Error redoing command: {e}")

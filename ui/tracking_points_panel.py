@@ -1,7 +1,7 @@
 """Tracking points panel for displaying and managing multiple tracking points."""
 
 from typing import TypedDict
-from typing_extensions import override
+
 from PySide6.QtCore import QEvent, QItemSelectionModel, QObject, QPoint, Qt, Signal
 from PySide6.QtGui import QAction, QBrush, QCloseEvent, QColor, QFont, QKeyEvent
 from PySide6.QtWidgets import (
@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from typing_extensions import override
 
 from core.display_mode import DisplayMode
 from core.logger_utils import get_logger
@@ -296,16 +297,18 @@ class TrackingPointsPanel(QWidget):
             direction_combo.addItems(["FW", "BW", "FW+BW"])
             current_direction = metadata["tracking_direction"]
             direction_combo.setCurrentText(current_direction.abbreviation)
-            _ = direction_combo.currentTextChanged.connect(
-                lambda text, name=point_name: self._on_direction_changed(name, text)
-            )
+            # Store point_name as widget property (avoids lambda capture)
+            direction_combo.setProperty("point_name", point_name)
+            _ = direction_combo.currentTextChanged.connect(self._on_direction_changed)
             self.table.setCellWidget(i, 3, direction_combo)
 
             # Color button
             color_button = QPushButton()
             color_button.setStyleSheet(f"background-color: {metadata['color']}; border: 1px solid black;")
             color_button.setMaximumHeight(20)
-            _ = color_button.clicked.connect(lambda checked, name=point_name: self._on_color_button_clicked(name))
+            # Store point_name as button property (avoids lambda capture)
+            color_button.setProperty("point_name", point_name)
+            _ = color_button.clicked.connect(self._on_color_button_clicked)
             self.table.setCellWidget(i, 4, color_button)
 
         # Reapply active point styling if an active point is set
@@ -504,8 +507,7 @@ class TrackingPointsPanel(QWidget):
         # Checkbox unchecked: determine SELECTED vs ACTIVE_ONLY
         if self._has_selection():
             return DisplayMode.SELECTED
-        else:
-            return DisplayMode.ACTIVE_ONLY
+        return DisplayMode.ACTIVE_ONLY
 
     def _has_selection(self) -> bool:
         """Check if any curves are selected in the table.
@@ -583,9 +585,21 @@ class TrackingPointsPanel(QWidget):
             self.point_metadata[point_name]["visible"] = visible
             self.point_visibility_changed.emit(point_name, visible)
 
-    def _on_direction_changed(self, point_name: str, direction_text: str) -> None:
-        """Handle tracking direction dropdown changes."""
+    def _on_direction_changed(self, direction_text: str) -> None:
+        """Handle tracking direction dropdown changes.
+
+        Args:
+            direction_text: New direction abbreviation from QComboBox.currentTextChanged signal
+        """
         if self._updating:
+            return
+
+        # Get point_name from sender combo box property
+        combo = self.sender()
+        if not combo:
+            return
+        point_name = combo.property("point_name")
+        if not point_name:
             return
 
         if point_name in self.point_metadata:
@@ -593,8 +607,20 @@ class TrackingPointsPanel(QWidget):
             self.point_metadata[point_name]["tracking_direction"] = new_direction
             self.tracking_direction_changed.emit(point_name, new_direction)
 
-    def _on_color_button_clicked(self, point_name: str) -> None:
-        """Handle color button click."""
+    def _on_color_button_clicked(self, checked: bool = False) -> None:
+        """Handle color button click.
+
+        Args:
+            checked: Button checked state (from QPushButton.clicked signal)
+        """
+        # Get point_name from sender button property
+        button = self.sender()
+        if not button:
+            return
+        point_name = button.property("point_name")
+        if not point_name:
+            return
+
         current_color = QColor(self.point_metadata[point_name]["color"])
         color = QColorDialog.getColor(current_color, self, f"Choose color for {point_name}")
 

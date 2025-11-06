@@ -5,15 +5,14 @@ Tests that when show_current_point_only is enabled, only the point
 at the current frame is rendered, hiding the rest of the curve trajectory.
 """
 
-import pytest
 from collections.abc import Generator
+
+import pytest
 from PySide6.QtWidgets import QApplication
 
 from core.type_aliases import CurveDataList
-from rendering.optimized_curve_renderer import OptimizedCurveRenderer
 from rendering.render_state import RenderState
 from rendering.visual_settings import VisualSettings
-from stores.application_state import get_application_state
 from ui.main_window import MainWindow
 from ui.state_manager import StateManager
 

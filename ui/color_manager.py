@@ -247,10 +247,9 @@ def tuple_status_to_string(status_value: str | bool | None) -> str:
     """
     if isinstance(status_value, str):
         return status_value
-    elif status_value is True:
+    if status_value is True:
         return "interpolated"
-    else:
-        return "normal"
+    return "normal"
 
 
 # ============================================================================

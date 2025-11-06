@@ -18,8 +18,9 @@ import logging
 import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
-from typing_extensions import override
+
 from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
+from typing_extensions import override
 
 if TYPE_CHECKING:
     from PySide6.QtGui import QImage

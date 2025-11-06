@@ -280,9 +280,9 @@ def update_keyframe_status_for_tracking_direction(
 
     if new_direction == TrackingDirection.TRACKING_FW:
         return update_keyframe_status_for_forward_tracking(curve_data)
-    elif new_direction == TrackingDirection.TRACKING_BW:
+    if new_direction == TrackingDirection.TRACKING_BW:
         return update_keyframe_status_for_backward_tracking(curve_data)
-    elif new_direction == TrackingDirection.TRACKING_FW_BW:
+    if new_direction == TrackingDirection.TRACKING_FW_BW:
         return update_keyframe_status_for_bidirectional_tracking(
             curve_data, previous_direction or TrackingDirection.TRACKING_FW
         )

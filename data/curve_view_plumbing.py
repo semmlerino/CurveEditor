@@ -50,8 +50,7 @@ def _get_curve_view(target: OperationTarget) -> CurveViewProtocol:
     if curve_view is not None:
         # Target is a MainWindowProtocol, return its curve_view
         return cast(CurveViewProtocol, curve_view)
-    else:
-        raise ValueError("Target must be CurveViewProtocol (with 'points') or MainWindowProtocol (with 'curve_view')")
+    raise ValueError("Target must be CurveViewProtocol (with 'points') or MainWindowProtocol (with 'curve_view')")
 
 
 def operation(action_name: str, record_history: bool = True) -> Callable[[Callable[..., T]], Callable[..., T | None]]:

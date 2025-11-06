@@ -408,7 +408,7 @@ class TestFileOperations:
         monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *args, **kwargs: ("", ""))
 
         result = file_ops.open_file()
-        assert result is None
+        assert result is False  # Returns False when cancelled
 
     def test_open_file_with_unsaved_changes_cancel(self, file_ops, monkeypatch, mock_services):
         """Test open file with unsaved changes - user cancels."""
@@ -416,31 +416,36 @@ class TestFileOperations:
         mock_services.confirm_action_return = False
 
         result = file_ops.open_file()
-        assert result is None
+        assert result is False  # Returns False when cancelled
 
-    def test_open_file_success(self, file_ops, monkeypatch, mock_services):
-        """Test successful file opening."""
+    def test_open_file_success(self, file_ops, monkeypatch):
+        """Test successful file opening starts async loading."""
         test_path = "/tmp/test_open.txt"
-        test_data = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
 
         # Mock dialog to return test path
         monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *args, **kwargs: (test_path, "Text Files (*.txt)"))
 
-        # Mock service to return test data
-        mock_services.load_data_return = test_data
+        # Mock worker start_work to verify it's called correctly
+        worker_started = False
+        original_start_work = file_ops.file_load_worker.start_work
 
-        spy = qt_api.QtTest.QSignalSpy(file_ops.file_loaded)
+        def mock_start_work(tracking_file_path, image_dir_path):
+            nonlocal worker_started
+            worker_started = True
+            # Verify correct parameters
+            assert tracking_file_path == test_path
+            assert image_dir_path is None
+
+        file_ops.file_load_worker.start_work = mock_start_work
 
         result = file_ops.open_file()
-        assert result == test_data
 
-        # Check signal emission
-        assert spy.count() == 1
-        assert spy.at(0)[0] == test_path
+        # Verify async loading started successfully
+        assert result is True
+        assert worker_started
 
-        # Check state updates
-        assert file_ops.state_manager.current_file == test_path
-        assert not file_ops.state_manager.is_modified
+        # Restore original method
+        file_ops.file_load_worker.start_work = original_start_work
 
     def test_load_burger_data_async_no_files(self, file_ops):
         """Test async burger loading when no files exist."""

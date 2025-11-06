@@ -15,7 +15,9 @@ import math
 import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
+
 from typing_extensions import override
+
 if TYPE_CHECKING:
     import numpy as np
     from numpy.typing import NDArray
@@ -163,12 +165,11 @@ def calculate_center_offset(
     if scale == 1.0 and not scale_to_image and not flip_y_axis:
         # Direct 1:1 pixel mapping
         return (0.0, 0.0)
-    else:
-        # Standard centering calculation for all other cases
-        # This ensures content is centered in the widget
-        center_x = (widget_width - display_width * scale) / 2
-        center_y = (widget_height - display_height * scale) / 2
-        return (center_x, center_y)
+    # Standard centering calculation for all other cases
+    # This ensures content is centered in the widget
+    center_x = (widget_width - display_width * scale) / 2
+    center_y = (widget_height - display_height * scale) / 2
+    return (center_x, center_y)
 
 
 @dataclass(frozen=True)
@@ -451,25 +452,22 @@ class Transform:
         if abs(scale) < 1e-10:
             if self.validation_config.enable_full_validation:
                 raise ValueError(f"Scale factor too small (near zero): {scale}. Must be >= 1e-10")
-            else:
-                # Production mode: clamp to minimum safe value
-                logger.warning(f"Scale factor too small: {scale}, clamping to 1e-10")
-                scale = 1e-10 if scale >= 0 else -1e-10
+            # Production mode: clamp to minimum safe value
+            logger.warning(f"Scale factor too small: {scale}, clamping to 1e-10")
+            scale = 1e-10 if scale >= 0 else -1e-10
 
         # Handle image scale validation similarly
         if abs(image_scale_x) < 1e-10:
             if self.validation_config.enable_full_validation:
                 raise ValueError(f"Image scale X too small (near zero): {image_scale_x}. Must be >= 1e-10")
-            else:
-                logger.warning(f"Image scale X too small: {image_scale_x}, clamping to 1e-10")
-                image_scale_x = 1e-10 if image_scale_x >= 0 else -1e-10
+            logger.warning(f"Image scale X too small: {image_scale_x}, clamping to 1e-10")
+            image_scale_x = 1e-10 if image_scale_x >= 0 else -1e-10
 
         if abs(image_scale_y) < 1e-10:
             if self.validation_config.enable_full_validation:
                 raise ValueError(f"Image scale Y too small (near zero): {image_scale_y}. Must be >= 1e-10")
-            else:
-                logger.warning(f"Image scale Y too small: {image_scale_y}, clamping to 1e-10")
-                image_scale_y = 1e-10 if image_scale_y >= 0 else -1e-10
+            logger.warning(f"Image scale Y too small: {image_scale_y}, clamping to 1e-10")
+            image_scale_y = 1e-10 if image_scale_y >= 0 else -1e-10
 
         # STEP 3: CONDITIONAL VALIDATION - Debug mode strict, production mode graceful
         if self.validation_config.enable_full_validation:

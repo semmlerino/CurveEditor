@@ -9,7 +9,7 @@ Supports horizontal scrolling for many frames with performance optimizations.
 
 import contextlib
 from typing import TYPE_CHECKING
-from typing_extensions import override
+
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QKeyEvent, QMouseEvent, QResizeEvent, QWheelEvent
 from PySide6.QtWidgets import (
@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from typing_extensions import override
 
 from core.frame_utils import clamp_frame, get_frame_range_with_limits
 from core.logger_utils import get_logger
@@ -558,22 +559,21 @@ class TimelineTabWidget(QWidget):
                 normal_count = status.normal_count
                 is_startframe = status.is_startframe
                 is_inactive = status.is_inactive
+            # Get status from data service if not cached
+            elif frame in frame_status:
+                status = frame_status[frame]
+                keyframe_count = status.keyframe_count
+                interpolated_count = status.interpolated_count
+                tracked_count = status.tracked_count
+                endframe_count = status.endframe_count
+                normal_count = status.normal_count
+                is_startframe = status.is_startframe
+                is_inactive = status.is_inactive
             else:
-                # Get status from data service if not cached
-                if frame in frame_status:
-                    status = frame_status[frame]
-                    keyframe_count = status.keyframe_count
-                    interpolated_count = status.interpolated_count
-                    tracked_count = status.tracked_count
-                    endframe_count = status.endframe_count
-                    normal_count = status.normal_count
-                    is_startframe = status.is_startframe
-                    is_inactive = status.is_inactive
-                else:
-                    # Default values for frames with no points
-                    keyframe_count = interpolated_count = tracked_count = 0
-                    endframe_count = normal_count = 0
-                    is_startframe = is_inactive = False
+                # Default values for frames with no points
+                keyframe_count = interpolated_count = tracked_count = 0
+                endframe_count = normal_count = 0
+                is_startframe = is_inactive = False
 
             # Update frame status with new has_selected value
             self.update_frame_status(

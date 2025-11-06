@@ -96,6 +96,14 @@ class StateSyncController:
         Args:
             curves: Dictionary mapping curve names to curve data
         """
+        # Clear SegmentedCurve cache in DataService (all curves changed)
+        try:
+            data_service = get_data_service()
+            data_service.clear_segmented_curve_cache()
+            logger.debug("Cleared DataService SegmentedCurve cache")
+        except Exception as e:
+            logger.error(f"Failed to clear DataService cache: {e}")
+
         # Update widget caches and display
         self.widget.invalidate_caches()
         self.widget.update()
@@ -107,7 +115,6 @@ class StateSyncController:
         active_curve = self._app_state.active_curve
         if active_curve and active_curve in curves:
             try:
-                data_service = get_data_service()
                 data_service.update_curve_data(curves[active_curve])
                 logger.debug(f"Synced active curve '{active_curve}' to DataService")
             except Exception as e:

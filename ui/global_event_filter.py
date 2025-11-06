@@ -11,9 +11,10 @@ of which widget has focus.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from typing_extensions import override
+
 from PySide6.QtCore import QEvent, QObject, Qt
 from PySide6.QtGui import QKeyEvent
+from typing_extensions import override
 
 if TYPE_CHECKING:
     from ui.main_window import MainWindow
@@ -137,9 +138,8 @@ class GlobalEventFilter(QObject):
                 # Event was handled, stop propagation
                 event.accept()
                 return True
-            else:
-                # Command failed, let event continue
-                return False
+            # Command failed, let event continue
+            return False
 
         except Exception as e:
             logger.error(f"Error executing shortcut [{command.key_sequence}]: {e}")

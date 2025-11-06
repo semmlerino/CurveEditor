@@ -72,9 +72,9 @@ class UIService:
         if filter_type == "Median":
             window, ok = QInputDialog.getInt(parent, "Median Filter", "Window size:", 5, 3, 20)
             return (filter_type, window) if ok else None
-        else:  # Butterworth
-            cutoff, ok = QInputDialog.getDouble(parent, "Butterworth Filter", "Cutoff frequency:", 0.1, 0.01, 1.0, 2)
-            return (filter_type, int(cutoff * 100)) if ok else None
+        # Butterworth
+        cutoff, ok = QInputDialog.getDouble(parent, "Butterworth Filter", "Cutoff frequency:", 0.1, 0.01, 1.0, 2)
+        return (filter_type, int(cutoff * 100)) if ok else None
 
     def get_offset_values(self, parent: QWidget) -> tuple[float, float] | None:
         """Get X and Y offset values from user.

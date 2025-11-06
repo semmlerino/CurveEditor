@@ -184,21 +184,20 @@ def create_source_metadata(file_type: str, width: int | None = None, height: int
             width=width or 1280,
             height=height or 720,
         )
-    elif file_type.lower() == "nuke":
+    if file_type.lower() == "nuke":
         return CoordinateMetadata(
             system=CoordinateSystem.NUKE,
             origin=CoordinateOrigin.BOTTOM_LEFT,
             width=width or 1920,
             height=height or 1080,
         )
-    else:
-        # Default to Qt/screen coordinates for unknown types
-        return CoordinateMetadata(
-            system=CoordinateSystem.QT_SCREEN,
-            origin=CoordinateOrigin.TOP_LEFT,
-            width=width or 1920,
-            height=height or 1080,
-        )
+    # Default to Qt/screen coordinates for unknown types
+    return CoordinateMetadata(
+        system=CoordinateSystem.QT_SCREEN,
+        origin=CoordinateOrigin.TOP_LEFT,
+        width=width or 1920,
+        height=height or 1080,
+    )
 
 
 # Pre-configured coordinate systems for common use cases

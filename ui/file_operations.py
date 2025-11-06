@@ -134,25 +134,26 @@ class FileOperations(QObject):
 
         return True
 
-    def open_file(self, parent_widget: QWidget | None = None) -> CurveDataList | dict[str, CurveDataList] | None:
+    def open_file(self, parent_widget: QWidget | None = None) -> bool:
         """
-        Open a file dialog and load the selected file.
+        Open a file dialog and load the selected file asynchronously.
+
+        The file is loaded in a background thread using FileLoadWorker.
+        Data will be delivered via tracking_data_loaded or multi_point_data_loaded signals.
 
         Args:
             parent_widget: Parent widget for the dialog
 
         Returns:
-            Loaded data (single curve or multi-point dict), or None if cancelled
+            True if file loading started successfully, False if cancelled
         """
-        from typing import cast
-
         parent = parent_widget or self.parent_widget
 
         # Check for unsaved changes
         if self.state_manager and self.state_manager.is_modified and self.services and not self.services.confirm_action(
             "Current curve has unsaved changes. Continue?", parent
         ):
-            return None
+            return False
 
         # Show file dialog
         file_path, _ = QFileDialog.getOpenFileName(
@@ -163,36 +164,14 @@ class FileOperations(QObject):
         )
 
         if not file_path:
-            return None
+            return False
 
-        # Check if it's a multi-point file
-        if file_path.endswith(".txt"):
-            # Try loading as multi-point format
-            data_service = get_data_service()
-            tracked_data = data_service.load_tracked_data(file_path)
+        # Start async file loading using FileLoadWorker
+        # Data will arrive via tracking_data_loaded or multi_point_data_loaded signals
+        self.file_load_worker.start_work(tracking_file_path=file_path, image_dir_path=None)
+        logger.info(f"Started async file loading: {file_path}")
 
-            if tracked_data:
-                # Successfully loaded multi-point data
-                # Set state BEFORE emitting signal (for session persistence)
-                if self.state_manager:
-                    self.state_manager.current_file = file_path
-                    self.state_manager.is_modified = False
-                self.file_loaded.emit(file_path)
-                return tracked_data
-
-        # Fall back to single curve loading
-        if self.services:
-            data = self.services.load_track_data_from_file(file_path)
-            if data:
-                # Set state BEFORE emitting signal (for session persistence)
-                if self.state_manager:
-                    self.state_manager.current_file = file_path
-                    self.state_manager.is_modified = False
-                self.file_loaded.emit(file_path)
-                # Cast to proper return type
-                return cast(CurveDataList, data)
-
-        return None
+        return True
 
     def save_file(self, data: CurveDataList, file_path: str | None = None) -> bool:
         """

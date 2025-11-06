@@ -87,7 +87,7 @@ class TestTrackingPanelCtrlClickGap:
         assert app_state.active_curve == "curve_a"
         assert app_state.get_selected_curves() == {"curve_a"}
 
-        print(f"Initial state:")
+        print("Initial state:")
         print(f"  active_curve: {app_state.active_curve}")
         print(f"  selected_curves: {app_state.get_selected_curves()}")
 
@@ -106,7 +106,7 @@ class TestTrackingPanelCtrlClickGap:
         qtbot.wait(50)
 
         # Check results
-        print(f"\nAfter Ctrl+clicking curve_b:")
+        print("\nAfter Ctrl+clicking curve_b:")
         print(f"  active_curve: {app_state.active_curve}")
         print(f"  selected_curves: {app_state.get_selected_curves()}")
 
@@ -171,7 +171,7 @@ class TestTrackingPanelCtrlClickGap:
         tracking_panel.table.selectRow(curve_a_row)
         qtbot.wait(50)
 
-        print(f"After selecting only curve_a:")
+        print("After selecting only curve_a:")
         print(f"  active_curve: {app_state.active_curve}")
 
         assert app_state.active_curve == "curve_a"
@@ -192,7 +192,7 @@ class TestTrackingPanelCtrlClickGap:
 
         qtbot.wait(50)
 
-        print(f"\nAfter Ctrl+clicking curve_b:")
+        print("\nAfter Ctrl+clicking curve_b:")
         print(f"  active_curve: {app_state.active_curve}")
         print(f"  selected_curves: {app_state.get_selected_curves()}")
         print(f"  currentRow: {tracking_panel.table.currentRow()}")

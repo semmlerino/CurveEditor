@@ -9,8 +9,9 @@ keyboard shortcuts in the application.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
-from typing_extensions import override
+
 from PySide6.QtCore import Qt
+from typing_extensions import override
 
 if TYPE_CHECKING:
     from core.models import TrackingDirection
@@ -96,9 +97,8 @@ class InsertTrackShortcutCommand(ShortcutCommand):
                 if success:
                     logger.info(f"Insert Track executed for {len(selected_curves)} curves at frame {current_frame}")
                 return success
-            else:
-                # Fallback: execute directly
-                return command.execute(cast("MainWindowProtocol", cast(object, main_window)))
+            # Fallback: execute directly
+            return command.execute(cast("MainWindowProtocol", cast(object, main_window)))
 
         except Exception as e:
             logger.error(f"Error executing Insert Track shortcut: {e}")

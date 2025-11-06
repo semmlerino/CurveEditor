@@ -157,10 +157,9 @@ class RenderState:
                     # SELECTED mode: render only selected curves
                     if curve_name in widget.selected_curve_names:
                         visible_curves.add(curve_name)
-                else:  # DisplayMode.ACTIVE_ONLY
-                    # ACTIVE_ONLY mode: render only active curve
-                    if curve_name == app_state.active_curve:
-                        visible_curves.add(curve_name)
+                # ACTIVE_ONLY mode: render only active curve
+                elif curve_name == app_state.active_curve:
+                    visible_curves.add(curve_name)
 
         # Create RenderState with all necessary data
         return cls(

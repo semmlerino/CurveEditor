@@ -13,7 +13,9 @@ import hashlib
 import threading
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol, cast
+
 from typing_extensions import override
+
 from core.defaults import DEFAULT_IMAGE_HEIGHT, DEFAULT_IMAGE_WIDTH
 
 if TYPE_CHECKING:
@@ -215,8 +217,7 @@ class Transform:
         height = int(display_height)
         if height < 0:
             height = abs(height)  # Use absolute value for negative heights
-        if height > 1_000_000:
-            height = 1_000_000  # Clamp to reasonable maximum
+        height = min(height, 1_000_000)  # Clamp to reasonable maximum
 
         # Store all parameters as immutable private attributes
         self._parameters = {

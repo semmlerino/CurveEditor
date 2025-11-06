@@ -34,7 +34,6 @@ Focus Areas:
 
 
 import pytest
-
 from typing_extensions import override
 
 from core.commands.command_manager import CommandManager

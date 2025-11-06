@@ -346,26 +346,23 @@ class SegmentedCurve:
         if segment and segment.is_active:
             # Frame is in an active segment - use normal interpolation
             return self._interpolate_in_active_segment(segment, frame)
-        elif segment and not segment.is_active:
+        if segment and not segment.is_active:
             # Frame is in an inactive segment - check if it has an actual point first
             actual_point = segment.get_point_at_frame(frame)
             if actual_point:
                 # Frame has an actual point (e.g., tracked data) - return its position
                 # This preserves data: tracked points return their actual positions even in gaps
                 return (actual_point.x, actual_point.y)
-            else:
-                # Frame is in gap with no actual point - return held position
-                return self._get_held_position_for_gap(frame)
-        else:
-            # Frame is not in any segment - check if it's in a gap or beyond all segments
-            # If there are segments after this frame, it's in a gap
-            segments_after = [s for s in self.segments if s.start_frame > frame]
-            if segments_after:
-                # Frame is in a gap between segments
-                return self._get_held_position_for_gap(frame)
-            else:
-                # Frame is beyond all segments
-                return self._get_position_beyond_segments(frame)
+            # Frame is in gap with no actual point - return held position
+            return self._get_held_position_for_gap(frame)
+        # Frame is not in any segment - check if it's in a gap or beyond all segments
+        # If there are segments after this frame, it's in a gap
+        segments_after = [s for s in self.segments if s.start_frame > frame]
+        if segments_after:
+            # Frame is in a gap between segments
+            return self._get_held_position_for_gap(frame)
+        # Frame is beyond all segments
+        return self._get_position_beyond_segments(frame)
 
     def _interpolate_in_active_segment(self, segment: CurveSegment, frame: int) -> tuple[float, float] | None:
         """Interpolate position within an active segment.
@@ -405,15 +402,14 @@ class SegmentedCurve:
             x = prev_point.x + (next_point.x - prev_point.x) * frame_ratio
             y = prev_point.y + (next_point.y - prev_point.y) * frame_ratio
             return (x, y)
-        elif prev_point:
+        if prev_point:
             # Only have previous point - use its position
             return (prev_point.x, prev_point.y)
-        elif next_point:
+        if next_point:
             # Only have next point - use its position
             return (next_point.x, next_point.y)
-        else:
-            # No valid interpolation points in segment
-            return None
+        # No valid interpolation points in segment
+        return None
 
     def _get_held_position_for_gap(self, frame: int) -> tuple[float, float] | None:
         """Get the held position for a frame in a gap (inactive segment).
@@ -553,16 +549,15 @@ class SegmentedCurve:
                 deactivating = True
                 # Don't deactivate the segment containing the endframe itself
                 continue
-            elif deactivating:
+            if deactivating:
                 # We're now in segments after the endframe
                 # Only stop deactivating when we find a segment that starts with a keyframe (startframe)
                 if segment.points and segment.points[0].status == PointStatus.KEYFRAME:
                     # Stop deactivating - this segment starts with a keyframe/startframe
                     break
-                else:
-                    # This segment is after the endframe and doesn't start with a keyframe
-                    # Deactivate it (including segments that contain other endframes in the gap)
-                    segment.deactivate_by_endframe(endframe_number)
+                # This segment is after the endframe and doesn't start with a keyframe
+                # Deactivate it (including segments that contain other endframes in the gap)
+                segment.deactivate_by_endframe(endframe_number)
 
     def update_segment_activity(self, point_index: int, new_status: PointStatus) -> None:
         """Update segment activity when a point's status changes with data preservation.

@@ -163,7 +163,9 @@ class SmartLocationSelector(QWidget):
         for name, path in locations:
             if Path(path).exists():
                 action = menu.addAction(name)
-                action.triggered.connect(lambda checked, p=path: self._select_location(p))
+                # Store path as action property (avoids lambda capture)
+                action.setProperty("path", path)
+                action.triggered.connect(self._select_location)
 
         # Add separator and recent projects if available
         if self.state_manager:
@@ -182,7 +184,9 @@ class SmartLocationSelector(QWidget):
                     for context_path in sorted(contexts):
                         if Path(context_path).exists():
                             action = recent_menu.addAction(Path(context_path).name)
-                            action.triggered.connect(lambda checked, p=context_path: self._select_location(p))
+                            # Store path as action property (avoids lambda capture)
+                            action.setProperty("path", context_path)
+                            action.triggered.connect(self._select_location)
 
         self.quick_access_button.setMenu(menu)
 
@@ -249,13 +253,21 @@ class SmartLocationSelector(QWidget):
                 return f"...{path[-57:]}"
             return path
 
-    def _select_location(self, path: str) -> None:
+    def _select_location(self, checked: bool = False) -> None:
         """
-        Select a location programmatically.
+        Select a location from QAction trigger.
 
         Args:
-            path: Directory path to select
+            checked: Action checked state (from QAction.triggered signal)
         """
+        # Get path from sender action property
+        action = self.sender()
+        if not action:
+            return
+        path = action.property("path")
+        if not path:
+            return
+
         if Path(path).exists():
             self.set_location(path)
         else:

@@ -224,9 +224,8 @@ class TestUIServiceErrorRecovery:
             call_count += 1
             if call_count == 1:
                 raise ValueError("Test validation error")
-            else:
-                # Let recovery succeed by calling the original method
-                return original_method(*args, **kwargs)
+            # Let recovery succeed by calling the original method
+            return original_method(*args, **kwargs)
 
         with patch.object(transform_service, "create_transform_from_view_state", mock_create_with_recovery):
             # Mock UI service to capture warning calls

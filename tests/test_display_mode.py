@@ -172,10 +172,10 @@ class TestDisplayModeUsagePatterns:
         def get_action(mode: DisplayMode) -> str:
             if mode == DisplayMode.ALL_VISIBLE:
                 return "show_all"
-            elif mode == DisplayMode.SELECTED:
+            if mode == DisplayMode.SELECTED:
                 return "show_selected"
-            else:  # ACTIVE_ONLY
-                return "show_active"
+            # ACTIVE_ONLY
+            return "show_active"
 
         assert get_action(DisplayMode.ALL_VISIBLE) == "show_all"
         assert get_action(DisplayMode.SELECTED) == "show_selected"

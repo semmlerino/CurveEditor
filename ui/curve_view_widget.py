@@ -30,7 +30,7 @@ Architecture:
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
-from typing_extensions import override
+
 from PySide6.QtCore import (
     QPointF,
     QRect,
@@ -51,6 +51,7 @@ from PySide6.QtGui import (
     QWheelEvent,
 )
 from PySide6.QtWidgets import QRubberBand, QStatusBar, QWidget
+from typing_extensions import override
 
 # Import core modules
 from core.display_mode import DisplayMode
@@ -772,15 +773,14 @@ class CurveViewWidget(QWidget):
         """
         if self.flip_y_axis:
             return self.width(), self.height()
-        else:
-            display_width = self.image_width
-            display_height = self.image_height
+        display_width = self.image_width
+        display_height = self.image_height
 
-            if self.background_image:
-                display_width = self.background_image.width()
-                display_height = self.background_image.height()
+        if self.background_image:
+            display_width = self.background_image.width()
+            display_height = self.background_image.height()
 
-            return display_width, display_height
+        return display_width, display_height
 
     def data_to_screen(self, x: float, y: float) -> QPointF:
         """
@@ -1080,9 +1080,10 @@ class CurveViewWidget(QWidget):
                 if status.value == current_status:
                     action.setCheckable(True)
                     action.setChecked(True)
-                # Connect to handler
-                # Note: PySide6 signal connect requires Callable, lambda type hints not supported
-                _ = action.triggered.connect(lambda checked, s=status, i=idx: self._set_point_status(i, s))
+                # Connect to handler (store status/index as properties to avoid lambda)
+                action.setProperty("point_status", status)
+                action.setProperty("point_index", idx)
+                _ = action.triggered.connect(self._set_point_status)
 
             # Add separator
             _ = menu.addSeparator()
@@ -1099,14 +1100,22 @@ class CurveViewWidget(QWidget):
             # No point under cursor, show general menu or pass to parent
             super().contextMenuEvent(event)
 
-    def _set_point_status(self, idx: int, status: PointStatus) -> None:
+    def _set_point_status(self, checked: bool = False) -> None:
         """
-        Change the status of a point.
+        Change the status of a point (from QAction.triggered signal).
 
         Args:
-            idx: Index of the point to change
-            status: New PointStatus value
+            checked: Action checked state (from QAction.triggered signal)
         """
+        # Get status and index from sender action properties
+        action = self.sender()
+        if not action:
+            return
+        status = action.property("point_status")
+        idx = action.property("point_index")
+        if status is None or idx is None:
+            return
+
         # Update via ApplicationState - use active_curve_data property
         if (cd := self._app_state.active_curve_data) is None:
             return
@@ -1642,6 +1651,9 @@ class CurveViewWidget(QWidget):
         # Delegate rendering cache invalidation to render_cache
         self.render_cache.invalidate_all()
 
+        # Invalidate SegmentedCurve cache in optimized renderer
+        self._optimized_renderer.clear_segmented_curve_cache()
+
     def _invalidate_point_region(self, index: int) -> None:
         """Note: Delegates to RenderCacheController (Phase 5 extraction)"""
         self.render_cache.invalidate_point_region(index)
@@ -1829,10 +1841,9 @@ class CurveViewWidget(QWidget):
             if len(point) == 3:
                 frame, x, y = point
                 return (frame, x, y, None)
-            else:
-                frame, x, y, status = point
-                status_str = status if isinstance(status, str) else None
-                return (frame, x, y, status_str)
+            frame, x, y, status = point
+            status_str = status if isinstance(status, str) else None
+            return (frame, x, y, status_str)
         return (-1, 0.0, 0.0, None)
 
     def toggleBackgroundVisible(self, visible: bool) -> None:

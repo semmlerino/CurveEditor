@@ -1,7 +1,5 @@
 """Point list widget for displaying and editing curve points in a table."""
 
-from typing_extensions import override
-
 from PySide6.QtCore import QPoint, Qt, Signal
 from PySide6.QtGui import QAction, QKeyEvent
 from PySide6.QtWidgets import (
@@ -13,6 +11,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from typing_extensions import override
 
 from core.models import PointStatus
 
@@ -245,9 +244,9 @@ class PointListWidget(QWidget):
         """Convert PointStatus to display text."""
         if status == PointStatus.NORMAL:
             return "Normal"
-        elif status == PointStatus.INTERPOLATED:
+        if status == PointStatus.INTERPOLATED:
             return "Interp"
-        elif status == PointStatus.KEYFRAME:
+        if status == PointStatus.KEYFRAME:
             return "Key"
         return "Normal"
 

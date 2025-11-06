@@ -558,6 +558,5 @@ class ViewCameraController:
         if self.widget.flip_y_axis:
             # With Y-flip, image top is at Y=image_height in data space
             return transform.data_to_screen(0, img_height)
-        else:
-            # Without Y-flip, image top is at Y=0 in data space
-            return transform.data_to_screen(0, 0)
+        # Without Y-flip, image top is at Y=0 in data space
+        return transform.data_to_screen(0, 0)

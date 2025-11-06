@@ -27,10 +27,10 @@ Type Safety Note:
 
 import copy
 from typing import Protocol, cast
-from typing_extensions import override
 from unittest.mock import Mock
 
 import pytest
+from typing_extensions import override
 
 from core.commands.curve_commands import (
     AddPointCommand,

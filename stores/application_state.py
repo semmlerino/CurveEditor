@@ -598,14 +598,13 @@ class ApplicationState(QObject):
                 logger.debug("Cleared all selections")
             else:
                 logger.debug("No selections to clear, no signal emitted")
+        # Clear specific curve - only emit if it had a non-empty selection
+        elif self._selection.get(curve_name):
+            self._selection[curve_name] = set()
+            self._emit(self.selection_changed, (set(), curve_name))
+            logger.debug(f"Cleared selection for '{curve_name}'")
         else:
-            # Clear specific curve - only emit if it had a non-empty selection
-            if self._selection.get(curve_name):
-                self._selection[curve_name] = set()
-                self._emit(self.selection_changed, (set(), curve_name))
-                logger.debug(f"Cleared selection for '{curve_name}'")
-            else:
-                logger.debug(f"No selection to clear for '{curve_name}', no signal emitted")
+            logger.debug(f"No selection to clear for '{curve_name}', no signal emitted")
 
     # ==================== Active Curve ====================
 
@@ -928,10 +927,9 @@ class ApplicationState(QObject):
 
         if self._show_all_curves:
             return DisplayMode.ALL_VISIBLE
-        elif self._selected_curves:
+        if self._selected_curves:
             return DisplayMode.SELECTED
-        else:
-            return DisplayMode.ACTIVE_ONLY
+        return DisplayMode.ACTIVE_ONLY
 
     # ==================== Batch Operations ====================
 

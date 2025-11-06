@@ -144,8 +144,7 @@ class SequenceItemWidget(QWidget):
         if self.sequence.has_gaps:
             missing_count = len(self.sequence.missing_frames)
             return f"⚠️ {missing_count} missing"
-        else:
-            return "✅ Complete"
+        return "✅ Complete"
 
     def _get_resolution_badge(self) -> str:
         """Get resolution badge text."""

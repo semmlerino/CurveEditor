@@ -38,7 +38,6 @@ from core.commands.shortcut_commands import InsertTrackShortcutCommand
 from services import get_interaction_service
 from stores.application_state import get_application_state
 
-
 # ==================== Fixture Helpers ====================
 
 

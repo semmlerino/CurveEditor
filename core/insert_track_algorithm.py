@@ -124,16 +124,15 @@ def find_gap_around_frame(curve_data: CurveDataList, current_frame: int) -> tupl
                     + f"(between ENDFRAME at {prev_endframe.frame} and {next_boundary.status.name} at {next_boundary.frame})"
                 )
                 return (gap_start, gap_end)
-        else:
-            # ENDFRAME exists but no KEYFRAME/ENDFRAME after it - open-ended gap
-            # Check if current frame is after the ENDFRAME
-            if current_frame > prev_endframe.frame:
-                # Can't fill open-ended gap
-                logger.debug(
-                    f"Open-ended gap detected after ENDFRAME at {prev_endframe.frame} "
-                    + "(no KEYFRAME or ENDFRAME found to close gap)"
-                )
-                return None
+        # ENDFRAME exists but no KEYFRAME/ENDFRAME after it - open-ended gap
+        # Check if current frame is after the ENDFRAME
+        elif current_frame > prev_endframe.frame:
+            # Can't fill open-ended gap
+            logger.debug(
+                f"Open-ended gap detected after ENDFRAME at {prev_endframe.frame} "
+                + "(no KEYFRAME or ENDFRAME found to close gap)"
+            )
+            return None
 
     # No gap detected
     return None

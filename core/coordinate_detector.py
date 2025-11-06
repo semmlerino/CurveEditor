@@ -87,22 +87,21 @@ class CoordinateDetector:
                 height=height or 720,
                 uses_normalized_coordinates=uses_normalized,
             )
-        elif system == CoordinateSystem.NUKE:
+        if system == CoordinateSystem.NUKE:
             return CoordinateMetadata(
                 system=system, origin=CoordinateOrigin.BOTTOM_LEFT, width=width or 1920, height=height or 1080
             )
-        elif system == CoordinateSystem.MAYA:
+        if system == CoordinateSystem.MAYA:
             return CoordinateMetadata(
                 system=system, origin=CoordinateOrigin.CENTER, width=width or 1920, height=height or 1080
             )
-        else:
-            # Default to Qt screen coordinates
-            return CoordinateMetadata(
-                system=CoordinateSystem.QT_SCREEN,
-                origin=CoordinateOrigin.TOP_LEFT,
-                width=width or 1920,
-                height=height or 1080,
-            )
+        # Default to Qt screen coordinates
+        return CoordinateMetadata(
+            system=CoordinateSystem.QT_SCREEN,
+            origin=CoordinateOrigin.TOP_LEFT,
+            width=width or 1920,
+            height=height or 1080,
+        )
 
     @classmethod
     def _detect_system_from_extension(cls, file_path: str) -> CoordinateSystem | None:
@@ -121,9 +120,9 @@ class CoordinateDetector:
         name_lower = path.name.lower()
         if "2dtrack" in name_lower or "3de" in name_lower or "3dequalizer" in name_lower:
             return CoordinateSystem.THREE_DE_EQUALIZER
-        elif "nuke" in name_lower:
+        if "nuke" in name_lower:
             return CoordinateSystem.NUKE
-        elif "maya" in name_lower:
+        if "maya" in name_lower:
             return CoordinateSystem.MAYA
 
         # Then check direct extension mapping
@@ -493,7 +492,7 @@ def get_system_info(system: CoordinateSystem) -> dict[str, str | CoordinateOrigi
             "file_extensions": [".2dt", ".3de", ".txt"],
             "default_dimensions": (1280, 720),
         }
-    elif system == CoordinateSystem.NUKE:
+    if system == CoordinateSystem.NUKE:
         return {
             "name": system.value,
             "origin": CoordinateOrigin.BOTTOM_LEFT,
@@ -501,7 +500,7 @@ def get_system_info(system: CoordinateSystem) -> dict[str, str | CoordinateOrigi
             "file_extensions": [".nk"],
             "default_dimensions": (1920, 1080),
         }
-    elif system == CoordinateSystem.MAYA:
+    if system == CoordinateSystem.MAYA:
         return {
             "name": system.value,
             "origin": CoordinateOrigin.CENTER,
@@ -509,7 +508,7 @@ def get_system_info(system: CoordinateSystem) -> dict[str, str | CoordinateOrigi
             "file_extensions": [".ma", ".mb"],
             "default_dimensions": (1920, 1080),
         }
-    elif system == CoordinateSystem.QT_SCREEN:
+    if system == CoordinateSystem.QT_SCREEN:
         return {
             "name": system.value,
             "origin": CoordinateOrigin.TOP_LEFT,
@@ -517,7 +516,7 @@ def get_system_info(system: CoordinateSystem) -> dict[str, str | CoordinateOrigi
             "file_extensions": [],
             "default_dimensions": (1920, 1080),
         }
-    elif system == CoordinateSystem.OPENGL:
+    if system == CoordinateSystem.OPENGL:
         return {
             "name": system.value,
             "origin": CoordinateOrigin.BOTTOM_LEFT,
@@ -525,7 +524,7 @@ def get_system_info(system: CoordinateSystem) -> dict[str, str | CoordinateOrigi
             "file_extensions": [],
             "default_dimensions": (1920, 1080),
         }
-    elif system == CoordinateSystem.CURVE_EDITOR_INTERNAL:
+    if system == CoordinateSystem.CURVE_EDITOR_INTERNAL:
         return {
             "name": system.value,
             "origin": CoordinateOrigin.TOP_LEFT,

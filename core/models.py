@@ -37,7 +37,9 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import NamedTuple, TypeGuard, overload
+
 from typing_extensions import override
+
 # Type aliases for backward compatibility and clarity
 FrameNumber = int
 Coordinate = float
@@ -149,9 +151,9 @@ class PointStatus(Enum):
         """
         if value is None:
             return cls.NORMAL
-        elif isinstance(value, bool):
+        if isinstance(value, bool):
             return cls.INTERPOLATED if value else cls.NORMAL
-        elif isinstance(value, int):
+        if isinstance(value, int):
             # Convert int to corresponding status (0=NORMAL, 1=INTERPOLATED, 2=KEYFRAME, 3=TRACKED, 4=ENDFRAME)
             status_map = {
                 1: cls.INTERPOLATED,
@@ -160,16 +162,15 @@ class PointStatus(Enum):
                 4: cls.ENDFRAME,
             }
             return status_map.get(value, cls.NORMAL)
-        else:
-            # Must be str at this point due to type annotation
-            # Handle invalid types gracefully (e.g., list, dict, etc.)
-            try:
-                # Convert to lowercase to match enum values
-                return cls(value.lower())
-            except (ValueError, AttributeError):
-                # ValueError: Invalid enum value
-                # AttributeError: value doesn't have .lower() method (not a string)
-                return cls.NORMAL
+        # Must be str at this point due to type annotation
+        # Handle invalid types gracefully (e.g., list, dict, etc.)
+        try:
+            # Convert to lowercase to match enum values
+            return cls(value.lower())
+        except (ValueError, AttributeError):
+            # ValueError: Invalid enum value
+            # AttributeError: value doesn't have .lower() method (not a string)
+            return cls.NORMAL
 
     def to_legacy_string(self) -> str:
         """Convert to legacy string format."""
@@ -308,20 +309,20 @@ class TrackingDirection(Enum):
         """Get abbreviated display text for UI."""
         if self == TrackingDirection.TRACKING_FW:
             return "FW"
-        elif self == TrackingDirection.TRACKING_BW:
+        if self == TrackingDirection.TRACKING_BW:
             return "BW"
-        else:  # TRACKING_FW_BW
-            return "FW+BW"
+        # TRACKING_FW_BW
+        return "FW+BW"
 
     @property
     def display_name(self) -> str:
         """Get full display name for tooltips."""
         if self == TrackingDirection.TRACKING_FW:
             return "Forward"
-        elif self == TrackingDirection.TRACKING_BW:
+        if self == TrackingDirection.TRACKING_BW:
             return "Backward"
-        else:  # TRACKING_FW_BW
-            return "Bidirectional"
+        # TRACKING_FW_BW
+        return "Bidirectional"
 
     @classmethod
     def from_abbreviation(cls, abbrev: str) -> TrackingDirection:
@@ -329,12 +330,11 @@ class TrackingDirection(Enum):
         abbrev_upper = abbrev.upper()
         if abbrev_upper == "FW":
             return cls.TRACKING_FW
-        elif abbrev_upper == "BW":
+        if abbrev_upper == "BW":
             return cls.TRACKING_BW
-        elif abbrev_upper in ("FW+BW", "FWBW", "FB"):
+        if abbrev_upper in ("FW+BW", "FWBW", "FB"):
             return cls.TRACKING_FW_BW
-        else:
-            return cls.TRACKING_FW_BW  # Default
+        return cls.TRACKING_FW_BW  # Default
 
 
 @dataclass(frozen=True)
@@ -526,8 +526,7 @@ class CurvePoint:
         """
         if self.status == PointStatus.NORMAL:
             return (self.frame, self.x, self.y)
-        else:
-            return (self.frame, self.x, self.y, self.status.value)
+        return (self.frame, self.x, self.y, self.status.value)
 
     @classmethod
     def from_tuple(
@@ -550,7 +549,7 @@ class CurvePoint:
         """
         if len(point_tuple) < 3:
             raise ValueError("Point tuple must have 3 or 4 elements")
-        elif len(point_tuple) == 3:
+        if len(point_tuple) == 3:
             frame, x, y = point_tuple
             status = PointStatus.NORMAL
         else:
@@ -861,12 +860,11 @@ def normalize_legacy_point(
     if len(point) == 3:
         frame, x, y = point
         return (frame, x, y, "normal")
-    elif len(point) >= 4:
+    if len(point) >= 4:
         frame, x, y, status = point[:4]
         status_str = ("interpolated" if status else "normal") if isinstance(status, bool) else str(status)
         return (frame, x, y, status_str)
-    else:
-        raise ValueError(f"Invalid point format: {point}")
+    raise ValueError(f"Invalid point format: {point}")
 
 
 @overload

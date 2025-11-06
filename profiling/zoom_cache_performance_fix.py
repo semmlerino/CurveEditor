@@ -159,9 +159,8 @@ def test_fix_effectiveness():
     if len(improved_unique) > len(original_unique):
         logger.info("✓ Fix successful - reduced cache collisions")
         return True
-    else:
-        logger.warning("⚠ Fix did not improve cache collisions")
-        return False
+    logger.warning("⚠ Fix did not improve cache collisions")
+    return False
 
 
 if __name__ == "__main__":

@@ -715,8 +715,7 @@ class MockCurveView:
             point = self.curve_data[idx]
             if len(point) >= 4:
                 return (point[0], point[1], point[2], str(point[3]))
-            else:
-                return (point[0], point[1], point[2], None)
+            return (point[0], point[1], point[2], None)
         return (0, 0.0, 0.0, None)
 
     def setup_for_3dequalizer_data(self) -> None:

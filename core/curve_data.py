@@ -251,7 +251,7 @@ def create_metadata_from_file_type(
         )
 
     # Nuke files
-    elif "nuke" in file_lower or ".nk" in file_lower:
+    if "nuke" in file_lower or ".nk" in file_lower:
         return CoordinateMetadata(
             system=CoordinateSystem.NUKE,
             origin=CoordinateOrigin.BOTTOM_LEFT,
@@ -260,19 +260,18 @@ def create_metadata_from_file_type(
         )
 
     # Maya files
-    elif "maya" in file_lower or ".ma" in file_lower or ".mb" in file_lower:
+    if "maya" in file_lower or ".ma" in file_lower or ".mb" in file_lower:
         return CoordinateMetadata(
             system=CoordinateSystem.MAYA, origin=CoordinateOrigin.CENTER, width=width or 1920, height=height or 1080
         )
 
     # Default to Qt screen coordinates
-    else:
-        return CoordinateMetadata(
-            system=CoordinateSystem.QT_SCREEN,
-            origin=CoordinateOrigin.TOP_LEFT,
-            width=width or 1920,
-            height=height or 1080,
-        )
+    return CoordinateMetadata(
+        system=CoordinateSystem.QT_SCREEN,
+        origin=CoordinateOrigin.TOP_LEFT,
+        width=width or 1920,
+        height=height or 1080,
+    )
 
 
 def wrap_legacy_data(

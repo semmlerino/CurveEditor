@@ -19,8 +19,8 @@ except ImportError as e:
 # Check OpenEXR
 print("\n2. OpenEXR:")
 try:
-    import OpenEXR
     import Imath
+    import OpenEXR
     version = OpenEXR.__version__ if hasattr(OpenEXR, '__version__') else 'unknown'
     print(f"   ✓ Available - version: {version}")
 except ImportError as e:

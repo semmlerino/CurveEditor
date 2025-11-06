@@ -13,7 +13,9 @@ import copy
 from abc import ABC
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING
+
 from typing_extensions import override
+
 if TYPE_CHECKING:
     from protocols.ui import MainWindowProtocol
 
@@ -95,10 +97,10 @@ class CurveDataCommand(Command, ABC):
         """
         if len(point) >= 4:
             return (point[0], new_pos[0], new_pos[1], point[3])
-        elif len(point) == 3:
+        if len(point) == 3:
             return (point[0], new_pos[0], new_pos[1])
-        else:  # Invalid tuple (< 3 elements) - return unchanged
-            return point  # pyright: ignore[reportUnreachable]
+        # Invalid tuple (< 3 elements) - return unchanged
+        return point  # pyright: ignore[reportUnreachable]
 
     def _update_point_at_index(
         self, curve_data: list[LegacyPointData], index: int, updater: Callable[[LegacyPointData], LegacyPointData]
@@ -835,18 +837,17 @@ class SetPointStatusCommand(CurveDataCommand):
             if data_service.segmented_curve:
                 restored_points = data_service.segmented_curve.all_points
                 return [(p.frame, p.x, p.y, p.status.value) for p in restored_points]
-            else:
-                # Fallback: apply changes directly if SegmentedCurve unavailable
-                logger.warning("SegmentedCurve not available, applying changes directly")
-                updated_data = list(curve_data)
-                for index, old_status, _ in self.changes:
-                    if 0 <= index < len(updated_data):
-                        point = updated_data[index]
-                        if len(point) >= 3:
-                            updated_data[index] = (point[0], point[1], point[2], old_status)
-                        else:
-                            logger.warning(f"Point {index} has invalid format (need at least 3 elements)")
-                return updated_data
+            # Fallback: apply changes directly if SegmentedCurve unavailable
+            logger.warning("SegmentedCurve not available, applying changes directly")
+            updated_data = list(curve_data)
+            for index, old_status, _ in self.changes:
+                if 0 <= index < len(updated_data):
+                    point = updated_data[index]
+                    if len(point) >= 3:
+                        updated_data[index] = (point[0], point[1], point[2], old_status)
+                    else:
+                        logger.warning(f"Point {index} has invalid format (need at least 3 elements)")
+            return updated_data
 
         return self._perform_undo(build_undo_data)
 
@@ -875,18 +876,17 @@ class SetPointStatusCommand(CurveDataCommand):
             if data_service.segmented_curve:
                 restored_points = data_service.segmented_curve.all_points
                 return [(p.frame, p.x, p.y, p.status.value) for p in restored_points]
-            else:
-                # Fallback: apply changes directly if SegmentedCurve unavailable
-                logger.warning("SegmentedCurve not available, applying changes directly")
-                updated_data = list(curve_data)
-                for index, _, new_status in self.changes:
-                    if 0 <= index < len(updated_data):
-                        point = updated_data[index]
-                        if len(point) >= 3:
-                            updated_data[index] = (point[0], point[1], point[2], new_status)
-                        else:
-                            logger.warning(f"Point {index} has invalid format (need at least 3 elements)")
-                return updated_data
+            # Fallback: apply changes directly if SegmentedCurve unavailable
+            logger.warning("SegmentedCurve not available, applying changes directly")
+            updated_data = list(curve_data)
+            for index, _, new_status in self.changes:
+                if 0 <= index < len(updated_data):
+                    point = updated_data[index]
+                    if len(point) >= 3:
+                        updated_data[index] = (point[0], point[1], point[2], new_status)
+                    else:
+                        logger.warning(f"Point {index} has invalid format (need at least 3 elements)")
+            return updated_data
 
         return self._perform_redo(build_redo_data)
 

@@ -15,7 +15,6 @@ from core.models import TrackingDirection
 from core.type_aliases import CurveDataInput, CurveDataList
 from data.tracking_direction_utils import update_keyframe_status_for_tracking_direction
 from protocols.ui import MainWindowProtocol
-from stores.application_state import get_application_state
 from ui.controllers.base_tracking_controller import BaseTrackingController
 
 logger = get_logger("tracking_data_controller")
