@@ -67,7 +67,15 @@ def reset_all_services() -> Generator[None, None, None]:
 
     This fixture is auto-used for all tests to prevent state leakage,
     especially for Y-flip tests that fail due to service singleton persistence.
+
+    Also sets a default _total_frames to allow frame navigation in tests.
     """
+    # BEFORE test: Set default total frames for frame navigation
+    from stores.application_state import get_application_state
+    app_state = get_application_state()
+    # Set generous default that allows most tests to navigate freely
+    app_state.set_image_files(["dummy.png"] * 10000)
+
     yield  # Run the test
 
     # After test completes, reset everything

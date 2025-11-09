@@ -212,26 +212,6 @@ class TestPreloadAroundFrame:
 class TestCacheCleanup:
     """Test cache cleanup and resource management."""
 
-    def test_clear_image_cache_legacy_method(self, temp_image_sequence):
-        """Test that legacy clear_image_cache method still works."""
-        test_dir, _ = temp_image_sequence
-
-        service = DataService()
-        service.load_image_sequence(str(test_dir))
-
-        # Cache some images
-        service.get_background_image(0)
-        service.get_background_image(1)
-        assert service._safe_image_cache.cache_size == 2
-
-        # Clear legacy cache (doesn't affect SafeImageCacheManager)
-        service.clear_image_cache()
-
-        # Assert: Legacy cache cleared
-        assert len(service._image_cache) == 0
-
-        # Note: SafeImageCacheManager has separate cache that remains
-        assert service._safe_image_cache.cache_size == 2
 
     def test_load_new_sequence_clears_cache(self, temp_image_sequence, tmp_path):
         """Test that loading new sequence clears previous cache."""

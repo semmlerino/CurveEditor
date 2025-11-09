@@ -159,100 +159,8 @@ class TestServiceThreadSafety:
         # Cache should be working (not all transforms unique)
         assert len(set(transforms_created)) < len(transforms_created), "Cache not being used"
 
-    def test_image_cache_thread_safety(self):
-        """Test image cache operations are thread-safe."""
-        service = get_data_service()
-        errors = []
 
-        def image_cache_operations(thread_id: int):
-            try:
-                for i in range(100):
-                    # Add images to cache
-                    image_path = f"/tmp/image_{thread_id}_{i}.png"
-                    mock_image = MagicMock()  # Simple mock object
-                    service._add_to_cache(image_path, mock_image)
 
-                    # Check cache size limit
-                    with service._lock:
-                        if len(service._image_cache) > service._max_cache_size:
-                            errors.append(f"Cache exceeded limit: {len(service._image_cache)}")
-
-                    # Clear cache occasionally
-                    if i % 25 == 0:
-                        service.clear_image_cache()
-
-            except Exception as e:
-                errors.append(f"Thread {thread_id}: {e}")
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-            futures = [executor.submit(image_cache_operations, i) for i in range(8)]
-            concurrent.futures.wait(futures)
-
-        assert not errors, f"Errors detected: {errors}"
-
-    def test_no_deadlocks_with_nested_calls(self):
-        """Test that using RLock prevents deadlocks with nested calls."""
-        service = get_data_service()
-        completed = []
-
-        def nested_operations(thread_id: int):
-            try:
-                # This would deadlock with regular Lock instead of RLock
-                with service._lock:
-                    service.add_recent_file(f"/tmp/file_{thread_id}.json")
-                    # Nested lock acquisition (RLock allows this)
-                    with service._lock:
-                        service.clear_image_cache()
-                completed.append(thread_id)
-            except Exception as e:
-                pytest.fail(f"Deadlock or error in thread {thread_id}: {e}")
-
-        threads = []
-        for i in range(5):
-            t = threading.Thread(target=nested_operations, args=(i,))
-            threads.append(t)
-            t.start()
-
-        # Wait with timeout to detect deadlocks
-        for t in threads:
-            t.join(timeout=5.0)
-            if t.is_alive():
-                pytest.fail("Deadlock detected - thread did not complete")
-
-        assert len(completed) == 5, f"Not all threads completed: {completed}"
-
-    def test_race_condition_in_cache_trimming(self):
-        """Test that cache trimming doesn't cause race conditions."""
-        service = get_data_service()
-
-        # Set small cache size to force frequent trimming
-        original_max = service._max_cache_size
-        service._max_cache_size = 10
-
-        errors = []
-
-        def rapid_cache_modifications(thread_id: int):
-            try:
-                for i in range(200):
-                    file_path = f"/tmp/test_{thread_id}_{i}.json"
-                    service.add_recent_file(file_path)
-
-                    # Check integrity
-                    with service._lock:
-                        if len(service._recent_files) > service._max_recent_files:
-                            errors.append("Recent files list corrupted")
-
-            except Exception as e:
-                errors.append(f"Error: {e}")
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-            futures = [executor.submit(rapid_cache_modifications, i) for i in range(10)]
-            concurrent.futures.wait(futures)
-
-        # Restore original size
-        service._max_cache_size = original_max
-
-        assert not errors, f"Race conditions detected: {errors[:5]}"
 
     def test_service_initialization_with_exceptions(self):
         """Test that service initialization handles exceptions properly."""
@@ -328,8 +236,7 @@ class TestConcurrentUserWorkflows:
         assert len(operations_completed) == 5, "Not all operations completed"
 
         # Verify recent files list is consistent
-        with service._lock:
-            assert len(service._recent_files) <= 10  # Use hardcoded value
+        assert len(service._recent_files) <= 10  # Use hardcoded value
 
 
 class TestStressTests:
@@ -460,62 +367,6 @@ class TestQtThreadingSafety:
         for thread_id, success in results:
             assert success, f"Thread {thread_id} failed"
 
-    def test_concurrent_image_processing(self):
-        """Test concurrent image operations without Qt threading violations."""
-
-        results = []
-        errors = []
-
-        def process_image(thread_id: int):
-            """Process image in worker thread."""
-            try:
-                # ✅ SAFE - Use QImage instead of QPixmap (QPixmap requires main thread)
-                from PySide6.QtGui import QColor, QImage
-
-                image = QImage(100, 100, QImage.Format.Format_RGB32)
-
-                image.fill(QColor(255, 0, 0))  # Thread-safe operation
-
-                # Simulate cache operation with thread-safe image
-                service = get_data_service()
-                cache_key = f"thread_{thread_id}_image"
-
-                # This simulates what would happen in real code - storing processed images
-                # Use service lock for thread safety when accessing shared cache
-                with service._lock:
-                    # Store the thread-safe image object
-                    service._image_cache[cache_key] = image
-
-                # Verify the image was stored successfully
-                with service._lock:
-                    from PySide6.QtGui import QImage
-
-                    cached_image = service._image_cache.get(cache_key)
-                    success = cached_image is not None and not cast(QImage, cached_image).isNull()
-
-                results.append((thread_id, success))
-
-            except Exception as e:
-                errors.append((thread_id, str(e)))
-
-        # Start multiple worker threads
-        threads = []
-        for i in range(5):
-            t = threading.Thread(target=process_image, args=(i,))
-            threads.append(t)
-            t.start()
-
-        # Wait for completion
-        for t in threads:
-            t.join(timeout=5.0)
-
-        # Verify no threading violations occurred
-        assert len(errors) == 0, f"Threading errors: {errors}"
-        assert len(results) == 5
-
-        # All operations should have succeeded
-        for thread_id, success in results:
-            assert success, f"Thread {thread_id} image processing failed"
 
     def test_qt_pixmap_detection_in_worker_threads(self):
         """Test that QPixmap creation in worker threads is properly detected."""

@@ -460,16 +460,7 @@ class TestServiceResourceManagement:
     def test_memory_cleanup(self):
         """Test that services properly clean up resources."""
         data_service = get_data_service()
-
-        # Test image cache management
-        data_service.clear_image_cache()
-        # Should not raise any errors
-
-        # Test cache size management
-        data_service.set_cache_size(10)
-        # Should not raise any errors
-
-    def test_service_isolation(self):
+def test_service_isolation(self):
         """Test that services are properly isolated from each other."""
         # Get separate instances
         transform1 = get_transform_service()
@@ -560,9 +551,7 @@ class TestServiceStateMaintenance:
         # Verify state updated
         updated_files = data_service.get_recent_files()
         assert test_file in updated_files
-
-        # Test cache operations don't affect file state
-        data_service.clear_image_cache()
+        # Cache operations removed (legacy code)
         assert test_file in data_service.get_recent_files()
 
     def test_transform_service_state_isolation(self):

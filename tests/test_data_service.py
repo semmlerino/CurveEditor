@@ -529,32 +529,6 @@ class TestImageOperations:
         assert result == []
         mock_logger.log_error.assert_called_once()
 
-    def test_clear_image_cache(self):
-        """Test clearing the image cache."""
-        service = DataService()
-
-        # Add something to cache
-        service._add_to_cache("test_key", "test_value")
-        assert len(service._image_cache) > 0
-
-        service.clear_image_cache()
-
-        assert len(service._image_cache) == 0
-
-    def test_cache_size_management(self):
-        """Test that cache respects maximum size."""
-        service = DataService()
-        service.set_cache_size(2)  # Small cache for testing
-
-        # Add items beyond cache size
-        service._add_to_cache("key1", "value1")
-        service._add_to_cache("key2", "value2")
-        service._add_to_cache("key3", "value3")  # Should evict oldest
-
-        assert len(service._image_cache) == 2
-        assert "key1" not in service._image_cache  # Should be evicted
-        assert "key2" in service._image_cache
-        assert "key3" in service._image_cache
 
 
 class TestRecentFiles:
@@ -909,34 +883,6 @@ class TestPointStatusAnalysis:
 class TestThreadSafety:
     """Test thread safety of DataService operations."""
 
-    def test_cache_operations_thread_safe(self):
-        """Test that cache operations are thread-safe."""
-        service = DataService()
-        results = []
-        errors = []
-
-        def cache_worker(thread_id: int):
-            try:
-                for i in range(10):
-                    key = f"thread_{thread_id}_item_{i}"
-                    service._add_to_cache(key, f"value_{i}")
-                results.append(thread_id)
-            except Exception as e:
-                errors.append((thread_id, str(e)))
-
-        # Start multiple threads
-        threads = []
-        for i in range(5):
-            t = threading.Thread(target=cache_worker, args=(i,))
-            threads.append(t)
-            t.start()
-
-        # Wait for completion
-        for t in threads:
-            t.join(timeout=5.0)
-
-        assert len(errors) == 0
-        assert len(results) == 5
 
     def test_recent_files_operations_thread_safe(self):
         """Test that recent files operations handle concurrent access."""

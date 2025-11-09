@@ -330,11 +330,7 @@ class TestMemoryUsagePatterns:
             for temp_file in temp_files:
                 if os.path.exists(temp_file):
                     os.unlink(temp_file)
-
-        # Clear any caches
-        if hasattr(data_service, "clear_image_cache"):
-            data_service.clear_image_cache()
-
+        # Cache automatically managed by SafeImageCacheManager
         gc.collect()
 
         final_memory = self.get_memory_usage()
