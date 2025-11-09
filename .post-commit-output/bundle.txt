@@ -1,8 +1,8 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Skipping large file (145.0MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
-Found 212 files to bundle
+Skipping large file (153.2MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
+Found 220 files to bundle
 Bundled: .pre-commit-config.yaml
 Bundled: .txt
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
@@ -13,7 +13,11 @@ Bundled: 3de_export_analysis_20250911_084443.txt
 Bundled: 3DE_SCRIPTS_README.md
 Bundled: 3de_tracking_analysis_20250911_084452.txt
 Bundled: ARCHITECTURAL_CONSOLIDATION_ANALYSIS.md
+Bundled: AUDIT_FINDINGS_DETAILED.md
+Bundled: AUDIT_INDEX.txt
+Bundled: AUDIT_SUMMARY.md
 Bundled: BASEDPYRIGHT_STRATEGY.md
+Bundled: BEST_PRACTICES_AUDIT.md
 Bundled: BUG_FIX_CTRL_CLICK_GAP_CURVE.md
 Bundled: check_exr_backends.py
 Bundled: CLAUDE.md
@@ -54,7 +58,10 @@ Bundled: test_normalized_3de.txt
 Bundled: test_rez_exr_packages.sh
 Bundled: TEST_SUITE_COMPLIANCE_ANALYSIS.md
 Bundled: transfer_config.json
+Bundled: TYPE_SAFETY_AUDIT_REPORT.md
 Bundled: TYPE_SAFETY_CODE_PATTERNS.md
+Bundled: TYPE_SAFETY_QUICK_FIXES.md
+Bundled: TYPE_SAFETY_SUMMARY.txt
 Bundled: TYPE_SAFETY_VERIFICATION.md
 Bundled: VISUAL_SETTINGS_REFACTOR_PLAN.md
 Bundled: VISUAL_SETTINGS_TYPE_SAFETY_INDEX.md
@@ -73,6 +80,7 @@ Bundled: .serena/project.yml
 Bundled: .serena/memories/architecture.md
 Bundled: .serena/memories/codebase_structure.md
 Bundled: .serena/memories/code_style_conventions.md
+Bundled: .serena/memories/exr_color_pipeline_investigation.md
 Bundled: .serena/memories/project_overview.md
 Bundled: .serena/memories/suggested_commands.md
 Bundled: .serena/memories/task_completion_workflow.md
@@ -218,9 +226,9 @@ Bundled: ui/widgets/__init__.py
 Bundle created at: /tmp/curveeditor_bundle_temp
 Encoding bundle...
 Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/curveeditor_bundle_temp -o curveeditor_latest.txt -c 5120 --single-file --metadata -v
-Folder size: 2.61 MB
+Folder size: 2.71 MB
 Encoding folder: /tmp/curveeditor_bundle_temp
-Encoded size: 845604 bytes
+Encoded size: 886176 bytes
 Creating 1 chunks of 5120KB each
 Saved combined chunks to: curveeditor_latest.txt
 Saved metadata to: curveeditor_latest_metadata.json

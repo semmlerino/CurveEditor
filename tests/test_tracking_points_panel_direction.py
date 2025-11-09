@@ -269,7 +269,7 @@ class TestTrackingPointsPanelDirection:
         direction_spy = qt_api.QtTest.QSignalSpy(populated_panel.tracking_direction_changed)
 
         # Try to change direction - should be blocked
-        populated_panel._on_direction_changed("Track1", "FW")
+        populated_panel._on_direction_changed("FW")
 
         # No signal should be emitted when updating flag is set
         assert direction_spy.count() == 0

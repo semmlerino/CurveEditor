@@ -329,12 +329,12 @@ class StateManager(QObject):
         return self._app_state.current_frame
 
     @current_frame.setter
-    def current_frame(self, frame: int) -> None:
+    def current_frame(self, value: int) -> None:
         """Set the current frame number with clamping to [1, total_frames]."""
         total_frames = self._app_state.get_total_frames()
-        clamped_frame = max(1, min(frame, total_frames))
+        clamped_frame = max(1, min(value, total_frames))
         self._app_state.set_frame(clamped_frame)
-        logger.debug(f"Frame set (clamped): {frame} -> {clamped_frame}")
+        logger.debug(f"Frame set (clamped): {value} -> {clamped_frame}")
 
     # ==================== View State Properties ====================
 

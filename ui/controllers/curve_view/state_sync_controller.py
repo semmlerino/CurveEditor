@@ -97,8 +97,8 @@ class StateSyncController:
             curves: Dictionary mapping curve names to curve data
         """
         # Clear SegmentedCurve cache in DataService (all curves changed)
+        data_service = get_data_service()
         try:
-            data_service = get_data_service()
             data_service.clear_segmented_curve_cache()
             logger.debug("Cleared DataService SegmentedCurve cache")
         except Exception as e:

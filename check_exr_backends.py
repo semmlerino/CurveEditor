@@ -19,7 +19,7 @@ except ImportError as e:
 # Check OpenEXR
 print("\n2. OpenEXR:")
 try:
-    import Imath
+    import Imath  # noqa: F401
     import OpenEXR
     version = OpenEXR.__version__ if hasattr(OpenEXR, '__version__') else 'unknown'
     print(f"   ✓ Available - version: {version}")
@@ -29,12 +29,12 @@ except ImportError as e:
 # Check Pillow EXR support
 print("\n3. Pillow (with EXR support):")
 try:
-    from PIL import Image, features
+    from PIL import Image, features  # noqa: F401
     print(f"   Pillow version: {Image.__version__ if hasattr(Image, '__version__') else 'unknown'}")
 
     # Try to register EXR plugin if available
     try:
-        from PIL import ExrImagePlugin
+        from PIL import ExrImagePlugin  # noqa: F401
         print("   ✓ EXR plugin available")
     except ImportError:
         print("   ✗ EXR plugin not available")
@@ -59,7 +59,7 @@ try:
             if '.exr' in known_formats:
                 plugins = known_formats['.exr']
                 print(f"   EXR plugins: {plugins}")
-        except:
+        except Exception:
             print("   Could not enumerate plugins")
 
     except ImportError:
