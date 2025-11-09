@@ -53,7 +53,6 @@ class DataService:
         """Initialize DataService with optional dependencies."""
         from services.image_cache_manager import SafeImageCacheManager
 
-        self._lock: threading.RLock = threading.RLock()
         self._logger: LoggingServiceProtocol | None = logging_service
         self._status: StatusServiceProtocol | None = status_service
 
@@ -61,8 +60,6 @@ class DataService:
         self._recent_files: list[str] = []
         self._max_recent_files: int = 10  # Maximum number of recent files to keep
         self._last_directory: str = ""
-        self._image_cache: dict[str, object] = {}
-        self._max_cache_size: int = 100  # Maximum number of cached images
 
         # SegmentedCurve cache for performance (keyed by object ID)
         # Using object ID allows caching when the same list instance is reused
@@ -889,23 +886,8 @@ class DataService:
         """Load current image for view."""
         return None
 
-    def clear_image_cache(self) -> None:
-        """Clear the image cache."""
-        self._image_cache.clear()
 
-    def _add_to_cache(self, key: str, value: object) -> None:
-        """Add an item to the image cache (thread-safe)."""
-        with self._lock:
-            # Trim cache if it exceeds max size
-            if len(self._image_cache) >= self._max_cache_size and self._image_cache:
-                # Remove oldest item (first key)
-                oldest_key = next(iter(self._image_cache))
-                del self._image_cache[oldest_key]
-            self._image_cache[key] = value
 
-    def set_cache_size(self, size: int) -> None:
-        """Set maximum cache size."""
-        self._max_cache_size = size
 
     def set_image_sequence(self, image_paths: list[str]) -> None:
         """Set the image sequence for the cache manager.
@@ -1003,8 +985,6 @@ class DataService:
                     # Add status if available
                     if len(point) > 3:
                         point_data["status"] = point[3]
-                    else:
-                        point_data["status"] = "keyframe"
 
                     points_list.append(point_data)
 
@@ -1277,8 +1257,6 @@ class DataService:
                         # Add status if available
                         if len(point) > 3:
                             row.append(point[3])
-                        else:
-                            row.append("keyframe")
 
                         writer.writerow(row)
 

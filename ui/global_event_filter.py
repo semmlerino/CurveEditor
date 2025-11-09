@@ -99,10 +99,12 @@ class GlobalEventFilter(QObject):
                     event.accept()
                     return True
             else:  # Key_Right
-                # Navigate to next frame (no upper limit check - timeline handles max)
-                logger.debug(f"[GLOBAL_EVENT_FILTER] Right arrow pressed, navigating to frame {current_frame + 1}")
-                state.set_frame(current_frame + 1)
-                event.accept()
+                # Navigate to next frame (check upper limit to prevent exceeding total frames)
+                max_frame = state.get_total_frames()
+                if current_frame < max_frame:
+                    logger.debug(f"[GLOBAL_EVENT_FILTER] Right arrow pressed, navigating to frame {current_frame + 1}")
+                    state.set_frame(current_frame + 1)
+                    event.accept()
                 return True
 
         # Don't interfere with text input in certain widgets

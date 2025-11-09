@@ -51,7 +51,10 @@ def controller(main_window: MockMainWindow) -> TrackingSelectionController:
 @pytest.fixture
 def app_state():
     """Get the application state for verification."""
-    return get_application_state()
+    state = get_application_state()
+    # Set default total frames to allow frame navigation in tests
+    state.set_image_files(["dummy.png"] * 1000)
+    return state
 
 
 @pytest.fixture
@@ -247,6 +250,8 @@ class TestAutoSelectPointAtFrame:
         curve_name = "TestPoint005"
         app_state.set_curve_data(curve_name, sample_curve_data)
         app_state.set_active_curve(curve_name)
+        # Set total frames to allow navigation to frame 10
+        app_state.set_image_files(["dummy.png"] * 20)
         app_state.set_frame(10)  # Frame 10 is at index 2
 
         assert main_window.curve_widget is not None

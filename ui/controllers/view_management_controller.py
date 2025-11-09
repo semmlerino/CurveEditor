@@ -8,6 +8,7 @@ This unified controller manages all view-related functionality including:
 - Visual display settings (grid, point size, line width)
 """
 
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
 from weakref import WeakKeyDictionary
@@ -19,6 +20,7 @@ from PySide6.QtWidgets import QApplication, QWidget
 if TYPE_CHECKING:
     from ui.main_window import MainWindow
 
+from core.curve_data import CurveDataWithMetadata
 from core.logger_utils import get_logger
 from stores.application_state import get_application_state
 
@@ -412,6 +414,29 @@ class ViewManagementController:
                 self.main_window.curve_widget.image_width = pixmap.width()
                 self.main_window.curve_widget.image_height = pixmap.height()
                 self.main_window.curve_widget.show_background = True
+
+                # Update all curve metadata with real image dimensions
+                real_width = pixmap.width()
+                real_height = pixmap.height()
+                state = get_application_state()
+
+                for curve_name in state.get_all_curve_names():
+                    curve_data = state.get_curve_data(curve_name)
+                    if isinstance(curve_data, CurveDataWithMetadata):
+                        # Update metadata with real dimensions
+                        updated_metadata = replace(
+                            curve_data.metadata,
+                            width=real_width,
+                            height=real_height
+                        )
+                        updated_curve = CurveDataWithMetadata(
+                            data=curve_data.data,
+                            metadata=updated_metadata,
+                            is_normalized=curve_data.is_normalized
+                        )
+                        state.set_curve_data(curve_name, updated_curve)
+
+                logger.info(f"Updated curve metadata for {len(state.get_all_curve_names())} curves with real dimensions: {real_width}x{real_height}")
 
                 # Fit the image to view
                 self.main_window.curve_widget.fit_to_background_image()

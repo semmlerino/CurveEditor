@@ -74,6 +74,11 @@ class TestTimelineController:
         - Application state tracks current frame
         """
         # Arrange - Set frame range and ensure widgets are initialized
+        from stores.application_state import get_application_state
+        app_state = get_application_state()
+
+        # Set total frames in ApplicationState to allow navigation to frame 42
+        app_state.set_image_files(["dummy.png"] * 100)  # Simulates 100-frame sequence
         controller.set_frame_range(1, 100)
 
         # Act - Change to frame 42
@@ -86,7 +91,5 @@ class TestTimelineController:
             f"Frame slider should be 42, got {controller.frame_slider.value()}"
 
         # Verify application state was updated
-        from stores.application_state import get_application_state
-        app_state = get_application_state()
         assert app_state.current_frame == 42, \
             f"Application state frame should be 42, got {app_state.current_frame}"

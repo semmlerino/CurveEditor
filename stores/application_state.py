@@ -502,6 +502,7 @@ class ApplicationState(QObject):
 
     def get_all_curve_names(self) -> list[str]:
         """Get list of all curve names."""
+        self._assert_main_thread()
         return list(self._curves_data.keys())
 
     # ==================== Selection Operations ====================
@@ -611,6 +612,7 @@ class ApplicationState(QObject):
     @property
     def active_curve(self) -> str | None:
         """Get name of active curve (currently being edited)."""
+        self._assert_main_thread()
         return self._active_curve
 
     def set_active_curve(self, curve_name: str | None) -> None:
@@ -635,6 +637,7 @@ class ApplicationState(QObject):
     @property
     def current_frame(self) -> int:
         """Get current frame number."""
+        self._assert_main_thread()
         return self._current_frame
 
     def set_frame(self, frame: int) -> None:
@@ -642,12 +645,18 @@ class ApplicationState(QObject):
         Set current frame.
 
         Args:
-            frame: Frame number (1-based)
+            frame: Frame number (1-based), clamped to [1, total_frames]
         """
         self._assert_main_thread()
+
+        # Clamp to valid range
+        max_frame = self._total_frames
         if frame < 1:
             logger.warning(f"Invalid frame {frame}, using 1")
             frame = 1
+        elif frame > max_frame:
+            logger.debug(f"Frame {frame} exceeds total frames {max_frame}, clamping to {max_frame}")
+            frame = max_frame
 
         if self._current_frame != frame:
             self._current_frame = frame
@@ -776,6 +785,7 @@ class ApplicationState(QObject):
         Returns:
             Copy of metadata dict
         """
+        self._assert_main_thread()
         if curve_name not in self._curve_metadata:
             return {"visible": True}
         return self._curve_metadata[curve_name].copy()
@@ -1097,6 +1107,7 @@ class ApplicationState(QObject):
         Returns:
             Dict with state statistics
         """
+        self._assert_main_thread()
         total_points = sum(len(data) for data in self._curves_data.values())
         total_selected = sum(len(sel) for sel in self._selection.values())
 

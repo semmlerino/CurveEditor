@@ -154,6 +154,9 @@ class TestDataFlowIntegration:
         assert frame_store.max_frame == 1
         assert frame_store.current_frame == 1
 
+        # Set image sequence to allow frame navigation
+        app_state.set_image_files(["dummy.png"] * 50)
+
         # Add data to ApplicationState
         test_data: CurveDataList = [
             (10, 100.0, 100.0, "keyframe"),
