@@ -11,7 +11,7 @@ from __future__ import annotations
 
 # Import all color functionality from color_manager for backward compatibility
 # These are re-exported for other modules - pyright: ignore
-from ui.color_manager import (  # noqa: F401
+from ui.color_manager import (
     COLORS_DARK,  # pyright: ignore[reportUnusedImport]
     COLORS_HIGH_CONTRAST,  # pyright: ignore[reportUnusedImport]
     COLORS_LIGHT,  # pyright: ignore[reportUnusedImport]

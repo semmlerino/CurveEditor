@@ -36,11 +36,11 @@ def setup_environment() -> None:
 # Setup environment before imports
 setup_environment()
 
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication
 
-from rendering.optimized_curve_renderer import RenderQuality, VectorizedTransform  # noqa: E402
-from services.transform_service import ViewState  # noqa: E402
-from ui.curve_view_widget import CurveViewWidget  # noqa: E402
+from rendering.optimized_curve_renderer import RenderQuality, VectorizedTransform
+from services.transform_service import ViewState
+from ui.curve_view_widget import CurveViewWidget
 
 if TYPE_CHECKING:
     from collections.abc import Callable

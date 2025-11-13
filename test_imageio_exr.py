@@ -17,6 +17,7 @@ print("=" * 60)
 
 # Test imageio
 try:
+    import imageio
     import imageio.v3 as iio
     print(f"imageio version: {imageio.__version__}")
 

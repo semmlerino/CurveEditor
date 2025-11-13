@@ -80,7 +80,7 @@ class TestTrackingPanelCtrlClickGap:
         Root cause: set_selected_curves() uses a set, which loses order.
         When converted back to list, point_names[-1] is arbitrary.
         """
-        window = main_window_with_gaps
+        _window = main_window_with_gaps
         app_state = get_application_state()
 
         # Verify initial state
@@ -214,7 +214,7 @@ class TestTrackingPanelCtrlClickGap:
         The bug: When Ctrl+clicking curve_b after curve_a is selected,
         curve_b might not become active due to set-to-list conversion losing order.
         """
-        window = main_window_with_gaps
+        _window = main_window_with_gaps
         app_state = get_application_state()
 
         # Simulate multiple Ctrl+clicks to show non-determinism

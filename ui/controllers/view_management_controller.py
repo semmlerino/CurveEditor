@@ -160,7 +160,7 @@ class ViewManagementController:
     @Slot()
     def toggle_current_point_only(self) -> None:
         """Toggle current point only mode (3DEqualizer-style).
-        
+
         When enabled, only shows the point at the current frame,
         hiding the rest of the curve trajectory.
         """

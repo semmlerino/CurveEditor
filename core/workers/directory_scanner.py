@@ -132,7 +132,9 @@ class DirectoryScanWorker(QThread):
             logger.error(f"Error scanning directory: {e}")
             raise
 
-    def _detect_sequences(self, image_files: list[str]) -> list[dict[str, str | int | list[int] | list[str]]]:
+    def _detect_sequences(
+        self, image_files: list[str]
+    ) -> list[dict[str, str | int | list[int] | list[str] | tuple[int, int] | None]]:
         """
         Detect image sequences from a list of filenames.
 
@@ -176,7 +178,7 @@ class DirectoryScanWorker(QThread):
                 self.progress.emit(progress_pct, 100, f"Detecting sequences... ({len(sequence_groups)} found)")
 
         # Create sequence dictionaries
-        sequences: list[dict[str, str | int | list[int] | list[str]]] = []
+        sequences: list[dict[str, str | int | list[int] | list[str] | tuple[int, int] | None]] = []
 
         for (base_name, padding, extension), files in sequence_groups.items():
             if self.isInterruptionRequested():
@@ -248,7 +250,7 @@ class DirectoryScanWorker(QThread):
             sequences.append(sequence)
 
         # Sort by base name
-        sequences.sort(key=lambda x: x["base_name"])  # type: ignore[reportUnknownLambdaType]
+        sequences.sort(key=lambda x: str(x["base_name"]))
 
         logger.debug(f"Detected {len(sequences)} sequences")
         return sequences

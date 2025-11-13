@@ -32,11 +32,11 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-import pytest  # noqa: E402
-from PySide6.QtCore import Qt  # noqa: E402
-from PySide6.QtWidgets import QApplication  # noqa: E402
+import pytest
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication
 
-from tests.test_utils import cleanup_qt_widgets  # noqa: E402
+from tests.test_utils import cleanup_qt_widgets
 
 
 def cleanup_qt():

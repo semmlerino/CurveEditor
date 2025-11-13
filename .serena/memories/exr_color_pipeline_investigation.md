@@ -200,3 +200,25 @@ The current EXR implementation is **functionally complete but color-management n
 - ❌ Pillow backend has normalization logic bug
 - ❌ No metadata preservation
 - ❌ Inconsistent inter-backend behavior
+
+## FIX APPLIED (2025-11-13)
+
+**Root Cause**: Missing QColorSpace metadata caused remote X11 servers to misinterpret sRGB-encoded images as linear, resulting in incorrect gamma correction and color artifacts (rainbow banding, oversaturation).
+
+**Changes Made**:
+1. ✅ Added `QColorSpace.NamedColorSpace.SRgb` metadata to all 4 backends (OIIO, OpenEXR, Pillow, imageio)
+2. ✅ Added comprehensive diagnostic logging to `_tone_map_hdr()` function:
+   - Input statistics (min/max/mean)
+   - Tone mapping parameters (median, exposure, clamp values)
+   - Output statistics (min/max/mean)
+
+**Files Modified**:
+- `io_utils/exr_loader.py` (lines 22, 80, 135, 161, 224, 249, 283, 308, 348, 415-433, 468-472)
+
+**Testing Required**:
+- Load EXR on remote VFX system (X11 forwarding/VNC)
+- Verify colors match RV/Nuke/djv_view display
+- Check console logs for tone mapping diagnostics (run with `--verbose` or check debug logs)
+- Confirm no rainbow artifacts or color banding
+
+**Expected Outcome**: Remote display colors should now match local and reference viewers due to proper sRGB color space metadata

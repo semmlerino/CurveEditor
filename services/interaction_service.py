@@ -1189,7 +1189,7 @@ class _CommandHistory:
                 # Legacy compatibility: also set on old storage locations
                 # Set on main_window directly if it has the attribute
                 # Use setattr for protocol compatibility (curve_data may be read-only property)
-                setattr(main_window, "curve_data", curve_data)  # noqa: B010
+                setattr(main_window, "curve_data", curve_data)
 
             # Also set on curve_widget if present
             if (
@@ -1197,7 +1197,7 @@ class _CommandHistory:
                 and getattr(main_window.curve_widget, "curve_data", None) is not None
             ):
                 # Legacy: set curve data on widget (use setattr for protocol compatibility)
-                setattr(main_window.curve_widget, "curve_data", curve_data)  # noqa: B010
+                setattr(main_window.curve_widget, "curve_data", curve_data)
 
         # Restore point_name
         if "point_name" in state and getattr(main_window, "point_name", None) is not None:

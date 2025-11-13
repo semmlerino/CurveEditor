@@ -1180,11 +1180,11 @@ class ImageSequenceBrowserDialog(QDialog):
 
             # Use metadata from worker (already extracted in background thread)
             if "resolution" in seq_dict and seq_dict["resolution"] is not None:
-                sequence.resolution = seq_dict["resolution"]  # type: ignore[assignment]
+                sequence.resolution = seq_dict["resolution"]  # pyright: ignore[reportAttributeAccessIssue]
             if "bit_depth" in seq_dict and seq_dict["bit_depth"] is not None:
-                sequence.bit_depth = seq_dict["bit_depth"]  # type: ignore[assignment]
+                sequence.bit_depth = seq_dict["bit_depth"]  # pyright: ignore[reportAttributeAccessIssue]
             if "color_space" in seq_dict and seq_dict["color_space"] is not None:
-                sequence.color_space = seq_dict["color_space"]  # type: ignore[assignment]
+                sequence.color_space = seq_dict["color_space"]  # pyright: ignore[reportAttributeAccessIssue]
 
             # Calculate total size
             total_size = 0

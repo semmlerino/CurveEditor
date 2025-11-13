@@ -77,7 +77,7 @@ def _load_exr_with_oiio(file_path: str) -> "QImage | None":
     """
     try:
         import OpenImageIO as oiio
-        from PySide6.QtGui import QImage
+        from PySide6.QtGui import QColorSpace, QImage
 
         # Open the image file
         img_input = oiio.ImageInput.open(file_path)
@@ -131,6 +131,9 @@ def _load_exr_with_oiio(file_path: str) -> "QImage | None":
         # Copy to ensure data persists
         qimage = qimage.copy()
 
+        # Set color space to sRGB (tone mapping already applied gamma correction)
+        qimage.setColorSpace(QColorSpace(QColorSpace.NamedColorSpace.SRgb))
+
         logger.debug(f"Loaded EXR with OIIO: {file_path} ({width}x{height})")
         return qimage
 
@@ -155,7 +158,7 @@ def _load_exr_with_openexr(file_path: str) -> "QImage | None":
     try:
         import Imath
         import OpenEXR
-        from PySide6.QtGui import QImage
+        from PySide6.QtGui import QColorSpace, QImage
 
         # Open the EXR file
         exr_file = OpenEXR.InputFile(file_path)
@@ -217,6 +220,9 @@ def _load_exr_with_openexr(file_path: str) -> "QImage | None":
         # Copy to ensure data persists
         qimage = qimage.copy()
 
+        # Set color space to sRGB (tone mapping already applied gamma correction)
+        qimage.setColorSpace(QColorSpace(QColorSpace.NamedColorSpace.SRgb))
+
         logger.debug(f"Loaded EXR with OpenEXR: {file_path} ({width}x{height})")
         return qimage
 
@@ -240,7 +246,7 @@ def _load_exr_with_pillow(file_path: str) -> "QImage | None":
     """
     try:
         from PIL import Image
-        from PySide6.QtGui import QImage
+        from PySide6.QtGui import QColorSpace, QImage
 
         # Try to open with Pillow
         with Image.open(file_path) as img:
@@ -273,6 +279,9 @@ def _load_exr_with_pillow(file_path: str) -> "QImage | None":
             # Copy to ensure data persists
             qimage = qimage.copy()
 
+            # Set color space to sRGB (tone mapping already applied gamma correction)
+            qimage.setColorSpace(QColorSpace(QColorSpace.NamedColorSpace.SRgb))
+
             logger.debug(f"Loaded EXR with Pillow: {file_path} ({width}x{height})")
             return qimage
 
@@ -296,7 +305,7 @@ def _load_exr_with_imageio(file_path: str) -> "QImage | None":
     """
     try:
         import imageio.v3 as iio
-        from PySide6.QtGui import QImage
+        from PySide6.QtGui import QColorSpace, QImage
 
         # Read EXR file using imageio with auto-detection
         # Will try available plugins (pillow, etc.) automatically
@@ -334,6 +343,9 @@ def _load_exr_with_imageio(file_path: str) -> "QImage | None":
 
         # Copy the image data to ensure it persists
         qimage = qimage.copy()
+
+        # Set color space to sRGB (tone mapping already applied gamma correction)
+        qimage.setColorSpace(QColorSpace(QColorSpace.NamedColorSpace.SRgb))
 
         logger.debug(f"Loaded EXR with imageio: {file_path} ({width}x{height})")
         return qimage
@@ -400,6 +412,12 @@ def _tone_map_hdr(img_data: NDArray[np.floating[Any]]) -> NDArray[np.floating[An
     # Handle negative values (clamp to 0)
     img_data = np.maximum(img_data, 0)
 
+    # Log input statistics for debugging
+    img_min, img_max, img_mean = img_data.min(), img_data.max(), img_data.mean()
+    logger.debug(
+        f"Tone mapping input: min={img_min:.4f}, max={img_max:.4f}, mean={img_mean:.4f}"
+    )
+
     # Calculate luminance-based exposure
     # Use a percentile-based exposure to avoid being thrown off by outliers
     mid_gray = np.percentile(img_data, 50)  # Median brightness
@@ -409,8 +427,13 @@ def _tone_map_hdr(img_data: NDArray[np.floating[Any]]) -> NDArray[np.floating[An
         exposure = target_mid_gray / mid_gray
         # Clamp exposure to reasonable range to avoid over-brightening dark images
         exposure = np.clip(exposure, 0.5, 4.0)
+        logger.debug(
+            f"Tone mapping: median={mid_gray:.4f}, target={target_mid_gray:.4f}, " +
+            f"raw_exposure={target_mid_gray/mid_gray:.4f}, clamped_exposure={exposure:.4f}"
+        )
     else:
         exposure = 1.0
+        logger.debug("Tone mapping: median=0, using exposure=1.0")
 
     # Apply exposure
     img_data = img_data * exposure
@@ -441,6 +464,12 @@ def _tone_map_hdr(img_data: NDArray[np.floating[Any]]) -> NDArray[np.floating[An
 
     # Final safety clamp
     tone_mapped = np.clip(tone_mapped, 0.0, 1.0)
+
+    # Log output statistics
+    out_min, out_max, out_mean = tone_mapped.min(), tone_mapped.max(), tone_mapped.mean()
+    logger.debug(
+        f"Tone mapping output: min={out_min:.4f}, max={out_max:.4f}, mean={out_mean:.4f}"
+    )
 
     return tone_mapped
 

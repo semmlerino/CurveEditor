@@ -459,7 +459,7 @@ class TestServiceResourceManagement:
 
     def test_memory_cleanup(self):
         """Test that services properly clean up resources."""
-        data_service = get_data_service()
+        _data_service = get_data_service()
 def test_service_isolation(self):
         """Test that services are properly isolated from each other."""
         # Get separate instances

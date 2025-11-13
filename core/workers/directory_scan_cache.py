@@ -6,7 +6,6 @@ Caches directory scan results to eliminate redundant file system scans
 when navigating between directories.
 """
 
-import os
 from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path

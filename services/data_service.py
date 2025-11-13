@@ -12,7 +12,6 @@ This service handles:
 import csv
 import json
 import statistics
-import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 

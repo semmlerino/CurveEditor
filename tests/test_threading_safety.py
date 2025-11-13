@@ -25,7 +25,6 @@ Tests all concurrent access patterns and verifies thread safety of:
 import concurrent.futures
 import threading
 import time
-from typing import cast
 from unittest.mock import MagicMock, patch
 
 import pytest
