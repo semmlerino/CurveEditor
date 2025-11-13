@@ -42,7 +42,7 @@ from typing_extensions import override
 from core.favorites_manager import FavoritesManager
 from core.logger_utils import get_logger
 from core.metadata_extractor import ImageMetadataExtractor
-from core.workers import DirectoryScanWorker, ThumbnailCache
+from core.workers import DirectoryScanCache, DirectoryScanWorker, ThumbnailCache
 from ui.ui_constants import (
     FONT_SIZE_LARGE,
     FONT_SIZE_NORMAL,
@@ -51,6 +51,7 @@ from ui.ui_constants import (
     SPACING_XS,
 )
 from ui.widgets.card import Card
+from ui.widgets.sequence_list_widget import SequenceItemWidget
 
 if TYPE_CHECKING:
     from PySide6.QtCore import QModelIndex
@@ -413,8 +414,9 @@ class ImageSequenceBrowserDialog(QDialog):
         self.selected_sequence: ImageSequence | None = None
         self.favorites_manager: FavoritesManager = FavoritesManager()
 
-        # Initialize workers and cache
+        # Initialize workers and caches
         self.thumbnail_cache: ThumbnailCache = ThumbnailCache()
+        self.scan_cache: DirectoryScanCache = DirectoryScanCache(max_size=50)
         self.scan_worker: DirectoryScanWorker | None = None
         self.metadata_extractor: ImageMetadataExtractor = ImageMetadataExtractor()
 
@@ -575,9 +577,10 @@ class ImageSequenceBrowserDialog(QDialog):
         )
         top_nav_bar.addWidget(self.quick_access_button)
 
-        # Breadcrumb bar (clickable path segments)
+        # Breadcrumb bar (clickable path segments) - hidden by default, can be toggled with Ctrl+L
         self.breadcrumb_bar = BreadcrumbBar()
         self.breadcrumb_bar.setMinimumHeight(32)
+        self.breadcrumb_bar.setVisible(False)  # Hidden by default, address bar is visible
         top_nav_bar.addWidget(self.breadcrumb_bar, stretch=1)
 
         # Address bar (path input) - editable combo box with recent directories
@@ -585,7 +588,7 @@ class ImageSequenceBrowserDialog(QDialog):
         self.address_bar.setEditable(True)
         self.address_bar.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
         self.address_bar.setMinimumHeight(32)
-        self.address_bar.setVisible(False)  # Hidden by default, shown when Ctrl+L is pressed
+        self.address_bar.setVisible(True)  # Visible by default for easy path entry
         if self.address_bar.lineEdit():
             self.address_bar.lineEdit().setPlaceholderText("Enter directory path...")
         self.address_bar.setToolTip("Type or paste a directory path, or select from recent (Ctrl+L to focus)")
@@ -761,6 +764,16 @@ class ImageSequenceBrowserDialog(QDialog):
         progress_layout.addWidget(self.cancel_scan_button)
 
         preview_layout.addWidget(progress_container)
+
+        # Help text for empty directories (initially hidden)
+        self.help_label: QLabel = QLabel()
+        self.help_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.help_label.setStyleSheet(f"font-size: {FONT_SIZE_NORMAL - 1}pt; color: #888; padding: {SPACING_SM}px;")
+        self.help_label.setWordWrap(True)
+        self.help_label.setVisible(False)
+        self.help_label.setAccessibleName("Help text")
+        self.help_label.setAccessibleDescription("Contextual help and tips for finding image sequences")
+        preview_layout.addWidget(self.help_label)
 
         # Scroll area for thumbnails
         self.scroll_area: QScrollArea = QScrollArea()
@@ -1080,9 +1093,24 @@ class ImageSequenceBrowserDialog(QDialog):
         """
         Start asynchronous directory scanning.
 
+        Checks cache first for instant results. If cache miss, starts
+        asynchronous worker thread.
+
         Args:
             directory_path: Directory to scan
         """
+        # Check cache first for instant results
+        cached_sequences = self.scan_cache.get(directory_path)
+        if cached_sequences is not None:
+            logger.debug(f"Using cached results for {directory_path}")
+            # Use cached data directly - call _on_sequences_found synchronously
+            self.info_label.setText(f"Found {len(cached_sequences)} sequences (cached)")
+            self._on_sequences_found(cached_sequences)
+            return
+
+        # Cache miss - start async scan
+        logger.debug(f"Cache miss for {directory_path}, starting async scan")
+
         # Show progress UI
         self.progress_bar.setVisible(True)
         self.cancel_scan_button.setVisible(True)
@@ -1113,7 +1141,15 @@ class ImageSequenceBrowserDialog(QDialog):
 
         Args:
             sequence_dicts: List of sequence dictionaries from worker
-        """  # Convert dictionaries to ImageSequence objects
+        """
+        # Store in cache for future instant retrieval
+        # Extract directory from first sequence (all sequences are from same directory)
+        if sequence_dicts and "directory" in sequence_dicts[0]:
+            directory = str(sequence_dicts[0]["directory"])
+            self.scan_cache.put(directory, sequence_dicts)
+            logger.debug(f"Cached {len(sequence_dicts)} sequences for {directory}")
+
+        # Convert dictionaries to ImageSequence objects
         sequences: list[ImageSequence] = []
         for seq_dict in sequence_dicts:
             # Create sequence object - cast dict values to correct types
@@ -1142,14 +1178,13 @@ class ImageSequenceBrowserDialog(QDialog):
                 directory=directory,
             )
 
-            # Extract metadata from first frame
-            if sequence.file_list:
-                first_frame_path = os.path.join(sequence.directory, sequence.file_list[0])
-                metadata = self.metadata_extractor.extract(first_frame_path)
-                if metadata:
-                    sequence.resolution = (metadata.width, metadata.height)
-                    sequence.bit_depth = metadata.bit_depth
-                    sequence.color_space = metadata.color_space
+            # Use metadata from worker (already extracted in background thread)
+            if "resolution" in seq_dict and seq_dict["resolution"] is not None:
+                sequence.resolution = seq_dict["resolution"]  # type: ignore[assignment]
+            if "bit_depth" in seq_dict and seq_dict["bit_depth"] is not None:
+                sequence.bit_depth = seq_dict["bit_depth"]  # type: ignore[assignment]
+            if "color_space" in seq_dict and seq_dict["color_space"] is not None:
+                sequence.color_space = seq_dict["color_space"]  # type: ignore[assignment]
 
             # Calculate total size
             total_size = 0
@@ -1161,32 +1196,51 @@ class ImageSequenceBrowserDialog(QDialog):
 
             sequences.append(sequence)
 
-        # Populate sequence list
+        # Populate sequence list with rich display widgets
         for sequence in sequences:
-            item_text = sequence.display_name
-            list_item = QListWidgetItem(item_text)
+            # Create custom widget for rich sequence display
+            item_widget = SequenceItemWidget(sequence)
 
-            # Add warning icon if sequence has gaps
-            if sequence.has_gaps:
-                list_item.setText(f"⚠️ {item_text}")
-                list_item.setToolTip(
-                    f"WARNING: Missing {len(sequence.missing_frames)} frames: {sequence.missing_frames[:10]}"
-                )
-                list_item.setForeground(Qt.GlobalColor.darkYellow)
+            # Create list item
+            list_item = QListWidgetItem()
+            list_item.setSizeHint(item_widget.sizeHint())
 
-            self.sequence_list.addItem(list_item)
-            # Store sequence object as item data
+            # Store sequence object as item data (for compatibility with _on_sequence_selected)
             list_item.setData(Qt.ItemDataRole.UserRole, sequence)
 
-        # Update info label
+            # Add to list
+            self.sequence_list.addItem(list_item)
+            self.sequence_list.setItemWidget(list_item, item_widget)
+
+        # Update info label and show/hide contextual help
         seq_count = len(sequences)
         plural = "s" if seq_count != 1 else ""
-        self.info_label.setText(f"Found {seq_count} sequence{plural}")
+
+        if seq_count == 0:
+            # Show contextual help for empty directories
+            self.info_label.setText("No image sequences found")
+            self._show_help_for_empty_directory()
+        else:
+            # Hide help and show count
+            self.info_label.setText(f"Found {seq_count} sequence{plural}")
+            self.help_label.setVisible(False)
 
     def _on_scan_error(self, error_message: str) -> None:
         """Handle scan errors."""
         self.info_label.setText(f"Error scanning directory:\n{error_message}")
         logger.error(f"Scan error: {error_message}")
+
+    def _show_help_for_empty_directory(self) -> None:
+        """Show contextual help when no sequences are found."""
+        help_text = (
+            "💡 Tips for finding image sequences:\n\n"
+            "• Look for numbered image files (e.g., render_001.jpg, comp.0001.exr)\n"
+            "• Supported formats: JPG, PNG, EXR, DPX, TIFF, CIN, HDR\n"
+            "• Files should follow patterns like 'name_###.ext' or 'name.####.ext'\n"
+            "• Try browsing to a different directory using the tree or address bar"
+        )
+        self.help_label.setText(help_text)
+        self.help_label.setVisible(True)
 
     def _on_scan_finished(self) -> None:
         """Handle scan completion."""

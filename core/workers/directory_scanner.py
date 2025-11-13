@@ -16,6 +16,7 @@ from typing_extensions import override
 
 # Configure logger
 from core.logger_utils import get_logger
+from core.metadata_extractor import ImageMetadataExtractor
 
 logger = get_logger("directory_scanner")
 
@@ -49,6 +50,7 @@ class DirectoryScanWorker(QThread):
         """
         super().__init__()
         self.directory = directory
+        self.metadata_extractor = ImageMetadataExtractor()
 
     def stop(self) -> None:
         """Request the worker to stop processing."""
@@ -186,6 +188,19 @@ class DirectoryScanWorker(QThread):
             frames = [frame for frame, _ in files]
             file_list = [filename for _, filename in files]
 
+            # Extract metadata from first frame (in worker thread to avoid blocking main thread)
+            resolution: tuple[int, int] | None = None
+            bit_depth: int | None = None
+            color_space: str | None = None
+
+            if file_list:
+                first_frame_path = os.path.join(self.directory, file_list[0])
+                metadata = self.metadata_extractor.extract(first_frame_path)
+                if metadata:
+                    resolution = (metadata.width, metadata.height)
+                    bit_depth = metadata.bit_depth
+                    color_space = metadata.color_space
+
             # Create sequence dict (will be converted to ImageSequence by caller)
             sequence = {
                 "base_name": base_name,
@@ -194,6 +209,9 @@ class DirectoryScanWorker(QThread):
                 "frames": frames,
                 "file_list": file_list,
                 "directory": self.directory,
+                "resolution": resolution,
+                "bit_depth": bit_depth,
+                "color_space": color_space,
             }
             sequences.append(sequence)
 
@@ -203,6 +221,19 @@ class DirectoryScanWorker(QThread):
                 return []
 
             base_name, extension = os.path.splitext(filename)
+
+            # Extract metadata for single files
+            resolution_single: tuple[int, int] | None = None
+            bit_depth_single: int | None = None
+            color_space_single: str | None = None
+
+            file_path = os.path.join(self.directory, filename)
+            metadata = self.metadata_extractor.extract(file_path)
+            if metadata:
+                resolution_single = (metadata.width, metadata.height)
+                bit_depth_single = metadata.bit_depth
+                color_space_single = metadata.color_space
+
             sequence = {
                 "base_name": base_name,
                 "padding": 0,
@@ -210,6 +241,9 @@ class DirectoryScanWorker(QThread):
                 "frames": [0],
                 "file_list": [filename],
                 "directory": self.directory,
+                "resolution": resolution_single,
+                "bit_depth": bit_depth_single,
+                "color_space": color_space_single,
             }
             sequences.append(sequence)
 
