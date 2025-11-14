@@ -101,21 +101,21 @@ class TestCacheInitialization:
 class TestGetBackgroundImage:
     """Test that get_background_image returns QPixmap with proper conversion."""
 
-    def test_get_background_image_returns_qpixmap(self, temp_image_sequence):
-        """Test that get_background_image converts QImage to QPixmap."""
+    def test_get_background_image_returns_qimage(self, temp_image_sequence):
+        """Test that get_background_image returns QImage (preserves color space)."""
         test_dir, _ = temp_image_sequence
 
         service = DataService()
         service.load_image_sequence(str(test_dir))
 
         # Get background image (0-indexed frame)
-        pixmap = service.get_background_image(0)
+        qimage = service.get_background_image(0)
 
-        # Assert: Returns QPixmap (not QImage)
-        assert isinstance(pixmap, QPixmap)
-        assert not pixmap.isNull()
-        assert pixmap.width() == 1
-        assert pixmap.height() == 1
+        # Assert: Returns QImage (preserves color space metadata)
+        assert isinstance(qimage, QImage)
+        assert not qimage.isNull()
+        assert qimage.width() == 1
+        assert qimage.height() == 1
 
     def test_get_background_image_returns_none_for_invalid_frame(self, temp_image_sequence):
         """Test that invalid frame numbers return None."""
@@ -250,19 +250,12 @@ class TestThreadSafety:
         service = DataService()
         service.load_image_sequence(str(test_dir))
 
-        # Mock QPixmap.fromImage to verify it's called
-        # QPixmap is imported inside the method, so patch PySide6.QtGui.QPixmap
-        with patch("PySide6.QtGui.QPixmap.fromImage") as mock_from_image:
-            mock_pixmap = MagicMock(spec=QPixmap)
-            mock_pixmap.isNull.return_value = False
-            mock_from_image.return_value = mock_pixmap
+        # Get background image (now returns QImage directly, preserving color space)
+        qimage = service.get_background_image(0)
 
-            # Get background image
-            pixmap = service.get_background_image(0)
-
-            # Assert: QPixmap.fromImage was called (conversion in main thread)
-            mock_from_image.assert_called_once()
-            assert pixmap is mock_pixmap
+        # Assert: QImage returned (preserves color space metadata for EXR)
+        assert qimage is not None
+        assert isinstance(qimage, QImage)
 
     def test_preload_uses_background_thread(self, temp_image_sequence):
         """Test that preload operations don't block main thread."""

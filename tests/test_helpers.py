@@ -425,9 +425,9 @@ class MockCurveView:
         self.image_height: int = 1080
         # Type needs to match protocol exactly for invariant attribute
         if TYPE_CHECKING:
-            from PySide6.QtGui import QPixmap
+            from PySide6.QtGui import QImage
 
-            self.background_image: QPixmap | None = None
+            self.background_image: QImage | None = None
         else:
             self.background_image: object = None
 

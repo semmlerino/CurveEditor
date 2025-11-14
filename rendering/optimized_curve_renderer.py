@@ -1340,19 +1340,20 @@ class OptimizedCurveRenderer:
                     painter.drawText(QPointF(x + 10, y - 10), str(frame_num))
 
     def _render_background_optimized(self, painter: QPainter, render_state: "RenderState") -> None:
-        """Optimized background rendering with proper transformations."""
+        """Optimized background rendering with proper color space handling for EXR."""
         background_image = render_state.background_image
         if not background_image:
             return
 
-        # Use fast scaling hint for better performance
+        # Use smooth transform hint for better quality
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, self._render_quality == RenderQuality.HIGH)
 
         # Get the transform from render_state to apply the same transformations as curve points
         transform = self._create_transform_from_render_state(render_state)
 
-        # Cast background_image to proper type for type checker
-        bg_image: QImage | QPixmap = background_image
+        # Type is QImage | None from render_state, but we already checked for None
+        # Type narrowing gives us QImage here
+        bg_image: QImage = background_image
 
         # Get image position - account for Y-flip
         # When Y-flip is enabled, the image's top-left in data space is at (0, image_height)
@@ -1369,11 +1370,11 @@ class OptimizedCurveRenderer:
         target_width = int(bg_image.width() * scale)
         target_height = int(bg_image.height() * scale)
 
-        # Draw the background image scaled to fit the transformed rectangle
-        # This ensures it goes through the exact same transformation as curve points
-        # Convert QImage to QPixmap if needed
-        pixmap = QPixmap.fromImage(bg_image) if isinstance(bg_image, QImage) else bg_image
-        painter.drawPixmap(int(top_left_x), int(top_left_y), int(target_width), int(target_height), pixmap)
+        # Draw QImage directly - preserves color space metadata (critical for EXR)
+        # QPainter.drawImage() respects QColorSpace, unlike QPixmap.fromImage()
+        target_rect = QRectF(top_left_x, top_left_y, target_width, target_height)
+        source_rect = QRectF(0, 0, bg_image.width(), bg_image.height())
+        painter.drawImage(target_rect, bg_image, source_rect)
 
     def _render_grid_optimized(self, painter: QPainter, render_state: RenderState) -> None:
         """Optimized grid rendering with adaptive density, centered on selected points."""

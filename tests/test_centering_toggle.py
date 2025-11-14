@@ -546,8 +546,7 @@ class TestCenteringStability:
         # Create and load a background image (1280x720 to match widget)
         image = QImage(1280, 720, QImage.Format.Format_RGB888)
         image.fill(QtCore.GlobalColor.gray)
-        pixmap = QPixmap.fromImage(image)
-        widget.set_background_image(pixmap)
+        widget.set_background_image(image)
 
         # Ensure scale_to_image is enabled (production default)
         widget.scale_to_image = True
@@ -616,8 +615,7 @@ class TestCenteringStability:
         # Load background image
         image = QImage(1280, 720, QImage.Format.Format_RGB888)
         image.fill(QtCore.GlobalColor.gray)
-        pixmap = QPixmap.fromImage(image)
-        widget.set_background_image(pixmap)
+        widget.set_background_image(image)
         widget.scale_to_image = True
 
         # Create points with small movements (typical animation scenario)

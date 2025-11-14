@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, TypedDict
 from weakref import WeakKeyDictionary
 
 from PySide6.QtCore import QThread, Slot
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QImage
 from PySide6.QtWidgets import QApplication, QWidget
 
 if TYPE_CHECKING:
@@ -399,18 +399,19 @@ class ViewManagementController:
 
             # Check if this is an EXR file (requires special loader)
             if first_image_path.suffix.lower() == ".exr":
-                from io_utils.exr_loader import load_exr_as_qpixmap
+                from io_utils.exr_loader import load_exr_as_qimage
 
-                pixmap = load_exr_as_qpixmap(str(first_image_path))
+                qimage = load_exr_as_qimage(str(first_image_path))
             else:
-                pixmap = QPixmap(str(first_image_path))
+                # Load as QImage to preserve color space metadata
+                qimage = QImage(str(first_image_path))
 
-            logger.info("[THREAD-DEBUG] QPixmap created successfully")
+            logger.info("[THREAD-DEBUG] QImage created successfully")
 
-            if pixmap is not None and not pixmap.isNull():
-                self.main_window.curve_widget.background_image = pixmap
-                self.main_window.curve_widget.image_width = pixmap.width()
-                self.main_window.curve_widget.image_height = pixmap.height()
+            if qimage is not None and not qimage.isNull():
+                self.main_window.curve_widget.background_image = qimage
+                self.main_window.curve_widget.image_width = qimage.width()
+                self.main_window.curve_widget.image_height = qimage.height()
                 self.main_window.curve_widget.show_background = True
 
                 # TODO: Metadata resolution fix requires architectural changes
@@ -423,7 +424,7 @@ class ViewManagementController:
                 # Fit the image to view
                 self.main_window.curve_widget.fit_to_background_image()
 
-                logger.info(f"Loaded background image: {image_files[0]} ({pixmap.width()}x{pixmap.height()})")
+                logger.info(f"Loaded background image: {image_files[0]} ({qimage.width()}x{qimage.height()})")
 
     # ========== Protocol Compliance Methods ==========
 

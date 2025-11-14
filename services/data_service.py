@@ -835,30 +835,23 @@ class DataService:
         result = safe_execute_optional("loading image sequence", _load_sequence, "DataService")
         return result if result is not None else []
 
-    def get_background_image(self, frame: int) -> "QPixmap | None":
+    def get_background_image(self, frame: int) -> "QImage | None":
         """
         Get background image for frame (cached).
 
-        Phase 2C: Returns QPixmap for direct display use.
-        Cache stores QImage; conversion happens here in main thread.
+        Returns QImage with preserved color space metadata (critical for EXR display).
 
         Args:
             frame: Frame number (0-indexed)
 
         Returns:
-            QPixmap ready for display, or None if frame invalid or load fails
+            QImage with color space metadata, or None if frame invalid or load fails
 
         Note:
-            Thread-safe: QImage → QPixmap conversion happens in main thread only.
-            This method should be called from main thread.
+            Thread-safe: Returns QImage directly from cache (main thread safe).
+            QImage preserves QColorSpace metadata, unlike QPixmap.
         """
-        from PySide6.QtGui import QPixmap
-
-        qimage = self._safe_image_cache.get_image(frame)
-        if qimage:
-            # ✅ SAFE: Convert QImage → QPixmap in main thread
-            return QPixmap.fromImage(qimage)
-        return None
+        return self._safe_image_cache.get_image(frame)
 
     def preload_around_frame(self, frame: int, window_size: int = 20) -> None:
         """

@@ -21,7 +21,7 @@ class CurveViewProtocol(Protocol):
     # Required attributes
     points: list[tuple[int, float, float] | tuple[int, float, float, str] | tuple[int, float, float, str | bool]]
     show_background: bool
-    background_image: "QImage | QPixmap | None"
+    background_image: "QImage | None"  # QImage preserves color space metadata
     show_grid: bool
     zoom_factor: float
     pan_offset_x: float

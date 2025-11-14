@@ -255,8 +255,8 @@ class CurveViewProtocol(Protocol):
     show_velocity_vectors: bool
     show_all_frame_numbers: bool
 
-    # Background image
-    background_image: "QPixmap | None"
+    # Background image (QImage preserves color space metadata for EXR)
+    background_image: "QImage | None"
 
     # Image and display settings
     image_width: int
@@ -931,12 +931,12 @@ class CurveWidgetProtocol(Protocol):
         ...
 
     @property
-    def background_image(self) -> object:  # QPixmap | None
+    def background_image(self) -> object:  # QImage | None
         """Get background image."""
         ...
 
     @background_image.setter
-    def background_image(self, value: object) -> None:  # QPixmap
+    def background_image(self, value: object) -> None:  # QImage | None
         """Set background image."""
         ...
 
@@ -957,8 +957,8 @@ class CurveWidgetProtocol(Protocol):
         """Fit view to data."""
         ...
 
-    def set_background_image(self, pixmap: object) -> None:  # QPixmap
-        """Set background image."""
+    def set_background_image(self, qimage: object) -> None:  # QImage | None
+        """Set background image (QImage preserves color space metadata for EXR)."""
         ...
 
     def fit_to_background_image(self) -> None:

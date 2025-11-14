@@ -54,7 +54,7 @@ class RenderState:
 
     # Background settings
     show_background: bool
-    background_image: QImage | QPixmap | None = None
+    background_image: QImage | None = None  # QImage preserves color space metadata
 
     # Image dimensions (for background scaling)
     image_width: int = 0

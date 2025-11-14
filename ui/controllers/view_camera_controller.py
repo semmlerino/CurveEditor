@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from PySide6.QtCore import QPointF, SignalInstance
-from PySide6.QtGui import QPixmap, QWheelEvent
+from PySide6.QtGui import QImage, QWheelEvent
 
 from core.logger_utils import get_logger
 from core.point_types import safe_extract_point
@@ -46,7 +46,7 @@ class CurveViewProtocol(Protocol):
     # Properties
     curve_data: CurveDataList
     selected_indices: set[int]
-    background_image: QPixmap | None
+    background_image: QImage | None
     image_width: int
     image_height: int
     scale_to_image: bool

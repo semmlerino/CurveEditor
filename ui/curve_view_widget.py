@@ -42,6 +42,7 @@ from PySide6.QtGui import (
     QColor,
     QContextMenuEvent,
     QFocusEvent,
+    QImage,
     QKeyEvent,
     QMouseEvent,
     QPainter,
@@ -235,8 +236,8 @@ class CurveViewWidget(QWidget):
         # are centralized in self.visual (VisualSettings). See CLAUDE.md for pattern.
         self.show_background: bool = True  # Architectural setting, not visual
 
-        # Background image
-        self.background_image: QPixmap | None = None
+        # Background image (QImage preserves color space metadata for EXR)
+        self.background_image: QImage | None = None
         self.image_width: int = DEFAULT_IMAGE_WIDTH
         self.image_height: int = DEFAULT_IMAGE_HEIGHT
 
@@ -1682,20 +1683,20 @@ class CurveViewWidget(QWidget):
         # Signal connections are made in __init__ via state_sync.connect_all_signals()
         # No fallback needed - proper initialization order is enforced
 
-    def set_background_image(self, pixmap: QPixmap | None) -> None:
+    def set_background_image(self, qimage: QImage | None) -> None:
         """
         Set background image.
 
         Args:
-            pixmap: Background image pixmap or None
+            qimage: Background image (QImage preserves color space metadata) or None
         """
-        self.background_image = pixmap
+        self.background_image = qimage
 
         # Update image dimensions to match the actual image
         # This ensures tracking data coordinates map correctly to image pixels
-        if pixmap:
-            self.image_width = pixmap.width()
-            self.image_height = pixmap.height()
+        if qimage:
+            self.image_width = qimage.width()
+            self.image_height = qimage.height()
             logger.info(f"[COORD] Set image dimensions to {self.image_width}x{self.image_height} from background image")
 
         self.invalidate_caches()

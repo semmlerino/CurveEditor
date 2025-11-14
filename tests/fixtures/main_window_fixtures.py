@@ -111,7 +111,7 @@ class MockCurveWidget:
 
     def __init__(self):
         self.curve_data: CurveDataList = []
-        self.background_image: QPixmap | None = None
+        self.background_image: QImage | None = None
         self.show_background: bool = False
         self.selected_indices: set[int] = set()
         self.flip_y_axis: bool = False
