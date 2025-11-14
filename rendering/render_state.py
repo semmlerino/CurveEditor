@@ -10,7 +10,7 @@ the CurveViewWidget and other UI components.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtGui import QImage
 
 from core.type_aliases import CurveDataList
 from rendering.visual_settings import VisualSettings

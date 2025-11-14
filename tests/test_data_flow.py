@@ -55,6 +55,10 @@ class TestDataFlowIntegration:
         store_manager = get_store_manager()
         store_manager.set_state_manager(self.state_manager)
 
+        # Clear image sequence set by autouse fixture to test from truly empty state
+        # Tests that need images will set them explicitly
+        get_application_state().set_image_files([])
+
     def teardown_method(self):
         """Clean up after each test."""
         StoreManager.reset()

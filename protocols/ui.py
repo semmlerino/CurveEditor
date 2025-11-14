@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from PySide6.QtCore import QPoint
-    from PySide6.QtGui import QPixmap
+    from PySide6.QtGui import QImage
     from PySide6.QtWidgets import QDoubleSpinBox, QPushButton, QRubberBand, QStatusBar
 
     from rendering.visual_settings import VisualSettings

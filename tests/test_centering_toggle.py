@@ -531,7 +531,7 @@ class TestCenteringStability:
         This test should reproduce the centering jump bug if it exists.
         """
         from PySide6.QtCore import Qt as QtCore
-        from PySide6.QtGui import QImage, QPixmap
+        from PySide6.QtGui import QImage
 
         widget = CurveViewWidget()
         qtbot.addWidget(widget)
@@ -602,7 +602,7 @@ class TestCenteringStability:
         or if there are unexpected additional jumps/drift.
         """
         from PySide6.QtCore import Qt as QtCore
-        from PySide6.QtGui import QImage, QPixmap
+        from PySide6.QtGui import QImage
 
         widget = CurveViewWidget()
         qtbot.addWidget(widget)

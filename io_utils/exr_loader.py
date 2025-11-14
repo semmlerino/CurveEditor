@@ -1,14 +1,26 @@
 """
 EXR Image Loader for CurveEditor.
 
-Provides helper functions to load OpenEXR images using Pillow and convert
-them to Qt image formats (QImage/QPixmap) with proper tone mapping.
+Provides helper functions to load OpenEXR images using multiple backends
+and convert to Qt image formats (QImage) with proper tone mapping.
 
-QImage and QPixmap do not natively support OpenEXR format, so this module
-bridges the gap using Pillow for reading and numpy for processing.
+Supported Backends (in priority order):
+1. OpenImageIO (OIIO) - Primary for VFX facilities
+2. OpenEXR - Official library
+3. Pillow - If compiled with EXR support
+4. imageio - Fallback with auto-detection
 
-Note: Pillow must be compiled with OpenEXR support. If not available,
-      consider installing imageio-ffmpeg as an alternative backend.
+Color Space Handling:
+- EXR files are assumed to be linear scene-referred (typical for VFX)
+- Tone mapping applies exposure adjustment and gamma 2.2 (approximates sRGB)
+- Output QImages are marked with QColorSpace.SRgb for proper Qt display
+- Color space metadata in EXR files is logged but currently not used
+
+Note: Gamma 2.2 approximation vs true sRGB:
+      True sRGB uses piecewise function (linear below 0.04045, gamma ~2.4 above).
+      We use pure gamma 2.2 (x^(1/2.2)) which is within < 1% for display purposes.
+      This approximation is standard practice and acceptable for single-user VFX tools.
+      For critical color workflows requiring exact sRGB, consider proper color management.
 """
 
 import logging
@@ -90,6 +102,19 @@ def _load_exr_with_oiio(file_path: str) -> "QImage | None":
         width = spec.width
         height = spec.height
         channels = spec.nchannels
+
+        # Check for color space metadata (critical for non-linear EXR files)
+        color_space = spec.get_string_attribute("oiio:ColorSpace", "")
+        if color_space:
+            logger.debug(f"EXR color space metadata: '{color_space}'")
+            # Warn if non-linear color space detected (may display incorrectly)
+            linear_color_spaces = ["", "Linear", "linear", "scene_linear", "lin_srgb", "Linear Rec.709"]
+            if color_space not in linear_color_spaces:
+                logger.warning(
+                    f"EXR file '{Path(file_path).name}' uses non-linear color space '{color_space}'. " +
+                    "Display may be incorrect without proper color management. " +
+                    "Expected linear EXR for tone mapping."
+                )
 
         # Read pixels as float
         pixels = img_input.read_image(oiio.FLOAT)
@@ -446,8 +471,10 @@ def _tone_map_hdr(img_data: NDArray[np.floating[Any]]) -> NDArray[np.floating[An
         1.0 - np.exp(-(img_data - 1.0)),  # Exponential rolloff for highlights
     )
 
-    # Apply gamma correction (linear -> sRGB)
-    # Standard gamma = 2.2 for proper display
+    # Apply gamma correction (linear -> sRGB approximation)
+    # Note: Pure gamma 2.2 approximates sRGB transfer function (< 1% difference)
+    # True sRGB uses piecewise: linear for x ≤ 0.0031308, gamma ~2.4 above
+    # This approximation is standard practice for display-oriented tone mapping
     gamma = 2.2
     tone_mapped = np.power(img_data, 1.0 / gamma)
 

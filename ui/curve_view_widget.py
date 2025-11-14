@@ -48,7 +48,6 @@ from PySide6.QtGui import (
     QPainter,
     QPaintEvent,
     QPen,
-    QPixmap,
     QWheelEvent,
 )
 from PySide6.QtWidgets import QRubberBand, QStatusBar, QWidget

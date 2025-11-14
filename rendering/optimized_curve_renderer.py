@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any, TypeAlias
 import numpy as np
 from numpy.typing import NDArray
 from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QBrush, QColor, QFont, QImage, QPainter, QPainterPath, QPen, QPixmap
+from PySide6.QtGui import QBrush, QColor, QFont, QImage, QPainter, QPainterPath, QPen
 
 from core.curve_segments import CurveSegment, SegmentedCurve
 from core.defaults import GRID_CELL_SIZE, RENDER_PADDING

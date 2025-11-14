@@ -24,7 +24,7 @@ from core.type_aliases import CurveDataInput, CurveDataList, LegacyPointData
 from services.service_protocols import LoggingServiceProtocol, StatusServiceProtocol
 
 if TYPE_CHECKING:
-    from PySide6.QtGui import QImage, QPixmap
+    from PySide6.QtGui import QImage
     from PySide6.QtWidgets import QWidget
 
 # Simple filter import (replaces scipy dependency)

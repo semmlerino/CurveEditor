@@ -25,7 +25,7 @@ from typing import cast
 from unittest.mock import Mock, patch
 
 import pytest
-from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtGui import QImage
 from PySide6.QtWidgets import QApplication
 
 from core.coordinate_system import CoordinateMetadata, CoordinateOrigin, CoordinateSystem

@@ -9,7 +9,7 @@ Keeping protocols separate from implementations helps avoid circular imports.
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    from PySide6.QtGui import QImage, QPixmap
+    from PySide6.QtGui import QImage
 
     from services.transform_service import Transform
     from ui.state_manager import StateManager

@@ -46,3 +46,4 @@ session/
 .post-commit-output/
 id_ed25520*
 coverage.json
+tests/fixtures/exr/

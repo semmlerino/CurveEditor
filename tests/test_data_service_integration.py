@@ -16,10 +16,9 @@ Tests cache initialization, QPixmap conversion, and background preloading integr
 
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
-from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtGui import QImage
 
 from services.data_service import DataService
 
