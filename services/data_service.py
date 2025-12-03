@@ -15,6 +15,7 @@ import statistics
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
+from core.coordinate_detector import detect_coordinate_system
 from core.curve_data import CurveDataWithMetadata
 from core.curve_segments import SegmentedCurve
 from core.error_handling import safe_execute, safe_execute_optional
@@ -241,7 +242,7 @@ class DataService:
                     frame = data[i][0] + j
                     x = data[i][1] + t * (data[i + 1][1] - data[i][1])
                     y = data[i][2] + t * (data[i + 1][2] - data[i][2])
-                    result.append((frame, x, y, False))  # Mark as interpolated
+                    result.append((frame, x, y, "interpolated"))  # Mark as interpolated
                     filled_count += 1
 
         result.append(data[-1])
@@ -1015,6 +1016,12 @@ class DataService:
             with open(file_path, encoding="utf-8") as f:
                 lines = f.readlines()
 
+            # Detect dimensions from file content using public interface
+            content = "".join(lines)
+            detected_metadata = detect_coordinate_system(file_path, content)
+            # Use detected height or fallback to 720
+            image_height = detected_metadata.height if detected_metadata.height else 720
+
             i = 0
             while i < len(lines):
                 # Look for point name lines (e.g., "Point1", "Point02")
@@ -1051,7 +1058,7 @@ class DataService:
                                         x = float(parts[1])
                                         y = float(parts[2])
                                         # Apply Y-flip for 3DEqualizer coordinates (bottom-origin to top-origin)
-                                        y = 720 - y
+                                        y = image_height - y
                                         trajectory.append((frame, x, y))
                                     except (ValueError, IndexError):
                                         continue
@@ -1110,6 +1117,10 @@ class DataService:
                     self._logger.log_error(f"File not found: {file_path}")
                 return _create_empty_result()
 
+            # Detect dimensions from file content using public interface
+            content = "".join(lines)
+            detected_metadata = detect_coordinate_system(file_path, content)
+
             curve_data: CurveDataList = []
 
             # Skip the 4-line header
@@ -1146,13 +1157,8 @@ class DataService:
             if self._logger:
                 self._logger.log_info(f"Loaded {len(result)} points from {file_path}")
 
-            # Wrap with 3DEqualizer metadata for coordinate system awareness
-            metadata = CoordinateMetadata(
-                system=CoordinateSystem.THREE_DE_EQUALIZER,
-                origin=CoordinateOrigin.BOTTOM_LEFT,
-                width=1280,  # 3DE default
-                height=720,  # 3DE default
-            )
+            # Use the detected metadata directly (already has proper dimensions)
+            metadata = detected_metadata
 
             return CurveDataWithMetadata(data=result, metadata=metadata)
 

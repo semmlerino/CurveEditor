@@ -182,10 +182,10 @@ class TestDataAnalysis:
         result = service.fill_gaps(data, max_gap=2)
 
         # Find the interpolated point
-        interpolated = [p for p in result if len(p) > 3 and p[3] is False]
+        interpolated = [p for p in result if len(p) > 3 and p[3] == "interpolated"]
         assert len(interpolated) == 1
         assert interpolated[0][0] == 2  # Frame 2 interpolated
-        assert interpolated[0][3] is False  # Marked as interpolated
+        assert interpolated[0][3] == "interpolated"  # Marked as interpolated
 
     def test_fill_gaps_respects_max_gap(self):
         """Test that gap filling respects maximum gap size."""

@@ -109,6 +109,10 @@ class CoordinateMetadata:
 
         The normalized format uses Qt-style top-left origin for consistency.
         """
+        # First, convert from normalized [0-1] to pixel coordinates if needed
+        # This ensures origin flips work with actual pixel values
+        x, y = self.denormalize_coordinates(x, y)
+
         # Apply aspect ratio correction if needed
         if self.pixel_aspect_ratio != 1.0:
             x *= self.pixel_aspect_ratio
@@ -144,6 +148,9 @@ class CoordinateMetadata:
         # Reverse aspect ratio correction
         if self.pixel_aspect_ratio != 0:
             x /= self.pixel_aspect_ratio
+
+        # Convert back to normalized [0-1] coordinates if the source uses them
+        x, y = self.normalize_coordinates(x, y)
 
         return x, y
 
