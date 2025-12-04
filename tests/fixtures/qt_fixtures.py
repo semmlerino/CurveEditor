@@ -19,8 +19,10 @@ and Qt-specific test utilities.
 # pyright: reportUnusedCallResult=none
 
 import contextlib
+import logging
 import os
 import sys
+import threading
 from collections.abc import Generator
 
 import pytest
@@ -28,6 +30,31 @@ from PySide6.QtWidgets import QApplication
 
 from tests.test_utils import cleanup_qt_widgets
 from ui.curve_view_widget import CurveViewWidget
+
+# Logger for cleanup operations
+_logger = logging.getLogger(__name__)
+
+# Thread-local storage to track Qt usage per test
+_qt_used = threading.local()
+
+
+def mark_qt_used() -> None:
+    """Mark that Qt was used in the current test.
+
+    Called by Qt fixtures (curve_view_widget, main_window, etc.) to indicate
+    that Qt cleanup should be performed after the test.
+    """
+    _qt_used.value = True
+
+
+def reset_qt_usage() -> None:
+    """Reset Qt usage flag for the next test."""
+    _qt_used.value = False
+
+
+def was_qt_used() -> bool:
+    """Check if Qt was used in the current test."""
+    return getattr(_qt_used, "value", False)
 
 
 @pytest.fixture(scope="session")
@@ -61,36 +88,25 @@ def qapp() -> Generator[QApplication, None, None]:
     app.processEvents()
 
 
-@pytest.fixture(autouse=True)
-def qt_cleanup(qapp: QApplication) -> Generator[None, None, None]:
-    """Ensure proper cleanup after each test.
-
-    This fixture runs after each test to clean up Qt resources and
-    prevent test interference. Made autouse=True to catch ALL tests.
-
-    CRITICAL: Removes accumulated event filters to prevent timeout after 1580+ tests.
-    Without this, event filters accumulate causing setStyleSheet() to timeout.
+def _perform_qt_cleanup(qapp: QApplication) -> None:
+    """Perform Qt widget cleanup with error logging instead of silent swallowing.
 
     Args:
         qapp: The QApplication instance
     """
-    yield
-
-    # CRITICAL: Aggressively clean up ALL widgets to prevent accumulation
     # Get snapshot of top-level widgets before cleanup starts
     widgets_to_clean = list(qapp.topLevelWidgets())
 
     for widget in widgets_to_clean:
         try:
             # Remove event filters FIRST before destroying widget
-            # Use getattr() to avoid type errors with dynamic attributes
             if hasattr(widget, "global_event_filter"):
                 try:
                     global_filter = getattr(widget, "global_event_filter", None)
                     if global_filter is not None:
                         qapp.removeEventFilter(global_filter)
-                except (RuntimeError, AttributeError):
-                    pass
+                except (RuntimeError, AttributeError) as e:
+                    _logger.debug(f"Event filter cleanup: {e}")
 
             # Remove tracking panel event filters
             if hasattr(widget, "_table_event_filter") and hasattr(widget, "table"):
@@ -99,8 +115,8 @@ def qt_cleanup(qapp: QApplication) -> Generator[None, None, None]:
                     table_filter = getattr(widget, "_table_event_filter", None)
                     if table is not None and table_filter is not None:
                         table.removeEventFilter(table_filter)
-                except (RuntimeError, AttributeError):
-                    pass
+                except (RuntimeError, AttributeError) as e:
+                    _logger.debug(f"Table filter cleanup: {e}")
 
             # Close widget to trigger cleanup
             if hasattr(widget, "close"):
@@ -110,21 +126,56 @@ def qt_cleanup(qapp: QApplication) -> Generator[None, None, None]:
             # Force immediate deletion
             with contextlib.suppress(RuntimeError):
                 widget.deleteLater()
-        except Exception:
-            pass  # Don't let cleanup failures break tests
+        except Exception as e:
+            _logger.debug(f"Widget cleanup error: {e}")
 
-    # Process events to handle deleteLater calls
-    for _ in range(10):
+    # Process events to handle deleteLater calls (reduced from 10 to 4 iterations)
+    for _ in range(4):
         qapp.processEvents()
         qapp.sendPostedEvents(None, 0)
 
     # Use unified cleanup function
     cleanup_qt_widgets(qapp)
 
-    # Final aggressive event processing
-    for _ in range(10):
+    # Final event processing (reduced from 10 to 4 iterations)
+    for _ in range(4):
         qapp.processEvents()
         qapp.sendPostedEvents(None, 0)
+
+
+@pytest.fixture(autouse=True)
+def qt_cleanup(request) -> Generator[None, None, None]:
+    """Conditional Qt cleanup - only runs if Qt was actually used in the test.
+
+    This fixture is autouse but checks was_qt_used() to skip cleanup for
+    pure unit tests that don't need Qt. This significantly speeds up unit tests.
+
+    CRITICAL: Removes accumulated event filters to prevent timeout after 1580+ tests.
+    Without this, event filters accumulate causing setStyleSheet() to timeout.
+
+    Args:
+        request: pytest request object (for potential marker checks)
+    """
+    # Reset Qt usage flag at start of each test
+    reset_qt_usage()
+
+    yield
+
+    # Skip cleanup if Qt was not used in this test
+    if not was_qt_used():
+        return
+
+    # Skip cleanup if marker says so
+    if request.node.get_closest_marker("skip_qt_cleanup"):
+        return
+
+    # Get QApplication only when needed (not passed as parameter to avoid
+    # triggering qapp fixture for non-Qt tests)
+    qapp = QApplication.instance()
+    if qapp is None:
+        return
+
+    _perform_qt_cleanup(qapp)
 
 
 @pytest.fixture
@@ -140,6 +191,9 @@ def curve_view_widget(qapp: QApplication, qtbot):
     Yields:
         CurveViewWidget: The widget instance
     """
+    # Mark that Qt is being used in this test
+    mark_qt_used()
+
     # Initialize services first - needed for commands to work
     from services import get_data_service, get_interaction_service
 
@@ -227,6 +281,9 @@ def main_window(qapp: QApplication, qtbot):
     Yields:
         MainWindow: Fully initialized main window
     """
+    # Mark that Qt is being used in this test
+    mark_qt_used()
+
     from PySide6.QtWidgets import QSpinBox
 
     from ui.main_window import MainWindow
@@ -294,6 +351,9 @@ def file_load_signals(qtbot, qapp):
     Yields:
         FileLoadWorker: Properly managed QThread for file loading
     """
+    # Mark that Qt is being used in this test
+    mark_qt_used()
+
     from io_utils.file_load_worker import FileLoadWorker
 
     worker = FileLoadWorker()
@@ -336,6 +396,9 @@ def file_load_worker(qtbot, qapp):
     Yields:
         FileLoadWorker: Worker with thread safety guarantees
     """
+    # Mark that Qt is being used in this test
+    mark_qt_used()
+
     from io_utils.file_load_worker import FileLoadWorker
 
     worker = FileLoadWorker()
@@ -380,6 +443,9 @@ def ui_file_load_signals(qtbot, qapp):
     Yields:
         FileLoadWorker: Properly managed QThread for signal emission
     """
+    # Mark that Qt is being used in this test
+    mark_qt_used()
+
     from io_utils.file_load_worker import FileLoadWorker
 
     worker = FileLoadWorker()

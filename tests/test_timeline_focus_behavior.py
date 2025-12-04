@@ -173,19 +173,31 @@ class TestTimelineFocusBehavior:
         assert timeline_widget.max_frame == 100
 
     def test_boundary_clamping(self, timeline_widget: TimelineTabWidget, qtbot: QtBot) -> None:
-        """Test that navigation is clamped to valid frame range."""
+        """Test that navigation is clamped to valid frame range.
+
+        Uses the fixture's established frame range (1-100) to test clamping
+        behavior at the actual boundaries.
+        """
         timeline_widget.setFocus()
-        timeline_widget.set_frame_range(10, 20)
+        QApplication.processEvents()  # Flush any pending events
 
-        # Try to go below minimum
-        timeline_widget.set_current_frame(10)
+        # Verify the fixture's frame range is active
+        assert timeline_widget.min_frame == 1
+        assert timeline_widget.max_frame == 100
+
+        # Try to go below minimum (frame 1)
+        timeline_widget.set_current_frame(1)
+        QApplication.processEvents()
         qtbot.keyClick(timeline_widget, Qt.Key.Key_Left)
-        assert timeline_widget.current_frame == 10  # Clamped
+        QApplication.processEvents()  # Ensure key event is fully processed
+        assert timeline_widget.current_frame == 1, "Should clamp to min_frame"  # Clamped
 
-        # Try to go above maximum
-        timeline_widget.set_current_frame(20)
+        # Try to go above maximum (frame 100)
+        timeline_widget.set_current_frame(100)
+        QApplication.processEvents()
         qtbot.keyClick(timeline_widget, Qt.Key.Key_Right)
-        assert timeline_widget.current_frame == 20  # Clamped
+        QApplication.processEvents()  # Ensure key event is fully processed
+        assert timeline_widget.current_frame == 100, "Should clamp to max_frame"  # Clamped
 
     def test_focus_visual_indicator(self, timeline_widget: TimelineTabWidget, qtbot: QtBot) -> None:
         """Test that timeline shows visual focus indicator."""
@@ -245,31 +257,35 @@ class TestTimelineEventPropagation:
         return app
 
     def test_ignored_events_propagate(self, app: QApplication, qtbot: QtBot) -> None:
-        """Test that events ignored by timeline propagate to parent."""
+        """Test that PageDown/PageUp don't navigate frames (reserved for keyframe navigation)."""
+        from stores.application_state import get_application_state
+
         timeline = TimelineTabWidget()
         qtbot.addWidget(timeline)
+        timeline.show()
+        qtbot.waitExposed(timeline)
+        QApplication.processEvents()  # Flush pending events from setup
 
-        # Track if event was ignored
-        event_ignored = False
+        # Set up a frame range
+        app_state = get_application_state()
+        app_state.set_image_files([f"frame_{i:04d}.png" for i in range(1, 101)])
+        timeline.set_frame_range(1, 100)
+        timeline.set_current_frame(50)
+        QApplication.processEvents()
 
-        # Override keyPressEvent to track behavior
-        original_keypress = timeline.keyPressEvent
+        # Record initial frame
+        initial_frame = timeline.current_frame
+        assert initial_frame == 50
 
-        def track_keypress(event):
-            nonlocal event_ignored
-            original_keypress(event)
-            # Check if event was ignored (not accepted)
-            if event.key() == Qt.Key.Key_PageDown:
-                event_ignored = not event.isAccepted()
-
-        timeline.keyPressEvent = track_keypress
-
-        # Send Page Down (should be ignored)
+        # Send Page Down - should NOT change frame (PageDown is for keyframe navigation, not basic nav)
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
         QApplication.sendEvent(timeline, key_event)
+        QApplication.processEvents()
 
-        # Event should be ignored (not accepted)
-        assert event_ignored, "Page Down should be ignored by timeline"
+        # Frame should not change - PageDown is not handled by timeline's basic navigation
+        assert timeline.current_frame == initial_frame, (
+            f"PageDown should not change frame in timeline widget (got {timeline.current_frame}, expected {initial_frame})"
+        )
 
     def test_accepted_events_dont_propagate(self, app: QApplication, qtbot: QtBot) -> None:
         """Test that events handled by timeline don't propagate."""

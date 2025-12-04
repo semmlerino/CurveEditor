@@ -42,8 +42,12 @@ class TestTimelineStoreReactive:
         return app
 
     @pytest.fixture
-    def main_window(self, app: QApplication, qtbot: QtBot) -> MainWindow:
-        """Create MainWindow for testing."""
+    def main_window(self, app: QApplication, qtbot: QtBot, without_dummy_frames) -> MainWindow:
+        """Create MainWindow for testing.
+
+        Uses without_dummy_frames to clear the 1000 dummy frames from conftest
+        so the timeline frame range is based only on test data.
+        """
         # Mock file operations to prevent auto-loading burger data
         with patch("ui.file_operations.FileOperations.load_burger_data_async"):
             window = MainWindow()

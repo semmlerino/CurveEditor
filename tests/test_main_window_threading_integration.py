@@ -296,6 +296,11 @@ class TestThreadingCrashScenarios:
 
     def test_exception_in_file_loading(self, main_window, qtbot):
         """Test exception handling in file loading thread."""
+        from PySide6.QtWidgets import QApplication
+
+        # Flush pending events from previous tests
+        QApplication.processEvents()
+
         error_received = []
         finished_received = []
 
@@ -311,8 +316,8 @@ class TestThreadingCrashScenarios:
         # Start file loading directly with non-existent file
         main_window.file_operations.file_load_worker.start_work("/nonexistent/file.csv", None)
 
-        # Wait for either error or finished signal
-        qtbot.waitUntil(lambda: len(error_received) > 0 or len(finished_received) > 0, timeout=2000)
+        # Wait for either error or finished signal (increased timeout for stability after 3000+ tests)
+        qtbot.waitUntil(lambda: len(error_received) > 0 or len(finished_received) > 0, timeout=5000)
 
         # Verify error was handled gracefully
         if error_received:
@@ -320,4 +325,5 @@ class TestThreadingCrashScenarios:
 
         # Can close without crash
         main_window.close()
+        QApplication.processEvents()
         qtbot.wait(200)

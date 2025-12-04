@@ -27,6 +27,7 @@ from tests.test_helpers import (
     ProtocolCompliantMockCurveView,
     ProtocolCompliantMockMainWindow,
 )
+from tests.fixtures.qt_fixtures import mark_qt_used
 
 
 @pytest.fixture
@@ -48,20 +49,32 @@ def protocol_compliant_mock_curve_view() -> ProtocolCompliantMockCurveView:
 
 
 @pytest.fixture
-def protocol_compliant_mock_main_window() -> ProtocolCompliantMockMainWindow:
-    """Create a fully protocol-compliant mock main window."""
+def protocol_compliant_mock_main_window(qapp) -> ProtocolCompliantMockMainWindow:
+    """Create a fully protocol-compliant mock main window.
+
+    Requires QApplication since it creates real Qt widgets.
+    """
+    mark_qt_used()
     return ProtocolCompliantMockMainWindow()
 
 
 @pytest.fixture
-def mock_main_window() -> MockMainWindow:
-    """Create a full mock main window for testing with state_manager and all protocol attributes."""
+def mock_main_window(qapp) -> MockMainWindow:
+    """Create a full mock main window for testing with state_manager and all protocol attributes.
+
+    Requires QApplication since it creates real Qt widgets (QSlider, QSpinBox, etc.).
+    """
+    mark_qt_used()
     return MockMainWindow()
 
 
 @pytest.fixture
-def mock_main_window_with_data() -> MockMainWindow:
-    """Create a mock main window with sample curve data."""
+def mock_main_window_with_data(qapp) -> MockMainWindow:
+    """Create a mock main window with sample curve data.
+
+    Requires QApplication since it creates real Qt widgets.
+    """
+    mark_qt_used()
     window = MockMainWindow()
     # Set curve data on the curve view
     window.curve_view.curve_data = [(1, 100.0, 200.0), (2, 150.0, 250.0), (3, 200.0, 300.0)]
@@ -70,6 +83,10 @@ def mock_main_window_with_data() -> MockMainWindow:
 
 
 @pytest.fixture
-def lazy_mock_main_window() -> LazyUIMockMainWindow:
-    """Create a mock main window with lazy UI component creation."""
+def lazy_mock_main_window(qapp) -> LazyUIMockMainWindow:
+    """Create a mock main window with lazy UI component creation.
+
+    Requires QApplication since it creates real Qt widgets on demand.
+    """
+    mark_qt_used()
     return LazyUIMockMainWindow()

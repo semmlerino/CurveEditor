@@ -14,8 +14,12 @@ from ui.timeline_tabs import TimelineTabWidget
 
 
 @pytest.fixture
-def timeline_widget(qtbot, qapp) -> TimelineTabWidget:
-    """Create a timeline widget for testing."""
+def timeline_widget(qtbot, qapp, without_dummy_frames) -> TimelineTabWidget:
+    """Create a timeline widget for testing.
+
+    Uses without_dummy_frames to clear the 1000 dummy frames from conftest
+    so tests can verify frame ranges based only on their test data.
+    """
     widget = TimelineTabWidget()
     qtbot.addWidget(widget)
     return widget

@@ -310,28 +310,37 @@ class TestTimelineTabWidget:
     @pytest.fixture
     def timeline_widget(self, app: QApplication, qtbot: QtBot) -> TimelineTabWidget:
         """Create real TimelineTabWidget for testing."""
+        from stores.application_state import get_application_state
+
+        # Set image files BEFORE creating widget so it reads correct total_frames
+        get_application_state().set_image_files(
+            [f"frame_{i:04d}.png" for i in range(1, 201)]
+        )  # Set 200 frames for tests
+
         widget = TimelineTabWidget()
         qtbot.addWidget(widget)
 
         # Create and connect StateManager for Single Source of Truth architecture
         state_manager = StateManager()
-        from stores.application_state import get_application_state
-
-        get_application_state().set_image_files(
-            [f"frame_{i:04d}.png" for i in range(1, 201)]
-        )  # Set reasonable total frames for tests
         widget.set_state_manager(state_manager)
 
         return widget
 
     def test_timeline_initialization(self, timeline_widget: TimelineTabWidget) -> None:
-        """Test timeline initializes with minimal range (expands with data)."""
+        """Test timeline initializes correctly after setup.
+
+        Note: The fixture sets 200 image files, so total_frames should reflect that.
+        The conftest autouse fixture may set frames first, which get overwritten by the fixture.
+        """
         assert timeline_widget.current_frame == 1
-        assert timeline_widget.total_frames == 1  # Starts minimal, expands when data loaded
+        # Total frames comes from ApplicationState which is set by fixture to 200 files
+        # (conftest sets 1000 but fixture overwrites - verify widget properly reflects app state)
+        from stores.application_state import get_application_state
+        expected_frames = get_application_state().get_total_frames()
+        assert timeline_widget.total_frames == expected_frames
         assert timeline_widget.min_frame == 1
-        assert timeline_widget.max_frame == 1
-        # Note: TimelineTabWidget doesn't have visible_range attribute
-        # It dynamically creates tabs as needed
+        # max_frame should match total_frames
+        assert timeline_widget.max_frame == expected_frames
 
     def test_set_frame_range(self, timeline_widget: TimelineTabWidget) -> None:
         """Test setting frame range updates widget."""

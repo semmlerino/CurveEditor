@@ -23,9 +23,6 @@ from collections.abc import Generator
 
 import pytest
 
-# import services  # Temporarily disabled to debug import issue
-from core.config import reset_config
-
 # Import all fixtures from the fixtures package
 from tests.fixtures import (
     all_services,
@@ -50,6 +47,7 @@ from tests.fixtures import (
     # Qt fixtures
     qapp,
     qt_cleanup,
+    reset_all_test_state,
     safe_test_data_factory,
     # Data fixtures
     sample_curve_data,
@@ -60,191 +58,75 @@ from tests.fixtures import (
 )
 
 
-# Comprehensive service reset fixture
 @pytest.fixture(autouse=True)
-def reset_all_services() -> Generator[None, None, None]:
+def reset_services() -> Generator[None, None, None]:
     """Reset ALL service state between tests to ensure complete isolation.
 
-    This fixture is auto-used for all tests to prevent state leakage,
-    especially for Y-flip tests that fail due to service singleton persistence.
+    This fixture is auto-used for all tests to prevent state leakage.
 
-    Also sets a default _total_frames to allow frame navigation in tests.
+    Sets up a minimal frame range (100 frames) to allow basic frame
+    navigation in most tests. For tests requiring larger ranges,
+    use `with_large_frame_range`. For tests requiring NO frames,
+    use `without_dummy_frames`.
     """
-    # BEFORE test: Set default total frames for frame navigation
+    # Set up minimal frames BEFORE test (reduced from 10000 to 1000 for speed)
+    # 1000 covers most test scenarios while being 10x faster than 10000
     from stores.application_state import get_application_state
+
     app_state = get_application_state()
-    # Set generous default that allows most tests to navigate freely
-    app_state.set_image_files(["dummy.png"] * 10000)
+    app_state.set_image_files(["dummy.png"] * 1000)
 
     yield  # Run the test
 
-    # After test completes, reset everything
-    try:
-        # Import services lazily to avoid startup issues
-        import services
+    # After test completes, reset everything using centralized helper
+    # This provides proper error logging instead of silent exception swallowing
+    reset_all_test_state(log_warnings=True)
 
-        # 1. FIRST clear service caches while they still exist
-        if hasattr(services, "_transform_service") and services._transform_service is not None:
-            clear_cache_method = getattr(services._transform_service, "clear_cache", None)
-            if clear_cache_method is not None:
-                clear_cache_method()
 
-        if hasattr(services, "_data_service") and services._data_service is not None:
-            clear_cache_method = getattr(services._data_service, "clear_cache", None)
-            if clear_cache_method is not None:
-                clear_cache_method()
-            # CRITICAL: Stop SafeImageCacheManager preload worker thread before service reset
-            # Without cleanup(), the QThread worker remains running and causes Fatal Python abort
-            # during thread.join() in background thread cleanup
-            if hasattr(services._data_service, "_safe_image_cache") and services._data_service._safe_image_cache is not None:
-                cleanup_method = getattr(services._data_service._safe_image_cache, "cleanup", None)
-                if cleanup_method is not None:
-                    cleanup_method()
+@pytest.fixture
+def with_large_frame_range():
+    """Fixture for tests needing large frame range (10000 frames).
 
-        if hasattr(services, "_interaction_service") and services._interaction_service is not None:
-            clear_cache_method = getattr(services._interaction_service, "clear_cache", None)
-            if clear_cache_method is not None:
-                clear_cache_method()
+    Use this when your test needs to navigate to high frame numbers
+    or test behavior with large datasets.
 
-        # 2. THEN clear all service singletons
-        if hasattr(services, "_data_service"):
-            services._data_service = None
-        if hasattr(services, "_interaction_service"):
-            services._interaction_service = None
-        if hasattr(services, "_transform_service"):
-            services._transform_service = None
-        if hasattr(services, "_ui_service"):
-            services._ui_service = None
+    Usage:
+        def test_large_range_navigation(with_large_frame_range):
+            app_state = get_application_state()
+            app_state.set_frame(5000)  # Works with 10000 frames
+            ...
 
-        # 2.3. CRITICAL: Reset ApplicationState singleton before StoreManager
-        # ApplicationState must be reset before StoreManager to ensure clean state
-        try:
-            from stores.application_state import reset_application_state
+    Yields:
+        ApplicationState: The application state with large frame range
+    """
+    from stores.application_state import get_application_state
 
-            reset_application_state()
-        except Exception:
-            pass  # ApplicationState might not be initialized
+    app_state = get_application_state()
+    app_state.set_image_files(["dummy.png"] * 10000)
+    yield app_state
 
-        # 2.5. CRITICAL: Reset StoreManager singleton to prevent QObject accumulation
-        # StoreManager creates orphaned QObjects (CurveDataStore, FrameStore) that
-        # accumulate in session-scope QApplication causing segfaults after 850+ tests
-        try:
-            from stores.store_manager import StoreManager
 
-            StoreManager.reset()
-        except Exception:
-            pass  # Store manager might not be initialized
+@pytest.fixture
+def without_dummy_frames():
+    """Fixture for tests that need clean state with NO images loaded.
 
-        # 3. Reset global config
-        reset_config()
+    Use this when testing behavior with no images, empty state scenarios,
+    or initial application state.
 
-        # 4. Clear any cached imports for coordinate systems
-        import sys
+    Usage:
+        def test_no_images_loaded(without_dummy_frames):
+            app_state = get_application_state()
+            assert app_state.get_image_files() == []
+            ...
 
-        modules_to_clear = ["core.coordinate_system", "core.curve_data", "core.coordinate_detector"]
-        for module in modules_to_clear:
-            if module in sys.modules:
-                # Clear module-level caches if they exist
-                mod = sys.modules[module]
-                coordinate_systems = getattr(mod, "COORDINATE_SYSTEMS", None)
-                if coordinate_systems is not None:
-                    # Re-initialize coordinate systems to defaults
-                    from core.coordinate_system import COORDINATE_SYSTEMS
+    Yields:
+        ApplicationState: The application state with no images
+    """
+    from stores.application_state import get_application_state
 
-                    COORDINATE_SYSTEMS.clear()
-                    COORDINATE_SYSTEMS.update(
-                        {
-                            "qt": mod.CoordinateMetadata(
-                                system=mod.CoordinateSystem.QT_SCREEN,
-                                origin=mod.CoordinateOrigin.TOP_LEFT,
-                                width=1920,
-                                height=1080,
-                            ),
-                            "3de_720p": mod.CoordinateMetadata(
-                                system=mod.CoordinateSystem.THREE_DE_EQUALIZER,
-                                origin=mod.CoordinateOrigin.BOTTOM_LEFT,
-                                width=1280,
-                                height=720,
-                            ),
-                            "3de_1080p": mod.CoordinateMetadata(
-                                system=mod.CoordinateSystem.THREE_DE_EQUALIZER,
-                                origin=mod.CoordinateOrigin.BOTTOM_LEFT,
-                                width=1920,
-                                height=1080,
-                            ),
-                            "nuke_hd": mod.CoordinateMetadata(
-                                system=mod.CoordinateSystem.NUKE,
-                                origin=mod.CoordinateOrigin.BOTTOM_LEFT,
-                                width=1920,
-                                height=1080,
-                            ),
-                            "internal": mod.CoordinateMetadata(
-                                system=mod.CoordinateSystem.CURVE_EDITOR_INTERNAL,
-                                origin=mod.CoordinateOrigin.TOP_LEFT,
-                                width=1920,
-                                height=1080,
-                            ),
-                        }
-                    )
-
-        # 5. CRITICAL: Check for background threads before processEvents to prevent deadlock
-        # Only log warnings - don't block test execution with join()
-        try:
-            import logging
-            import threading
-
-            # Get all active threads (excluding main thread and daemon threads)
-            active_threads = [
-                t for t in threading.enumerate() if t != threading.main_thread() and not t.daemon and t.is_alive()
-            ]
-
-            if active_threads:
-                logger = logging.getLogger(__name__)
-                # Try very brief join (0.01s = 10ms) but don't block if thread won't stop
-                for thread in active_threads:
-                    thread.join(timeout=0.01)
-
-                # Log remaining threads for debugging but continue
-                still_alive = [t for t in active_threads if t.is_alive()]
-                if still_alive:
-                    logger.debug(f"Background threads still running: {[t.name for t in still_alive]}")
-        except Exception:
-            pass
-
-        # 6. Process pending Qt events to clean up QObjects
-        try:
-            from PySide6.QtWidgets import QApplication
-
-            app = QApplication.instance()
-            if app is not None:
-                # Process deleteLater() calls
-                app.processEvents()
-                # Additional event processing for nested deletions
-                app.processEvents()
-        except Exception:
-            pass
-
-        # 7. Force Python garbage collection to trigger __del__ for MainWindow cleanup
-        # CRITICAL: MainWindow.__del__ removes global event filters.
-        # Without gc.collect(), event filters accumulate causing timeout after 1580+ tests.
-        import gc
-
-        gc.collect()  # Force garbage collection to call __del__
-        # Process events again after gc to handle any Qt cleanup from __del__
-        try:
-            from PySide6.QtWidgets import QApplication
-
-            app = QApplication.instance()
-            if app is not None:
-                app.processEvents()
-        except Exception:
-            pass
-
-    except Exception as e:
-        # Log but don't fail test due to cleanup issues
-        import logging
-
-        logging.warning(f"Service reset warning: {e}")
+    app_state = get_application_state()
+    app_state.set_image_files([])  # Clear any pre-set images
+    yield app_state
 
 
 def pytest_collection_modifyitems(items):
@@ -287,10 +169,13 @@ __all__ = [
     "protocol_compliant_mock_main_window",
     "qapp",
     "qt_cleanup",
+    "reset_all_test_state",
     "safe_test_data_factory",
     "sample_curve_data",
     "sample_points",
     "ui_file_load_signals",
     "ui_file_load_worker",
     "user_interaction",
+    "with_large_frame_range",
+    "without_dummy_frames",
 ]

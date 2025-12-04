@@ -68,14 +68,20 @@ def production_widget_factory(curve_view_widget: CurveViewWidget, qtbot) -> Call
         """Configure widget in production-ready state.
 
         Args:
-            curve_data: Optional curve data to set
+            curve_data: Optional curve data to set (None = don't change, [] = empty)
             show: Whether to show widget (triggers paint event)
             wait_for_render: Whether to wait for paint + cache rebuild
 
         Returns:
             Configured widget ready for production testing
         """
-        if curve_data:
+        # Reset widget state before each configuration to prevent state bleed
+        # between multiple factory calls in the same test
+        curve_view_widget.set_curve_data([])
+
+        # FIX: Use `is not None` to allow empty lists
+        # `if curve_data:` would skip empty lists, preventing empty data tests
+        if curve_data is not None:
             from stores.application_state import get_application_state
 
             app_state = get_application_state()
@@ -87,7 +93,9 @@ def production_widget_factory(curve_view_widget: CurveViewWidget, qtbot) -> Call
             curve_view_widget.show()
             qtbot.waitExposed(curve_view_widget)
             if wait_for_render:
-                qtbot.wait(50)  # Allow paint event + cache rebuild
+                # FIX: Use condition-based wait instead of fixed 50ms
+                # This is more reliable and faster on quick machines
+                qtbot.waitUntil(lambda: curve_view_widget.isVisible(), timeout=1000)
 
         return curve_view_widget
 

@@ -20,6 +20,13 @@ dependencies = [
     "OpenEXR>=3.0.0",
 ]
 
+[project.optional-dependencies]
+# OCIO support for VFX facility color management
+# In Rez environments, OCIO is provided by facility packages
+ocio = [
+    "opencolorio>=2.2.0",
+]
+
 [dependency-groups]
 dev = [
     # Testing
@@ -141,45 +148,6 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # Qt requires specific method names for overrides
 "**/*.py" = ["N802", "N815"]  # Allow Qt method names and properties
-
-[tool.pytest.ini_options]
-# Test discovery patterns
-python_files = "test_*.py"
-python_classes = "Test*"
-python_functions = "test_*"
-
-# Test output options
-addopts = [
-    "-v",
-    "--tb=short",
-    "--strict-markers",
-    "--disable-warnings",
-    "-p", "no:cacheprovider",
-]
-
-# Timeout for tests (in seconds)
-timeout = 60
-
-# Markers
-markers = [
-    "qt_required: Tests that require Qt/QApplication to be initialized",
-    "skip_qt_cleanup: Tests that should skip automatic Qt cleanup",
-    "slow: Tests that take a long time to run",
-    "integration: Integration tests",
-    "unit: Unit tests (no Qt dependencies, fast execution)",
-    "production: Production workflow simulation tests (realistic user interactions)",
-    "performance: Performance and benchmark tests",
-    "benchmark: Specific benchmark tests for performance comparison",
-]
-
-# Qt specific settings
-qt_api = "pyside6"
-
-# Test paths
-testpaths = ["tests"]
-
-# Minimum Python version
-minversion = "3.8"
 
 [tool.basedpyright]
 # Consolidated type checking configuration

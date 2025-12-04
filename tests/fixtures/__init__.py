@@ -34,11 +34,13 @@ from tests.fixtures.qt_fixtures import (
     curve_view_widget,
     file_load_signals,
     file_load_worker,
+    mark_qt_used,
     qapp,
     qt_cleanup,
     ui_file_load_signals,
     ui_file_load_worker,
 )
+from tests.fixtures.state_helpers import reset_all_test_state
 from tests.fixtures.service_fixtures import (
     all_services,
     app_state,
@@ -58,6 +60,7 @@ __all__ = [
     "keyframe_curve_data",
     "large_sample_points",
     "lazy_mock_main_window",
+    "mark_qt_used",
     "memory_monitor",
     "mock_curve_view",
     "mock_curve_view_with_selection",
@@ -68,6 +71,7 @@ __all__ = [
     "protocol_compliant_mock_main_window",
     "qapp",
     "qt_cleanup",
+    "reset_all_test_state",
     "safe_test_data_factory",
     "sample_curve_data",
     "sample_points",
