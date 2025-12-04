@@ -61,9 +61,9 @@ class DataService:
         self._max_recent_files: int = 10  # Maximum number of recent files to keep
         self._last_directory: str = ""
 
-        # SegmentedCurve cache for performance (keyed by object ID)
-        # Using object ID allows caching when the same list instance is reused
-        self._segmented_curves: dict[int, SegmentedCurve] = {}
+        # SegmentedCurve cache for performance (keyed by content-based tuple)
+        # Content-based key avoids id() collision after GC
+        self._segmented_curves: dict[tuple[int, int, int, int], SegmentedCurve] = {}
         self._max_segmented_cache_size: int = 10  # Limit cache size
 
         # Persistent SegmentedCurve for restoration functionality (separate from cache)
@@ -81,6 +81,28 @@ class DataService:
             SegmentedCurve instance for current curve, or None if no curve loaded
         """
         return self._segmented_curve
+
+    def _make_curve_cache_key(self, points: CurveDataList) -> tuple[int, int, int, int]:
+        """Generate content-based cache key for curve data.
+
+        Uses (length, first_frame, last_frame, frames_hash) to avoid
+        id()-based collisions after GC. Safe even when object IDs are reused.
+
+        Args:
+            points: Curve data points
+
+        Returns:
+            Tuple key for cache lookup (length, first_frame, last_frame, frames_hash)
+        """
+        if not points:
+            return (0, 0, 0, 0)
+
+        length = len(points)
+        first_frame = int(points[0][0])
+        last_frame = int(points[-1][0])
+        # Hash of all frame numbers for collision resistance
+        frames_hash = hash(tuple(int(p[0]) for p in points))
+        return (length, first_frame, last_frame, frames_hash)
 
     # ==================== Public File I/O Methods (Sprint 11.5) ====================
 
@@ -378,7 +400,7 @@ class DataService:
         - Active segments: Normal interpolation between keyframes
         - Inactive segments (gaps): Returns held position from preceding endframe
 
-        Performance: Caches SegmentedCurve instances by object ID for ~5-20x speedup.
+        Performance: Caches SegmentedCurve instances by content-based key for ~5-20x speedup.
         Priority: Uses persistent curve if available (for restoration logic), then cache, then creates new.
 
         Args:
@@ -395,10 +417,10 @@ class DataService:
         if self._current_curve_data is points and self._segmented_curve:
             return self._segmented_curve.get_position_at_frame(frame)
 
-        # Priority 2: Check cache using object ID
-        points_id = id(points)
-        if points_id in self._segmented_curves:
-            return self._segmented_curves[points_id].get_position_at_frame(frame)
+        # Priority 2: Check cache using content-based key (avoids id() collision after GC)
+        cache_key = self._make_curve_cache_key(points)
+        if cache_key in self._segmented_curves:
+            return self._segmented_curves[cache_key].get_position_at_frame(frame)
 
         # Priority 3: Create new segmented curve for gap-aware position lookup
         segmented_curve = SegmentedCurve.from_curve_data(points)
@@ -409,7 +431,7 @@ class DataService:
             first_key = next(iter(self._segmented_curves))
             del self._segmented_curves[first_key]
 
-        self._segmented_curves[points_id] = segmented_curve
+        self._segmented_curves[cache_key] = segmented_curve
         return segmented_curve.get_position_at_frame(frame)
 
     def update_curve_data(self, points: CurveDataList) -> None:
@@ -429,10 +451,10 @@ class DataService:
         else:
             self._segmented_curve = None
 
-        # Invalidate cache entry for this data object
-        points_id = id(points)
-        if points_id in self._segmented_curves:
-            del self._segmented_curves[points_id]
+        # Invalidate cache entry for this data using content-based key
+        cache_key = self._make_curve_cache_key(points)
+        if cache_key in self._segmented_curves:
+            del self._segmented_curves[cache_key]
 
     def clear_segmented_curve_cache(self) -> None:
         """Clear all cached SegmentedCurve instances.

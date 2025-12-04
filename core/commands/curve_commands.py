@@ -125,6 +125,24 @@ class CurveDataCommand(Command, ABC):
         logger.warning(f"Point index {index} out of range (len={len(curve_data)})")
         return False
 
+    def _find_point_by_frame(self, curve_data: CurveDataList, frame: int) -> int | None:
+        """Find point index by frame number.
+
+        Frame numbers are unique identifiers for points that remain stable
+        even if the curve is modified (unlike indices which can shift).
+
+        Args:
+            curve_data: Curve data list
+            frame: Frame number to find
+
+        Returns:
+            Index of point with matching frame, or None if not found
+        """
+        for i, point in enumerate(curve_data):
+            if int(point[0]) == frame:
+                return i
+        return None
+
     def _perform_undo(self, data_builder: Callable[[], CurveDataList | None]) -> bool:
         """Generic undo implementation using data reconstruction callback.
 
@@ -414,6 +432,9 @@ class MovePointCommand(CurveDataCommand):
 
     This command is optimized for frequent point movements and supports
     merging consecutive moves of the same point.
+
+    Uses frame numbers (not indices) for robust undo/redo that survives
+    curve modifications between execute and undo.
     """
 
     def __init__(
@@ -424,12 +445,13 @@ class MovePointCommand(CurveDataCommand):
 
         Args:
             description: Human-readable description
-            index: Index of the point being moved
+            index: Index of the point being moved (used for initial lookup)
             old_pos: Original (x, y) position
             new_pos: New (x, y) position
         """
         super().__init__(description)
-        self.index: int = index
+        self.index: int = index  # Used for initial lookup only
+        self.frame: int | None = None  # Captured during execute for robust undo/redo
         self.old_pos: tuple[float, float] = old_pos
         self.new_pos: tuple[float, float] = new_pos
 
@@ -447,6 +469,9 @@ class MovePointCommand(CurveDataCommand):
 
             curve_data = list(curve_data)
             if 0 <= self.index < len(curve_data):
+                # Capture frame number for robust undo/redo
+                self.frame = int(curve_data[self.index][0])
+
                 # Use helper to update point position
                 curve_data[self.index] = self._update_point_position(curve_data[self.index], self.new_pos)
 
@@ -464,13 +489,20 @@ class MovePointCommand(CurveDataCommand):
         """Undo point movement."""
 
         def build_undo_data() -> CurveDataList | None:
+            if self.frame is None:
+                logger.error("No frame captured for undo")
+                return None
+
             app_state = get_application_state()
             curve_data = list(app_state.get_curve_data(self._target_curve))
 
-            if 0 <= self.index < len(curve_data):
-                curve_data[self.index] = self._update_point_position(curve_data[self.index], self.old_pos)
+            # Find point by frame (robust to curve modifications)
+            point_idx = self._find_point_by_frame(curve_data, self.frame)
+            if point_idx is not None:
+                curve_data[point_idx] = self._update_point_position(curve_data[point_idx], self.old_pos)
                 return curve_data
 
+            logger.warning(f"Could not find point at frame {self.frame} for undo")
             return None
 
         return self._perform_undo(build_undo_data)
@@ -480,13 +512,20 @@ class MovePointCommand(CurveDataCommand):
         """Redo point movement."""
 
         def build_redo_data() -> CurveDataList | None:
+            if self.frame is None:
+                logger.error("No frame captured for redo")
+                return None
+
             app_state = get_application_state()
             curve_data = list(app_state.get_curve_data(self._target_curve))
 
-            if 0 <= self.index < len(curve_data):
-                curve_data[self.index] = self._update_point_position(curve_data[self.index], self.new_pos)
+            # Find point by frame (robust to curve modifications)
+            point_idx = self._find_point_by_frame(curve_data, self.frame)
+            if point_idx is not None:
+                curve_data[point_idx] = self._update_point_position(curve_data[point_idx], self.new_pos)
                 return curve_data
 
+            logger.warning(f"Could not find point at frame {self.frame} for redo")
             return None
 
         return self._perform_redo(build_redo_data)
@@ -494,47 +533,57 @@ class MovePointCommand(CurveDataCommand):
     @override
     def can_merge_with(self, other: Command) -> bool:
         """Check if this move can be merged with another move of the same point."""
-        return isinstance(other, MovePointCommand) and self.index == other.index
+        if not isinstance(other, MovePointCommand):
+            return False
+        # Use frame if available (more robust), otherwise fall back to index
+        if self.frame is not None and other.frame is not None:
+            return self.frame == other.frame
+        return self.index == other.index
 
     @override
     def merge_with(self, other: Command) -> Command:
         """Merge with another move command for the same point."""
-        if not isinstance(other, MovePointCommand) or self.index != other.index:
+        if not isinstance(other, MovePointCommand) or not self.can_merge_with(other):
             raise ValueError("Cannot merge moves of different points")
 
         # Create new command that moves from original old_pos to other's new_pos
-        return MovePointCommand(
-            description=f"Move point {self.index}",
+        merged = MovePointCommand(
+            description=f"Move point at frame {self.frame or self.index}",
             index=self.index,
             old_pos=self.old_pos,
             new_pos=other.new_pos,
         )
+        # Preserve captured frame for robustness
+        merged.frame = self.frame
+        return merged
 
 
 class DeletePointsCommand(CurveDataCommand):
     """
     Command for deleting points from the curve.
 
-    Stores the deleted points and their positions for restoration.
+    Stores the deleted points for restoration. Uses frame numbers (not indices)
+    for robust undo/redo that survives curve modifications.
     """
 
     def __init__(
         self,
         description: str,
         indices: Sequence[int],
-        deleted_points: Sequence[tuple[int, LegacyPointData]] | None = None,
+        deleted_points: Sequence[LegacyPointData] | None = None,
     ) -> None:
         """
         Initialize the delete points command.
 
         Args:
             description: Human-readable description
-            indices: Indices of points to delete
+            indices: Indices of points to delete (used for initial lookup)
             deleted_points: The points that were deleted (captured during execution if None)
         """
         super().__init__(description)
-        self.indices: list[int] = sorted(indices, reverse=True)  # Delete in reverse order to maintain indices
-        self.deleted_points: list[tuple[int, LegacyPointData]] | None = (
+        self.indices: list[int] = list(indices)  # Used for initial lookup only
+        # Store just the points - frame is point[0], used for robust undo/redo
+        self.deleted_points: list[LegacyPointData] | None = (
             list(copy.deepcopy(deleted_points)) if deleted_points else None
         )
 
@@ -555,14 +604,13 @@ class DeletePointsCommand(CurveDataCommand):
             # Capture points being deleted if not provided
             if self.deleted_points is None:
                 self.deleted_points = []
-                for idx in sorted(self.indices):  # Store in original order
+                for idx in self.indices:
                     if 0 <= idx < len(curve_data):
-                        self.deleted_points.append((idx, curve_data[idx]))
+                        self.deleted_points.append(curve_data[idx])
 
-            # Delete points in reverse order to maintain indices
-            for idx in self.indices:
-                if 0 <= idx < len(curve_data):
-                    del curve_data[idx]
+            # Delete by frame set (robust to ordering)
+            frames_to_delete = {int(p[0]) for p in self.deleted_points}
+            curve_data = [p for p in curve_data if int(p[0]) not in frames_to_delete]
 
             app_state = get_application_state()
             app_state.set_curve_data(curve_name, curve_data)
@@ -586,10 +634,9 @@ class DeletePointsCommand(CurveDataCommand):
             app_state = get_application_state()
             curve_data = list(app_state.get_curve_data(self._target_curve))
 
-            # Insert points back in their original positions
-            for idx, point in self.deleted_points:
-                if 0 <= idx <= len(curve_data):
-                    curve_data.insert(idx, point)
+            # Restore points and sort by frame (robust to curve modifications)
+            curve_data.extend(self.deleted_points)
+            curve_data.sort(key=lambda p: int(p[0]))
 
             return curve_data
 
@@ -606,10 +653,9 @@ class DeletePointsCommand(CurveDataCommand):
             app_state = get_application_state()
             curve_data = list(app_state.get_curve_data(self._target_curve))
 
-            # Delete points in reverse order to maintain indices
-            for idx in self.indices:
-                if 0 <= idx < len(curve_data):
-                    del curve_data[idx]
+            # Delete by frame set (robust to curve modifications)
+            frames_to_delete = {int(p[0]) for p in self.deleted_points}
+            curve_data = [p for p in curve_data if int(p[0]) not in frames_to_delete]
 
             return curve_data
 
@@ -629,6 +675,9 @@ class BatchMoveCommand(CurveDataCommand):
 
     This command is used for operations that move several points simultaneously,
     such as dragging multiple selected points or nudging a selection.
+
+    Uses frame numbers (not indices) for robust undo/redo that survives
+    curve modifications between execute and undo.
     """
 
     def __init__(
@@ -641,12 +690,14 @@ class BatchMoveCommand(CurveDataCommand):
 
         Args:
             description: Human-readable description
-            moves: List of (index, old_pos, new_pos) tuples
+            moves: List of (index, old_pos, new_pos) tuples (indices used for initial lookup)
         """
         super().__init__(description)
         self.moves: list[tuple[int, tuple[float, float], tuple[float, float]]] = list(
             moves
-        )  # List of (index, old_pos, new_pos)
+        )  # List of (index, old_pos, new_pos) - indices used for initial lookup only
+        # Frame-based moves captured during execute for robust undo/redo
+        self._frame_moves: list[tuple[int, tuple[float, float], tuple[float, float]]] | None = None
 
     @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
@@ -661,6 +712,14 @@ class BatchMoveCommand(CurveDataCommand):
 
 
             curve_data = list(curve_data)
+
+            # Capture frame-based moves for robust undo/redo
+            if self._frame_moves is None:
+                self._frame_moves = []
+                for index, old_pos, new_pos in self.moves:
+                    if 0 <= index < len(curve_data):
+                        frame = int(curve_data[index][0])
+                        self._frame_moves.append((frame, old_pos, new_pos))
 
             # Apply all moves using helper
             for index, _, new_pos in self.moves:
@@ -679,13 +738,20 @@ class BatchMoveCommand(CurveDataCommand):
         """Undo batch point movement."""
 
         def build_undo_data() -> CurveDataList | None:
+            if not self._frame_moves:
+                logger.error("No frame moves captured for undo")
+                return None
+
             app_state = get_application_state()
             curve_data = list(app_state.get_curve_data(self._target_curve))
 
-            # Restore all original positions using helper
-            for index, old_pos, _ in self.moves:
-                if 0 <= index < len(curve_data):
-                    curve_data[index] = self._update_point_position(curve_data[index], old_pos)
+            # Restore all original positions using frame lookup (robust to curve modifications)
+            for frame, old_pos, _ in self._frame_moves:
+                point_idx = self._find_point_by_frame(curve_data, frame)
+                if point_idx is not None:
+                    curve_data[point_idx] = self._update_point_position(curve_data[point_idx], old_pos)
+                else:
+                    logger.warning(f"Could not find point at frame {frame} for undo")
 
             return curve_data
 
@@ -696,13 +762,20 @@ class BatchMoveCommand(CurveDataCommand):
         """Redo batch point movement."""
 
         def build_redo_data() -> CurveDataList | None:
+            if not self._frame_moves:
+                logger.error("No frame moves captured for redo")
+                return None
+
             app_state = get_application_state()
             curve_data = list(app_state.get_curve_data(self._target_curve))
 
-            # Apply all moves using helper
-            for index, _, new_pos in self.moves:
-                if 0 <= index < len(curve_data):
-                    curve_data[index] = self._update_point_position(curve_data[index], new_pos)
+            # Apply all moves using frame lookup (robust to curve modifications)
+            for frame, _, new_pos in self._frame_moves:
+                point_idx = self._find_point_by_frame(curve_data, frame)
+                if point_idx is not None:
+                    curve_data[point_idx] = self._update_point_position(curve_data[point_idx], new_pos)
+                else:
+                    logger.warning(f"Could not find point at frame {frame} for redo")
 
             return curve_data
 
@@ -714,7 +787,13 @@ class BatchMoveCommand(CurveDataCommand):
         if not isinstance(other, BatchMoveCommand):
             return False
 
-        # Can merge if moving the same set of points
+        # Use frames if available (more robust), otherwise fall back to indices
+        if self._frame_moves is not None and other._frame_moves is not None:
+            self_frames = {move[0] for move in self._frame_moves}
+            other_frames = {move[0] for move in other._frame_moves}
+            return self_frames == other_frames
+
+        # Fall back to indices for unexecuted commands
         self_indices = {move[0] for move in self.moves}
         other_indices = {move[0] for move in other.moves}
         return self_indices == other_indices
@@ -733,10 +812,13 @@ class BatchMoveCommand(CurveDataCommand):
             new_pos = other_dict[index]
             merged_moves.append((index, old_pos, new_pos))
 
-        return BatchMoveCommand(
+        merged = BatchMoveCommand(
             description=f"Move {len(merged_moves)} points",
             moves=merged_moves,
         )
+        # Preserve captured frame moves for robustness
+        merged._frame_moves = self._frame_moves
+        return merged
 
 
 class SetPointStatusCommand(CurveDataCommand):
@@ -745,6 +827,9 @@ class SetPointStatusCommand(CurveDataCommand):
 
     This command is used for operations that change point status,
     such as converting between keyframe, tracked, interpolated, and endframe.
+
+    Uses frame numbers (not indices) for robust undo/redo that survives
+    curve modifications between execute and undo.
     """
 
     def __init__(
@@ -757,10 +842,12 @@ class SetPointStatusCommand(CurveDataCommand):
 
         Args:
             description: Human-readable description
-            changes: List of (index, old_status, new_status) tuples
+            changes: List of (index, old_status, new_status) tuples (indices used for initial lookup)
         """
         super().__init__(description)
-        self.changes: list[tuple[int, str, str]] = list(changes)
+        self.changes: list[tuple[int, str, str]] = list(changes)  # Used for initial lookup only
+        # Frame-based changes captured during execute for robust undo/redo
+        self._frame_changes: list[tuple[int, str, str]] | None = None  # (frame, old_status, new_status)
 
     @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
@@ -781,6 +868,14 @@ class SetPointStatusCommand(CurveDataCommand):
             # Initialize SegmentedCurve with current data
             data_service.update_curve_data(list(curve_data))
 
+            # Capture frame-based changes for robust undo/redo
+            if self._frame_changes is None:
+                self._frame_changes = []
+                for index, old_status, new_status in self.changes:
+                    if 0 <= index < len(curve_data):
+                        frame = int(curve_data[index][0])
+                        self._frame_changes.append((frame, old_status, new_status))
+
             # Apply status changes through restoration system
             for index, _, new_status in self.changes:
                 if 0 <= index < len(curve_data):
@@ -791,7 +886,7 @@ class SetPointStatusCommand(CurveDataCommand):
             # Get restored data from SegmentedCurve
             if data_service.segmented_curve:
                 restored_points = data_service.segmented_curve.all_points
-                updated_data = [(p.frame, p.x, p.y, p.status.value) for p in restored_points]
+                updated_data: CurveDataList = [(p.frame, p.x, p.y, p.status.value) for p in restored_points]
             else:
                 # Fallback: apply changes directly if SegmentedCurve unavailable
                 logger.warning("SegmentedCurve not available, applying changes directly")
@@ -817,6 +912,10 @@ class SetPointStatusCommand(CurveDataCommand):
         """Undo status changes with gap restoration logic."""
 
         def build_undo_data() -> CurveDataList | None:
+            if not self._frame_changes:
+                logger.error("No frame changes captured for undo")
+                return None
+
             app_state = get_application_state()
             data_service = get_data_service()
 
@@ -826,12 +925,13 @@ class SetPointStatusCommand(CurveDataCommand):
             # Initialize SegmentedCurve with current data
             data_service.update_curve_data(curve_data)
 
-            # Restore original statuses through restoration system
-            for index, old_status, _ in self.changes:
-                if 0 <= index < len(curve_data):
-                    data_service.handle_point_status_change(index, old_status)
+            # Restore original statuses using frame lookup (robust to curve modifications)
+            for frame, old_status, _ in self._frame_changes:
+                point_idx = self._find_point_by_frame(curve_data, frame)
+                if point_idx is not None:
+                    data_service.handle_point_status_change(point_idx, old_status)
                 else:
-                    logger.warning(f"Point index {index} out of range")
+                    logger.warning(f"Could not find point at frame {frame} for undo")
 
             # Get restored data from SegmentedCurve
             if data_service.segmented_curve:
@@ -840,13 +940,12 @@ class SetPointStatusCommand(CurveDataCommand):
             # Fallback: apply changes directly if SegmentedCurve unavailable
             logger.warning("SegmentedCurve not available, applying changes directly")
             updated_data = list(curve_data)
-            for index, old_status, _ in self.changes:
-                if 0 <= index < len(updated_data):
-                    point = updated_data[index]
+            for frame, old_status, _ in self._frame_changes:
+                point_idx = self._find_point_by_frame(updated_data, frame)
+                if point_idx is not None:
+                    point = updated_data[point_idx]
                     if len(point) >= 3:
-                        updated_data[index] = (point[0], point[1], point[2], old_status)
-                    else:
-                        logger.warning(f"Point {index} has invalid format (need at least 3 elements)")
+                        updated_data[point_idx] = (point[0], point[1], point[2], old_status)
             return updated_data
 
         return self._perform_undo(build_undo_data)
@@ -856,6 +955,10 @@ class SetPointStatusCommand(CurveDataCommand):
         """Redo status changes with gap restoration logic."""
 
         def build_redo_data() -> CurveDataList | None:
+            if not self._frame_changes:
+                logger.error("No frame changes captured for redo")
+                return None
+
             app_state = get_application_state()
             data_service = get_data_service()
 
@@ -865,12 +968,13 @@ class SetPointStatusCommand(CurveDataCommand):
             # Initialize SegmentedCurve with current data
             data_service.update_curve_data(curve_data)
 
-            # Apply status changes through restoration system
-            for index, _, new_status in self.changes:
-                if 0 <= index < len(curve_data):
-                    data_service.handle_point_status_change(index, new_status)
+            # Apply status changes using frame lookup (robust to curve modifications)
+            for frame, _, new_status in self._frame_changes:
+                point_idx = self._find_point_by_frame(curve_data, frame)
+                if point_idx is not None:
+                    data_service.handle_point_status_change(point_idx, new_status)
                 else:
-                    logger.warning(f"Point index {index} out of range")
+                    logger.warning(f"Could not find point at frame {frame} for redo")
 
             # Get restored data from SegmentedCurve
             if data_service.segmented_curve:
@@ -879,13 +983,12 @@ class SetPointStatusCommand(CurveDataCommand):
             # Fallback: apply changes directly if SegmentedCurve unavailable
             logger.warning("SegmentedCurve not available, applying changes directly")
             updated_data = list(curve_data)
-            for index, _, new_status in self.changes:
-                if 0 <= index < len(updated_data):
-                    point = updated_data[index]
+            for frame, _, new_status in self._frame_changes:
+                point_idx = self._find_point_by_frame(updated_data, frame)
+                if point_idx is not None:
+                    point = updated_data[point_idx]
                     if len(point) >= 3:
-                        updated_data[index] = (point[0], point[1], point[2], new_status)
-                    else:
-                        logger.warning(f"Point {index} has invalid format (need at least 3 elements)")
+                        updated_data[point_idx] = (point[0], point[1], point[2], new_status)
             return updated_data
 
         return self._perform_redo(build_redo_data)
@@ -896,7 +999,13 @@ class SetPointStatusCommand(CurveDataCommand):
         if not isinstance(other, SetPointStatusCommand):
             return False
 
-        # Can merge if changing the same set of points
+        # Use frames if available (more robust), otherwise fall back to indices
+        if self._frame_changes is not None and other._frame_changes is not None:
+            self_frames = {change[0] for change in self._frame_changes}
+            other_frames = {change[0] for change in other._frame_changes}
+            return self_frames == other_frames
+
+        # Fall back to indices for unexecuted commands
         self_indices = {change[0] for change in self.changes}
         other_indices = {change[0] for change in other.changes}
         return self_indices == other_indices
@@ -915,10 +1024,13 @@ class SetPointStatusCommand(CurveDataCommand):
             new_status = other_dict[index]
             merged_changes.append((index, old_status, new_status))
 
-        return SetPointStatusCommand(
+        merged = SetPointStatusCommand(
             description=f"Change status of {len(merged_changes)} points",
             changes=merged_changes,
         )
+        # Preserve captured frame changes for robustness
+        merged._frame_changes = self._frame_changes
+        return merged
 
 
 class AddPointCommand(CurveDataCommand):

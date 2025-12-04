@@ -698,14 +698,14 @@ class TestDeletePointsCommand:
     def test_command_creation(self):
         """Test command can be created with proper attributes."""
         indices = [0, 2, 4]
-        # deleted_points format: list of (index, point_data) tuples
-        points = [(0, (1, 100.0, 200.0)), (2, (3, 300.0, 400.0)), (4, (5, 500.0, 600.0))]
+        # deleted_points format: list of point_data tuples (frame is point[0])
+        points: list[tuple[int, float, float]] = [(1, 100.0, 200.0), (3, 300.0, 400.0), (5, 500.0, 600.0)]
 
         cmd = DeletePointsCommand("Delete points", indices, points)
 
         assert cmd.description == "Delete points"
         assert not cmd.executed
-        assert cmd.indices == [4, 2, 0]  # Should be sorted in reverse order
+        assert cmd.indices == [0, 2, 4]  # Preserved as-is (frame-based deletion doesn't need sorting)
         assert cmd.deleted_points == points
 
     def test_execute_success(self):

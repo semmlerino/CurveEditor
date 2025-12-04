@@ -442,7 +442,7 @@ class _MouseHandler:
                         return
                     _, data = cd
                     indices = list(view.selected_points)
-                    deleted_points = [(idx, data[idx]) for idx in sorted(indices) if 0 <= idx < len(data)]
+                    deleted_points = [data[idx] for idx in sorted(indices) if 0 <= idx < len(data)]
 
                     if deleted_points:
                         # Create and execute delete command
@@ -1375,7 +1375,7 @@ class _PointManipulator:
 
             # Collect points to delete
             indices = list(view.selected_points)
-            deleted_points = [(idx, curve_data[idx]) for idx in sorted(indices) if 0 <= idx < len(curve_data)]
+            deleted_points = [curve_data[idx] for idx in sorted(indices) if 0 <= idx < len(curve_data)]
 
             if deleted_points:
                 # Create and execute delete command

@@ -49,8 +49,7 @@ class TestCacheInitialization:
         cache = SafeImageCacheManager()
 
         assert cache.cache_size == 0
-        assert cache._cache == {}
-        assert cache._lru_order == []
+        assert len(cache._lru_cache) == 0
         assert cache._image_files == []
 
     def test_qobject_inheritance(self):
@@ -88,17 +87,15 @@ class TestImageSequenceManagement:
         cache = SafeImageCacheManager()
 
         # Setup: Populate cache with mock data
-        cache._cache[0] = Mock(spec=QImage)
-        cache._cache[1] = Mock(spec=QImage)
-        cache._lru_order = [0, 1]
+        cache._lru_cache[0] = Mock(spec=QImage)
+        cache._lru_cache[1] = Mock(spec=QImage)
 
         # Set new sequence
         files = ["/path/to/new_frame_0001.png"]
         cache.set_image_sequence(files)
 
         # Verify cache cleared
-        assert cache._cache == {}
-        assert cache._lru_order == []
+        assert len(cache._lru_cache) == 0
         assert cache._image_files == files
 
     def test_set_empty_sequence(self):
@@ -114,13 +111,11 @@ class TestImageSequenceManagement:
         cache = SafeImageCacheManager()
 
         # Populate cache
-        cache._cache[0] = Mock(spec=QImage)
-        cache._lru_order = [0]
+        cache._lru_cache[0] = Mock(spec=QImage)
 
         cache.clear_cache()
 
-        assert cache._cache == {}
-        assert cache._lru_order == []
+        assert len(cache._lru_cache) == 0
 
 
 class TestLRUEviction:
@@ -144,11 +139,10 @@ class TestLRUEviction:
                 cache.get_image(frame)
 
             # Verify frame 0 was evicted (oldest)
-            assert 0 not in cache._cache
-            assert 0 not in cache._lru_order
+            assert 0 not in cache._lru_cache
 
             # Verify frames 1-100 are cached
-            assert all(frame in cache._cache for frame in range(1, 101))
+            assert all(frame in cache._lru_cache for frame in range(1, 101))
             assert cache.cache_size == 100
 
     def test_lru_eviction_order(self):
@@ -166,17 +160,17 @@ class TestLRUEviction:
             cache.get_image(1)
             cache.get_image(2)
 
-            assert cache._lru_order == [0, 1, 2]
+            assert list(cache._lru_cache.keys()) == [0, 1, 2]
 
             # Load frame 3 (evicts frame 0)
             cache.get_image(3)
-            assert cache._lru_order == [1, 2, 3]
-            assert 0 not in cache._cache
+            assert list(cache._lru_cache.keys()) == [1, 2, 3]
+            assert 0 not in cache._lru_cache
 
             # Load frame 4 (evicts frame 1)
             cache.get_image(4)
-            assert cache._lru_order == [2, 3, 4]
-            assert 1 not in cache._cache
+            assert list(cache._lru_cache.keys()) == [2, 3, 4]
+            assert 1 not in cache._lru_cache
 
     def test_cache_size_never_exceeds_max(self):
         """Test invariant: cache size never exceeds max_cache_size."""
@@ -210,15 +204,15 @@ class TestLRUEviction:
 
             # Load frame 2 (evicts 0)
             cache.get_image(2)
-            assert cache._lru_order == [1, 2]
+            assert list(cache._lru_cache.keys()) == [1, 2]
 
             # Load frame 3 (evicts 1)
             cache.get_image(3)
-            assert cache._lru_order == [2, 3]
+            assert list(cache._lru_cache.keys()) == [2, 3]
 
             # Load frame 4 (evicts 2)
             cache.get_image(4)
-            assert cache._lru_order == [3, 4]
+            assert list(cache._lru_cache.keys()) == [3, 4]
 
 
 class TestCacheHits:
@@ -239,15 +233,15 @@ class TestCacheHits:
             cache.get_image(1)
             cache.get_image(2)
 
-            assert cache._lru_order == [0, 1, 2]
+            assert list(cache._lru_cache.keys()) == [0, 1, 2]
 
             # Access frame 0 (cache hit - should move to end)
             cache.get_image(0)
-            assert cache._lru_order == [1, 2, 0]
+            assert list(cache._lru_cache.keys()) == [1, 2, 0]
 
             # Access frame 1 (cache hit - should move to end)
             cache.get_image(1)
-            assert cache._lru_order == [2, 0, 1]
+            assert list(cache._lru_cache.keys()) == [2, 0, 1]
 
     def test_cache_hit_returns_same_image(self):
         """Test that cache hit returns the same QImage object."""
@@ -283,17 +277,17 @@ class TestCacheHits:
             for i in range(5):
                 cache.get_image(i)
 
-            assert cache._lru_order == [0, 1, 2, 3, 4]
+            assert list(cache._lru_cache.keys()) == [0, 1, 2, 3, 4]
 
             # Access pattern: 2, 0, 4 (cache hits)
             cache.get_image(2)
-            assert cache._lru_order == [0, 1, 3, 4, 2]
+            assert list(cache._lru_cache.keys()) == [0, 1, 3, 4, 2]
 
             cache.get_image(0)
-            assert cache._lru_order == [1, 3, 4, 2, 0]
+            assert list(cache._lru_cache.keys()) == [1, 3, 4, 2, 0]
 
             cache.get_image(4)
-            assert cache._lru_order == [1, 3, 2, 0, 4]
+            assert list(cache._lru_cache.keys()) == [1, 3, 2, 0, 4]
 
     def test_cache_hit_prevents_reload(self):
         """Test that cache hit doesn't trigger disk load."""
@@ -517,21 +511,19 @@ class TestThreadSafety:
         assert cache.cache_size <= 10
 
     def test_clear_cache_thread_safe(self):
-        """Test that clear_cache clears both cache and LRU order."""
+        """Test that clear_cache clears the LRU cache."""
         cache = SafeImageCacheManager()
 
         # Populate cache
-        cache._cache[0] = Mock(spec=QImage)
-        cache._cache[1] = Mock(spec=QImage)
-        cache._lru_order = [0, 1]
+        cache._lru_cache[0] = Mock(spec=QImage)
+        cache._lru_cache[1] = Mock(spec=QImage)
 
         # Clear cache
         cache.clear_cache()
 
         # Verify cache cleared
         assert cache.cache_size == 0
-        assert len(cache._lru_order) == 0
-        assert len(cache._cache) == 0
+        assert len(cache._lru_cache) == 0
 
 
 class TestErrorHandling:
@@ -632,8 +624,8 @@ class TestCacheProperties:
         assert cache.cache_size == 0
 
         # Add frames manually (simulate loading)
-        cache._cache[0] = Mock(spec=QImage)
-        cache._cache[1] = Mock(spec=QImage)
+        cache._lru_cache[0] = Mock(spec=QImage)
+        cache._lru_cache[1] = Mock(spec=QImage)
 
         assert cache.cache_size == 2
 
@@ -651,15 +643,15 @@ class TestCacheProperties:
         assert cache.cache_size == 0
 
         # Add frames manually (simulate loading)
-        cache._cache[0] = Mock(spec=QImage)
+        cache._lru_cache[0] = Mock(spec=QImage)
         assert cache.cache_size == 1
 
-        cache._cache[1] = Mock(spec=QImage)
-        cache._cache[2] = Mock(spec=QImage)
+        cache._lru_cache[1] = Mock(spec=QImage)
+        cache._lru_cache[2] = Mock(spec=QImage)
         assert cache.cache_size == 3
 
         # Clear and verify
-        cache._cache.clear()
+        cache._lru_cache.clear()
         assert cache.cache_size == 0
 
 
@@ -741,8 +733,7 @@ class TestImagePreloading:
 
         # Manually populate cache with frames 5-9
         for i in range(5, 10):
-            cache._cache[i] = Mock(spec=QImage)
-            cache._lru_order.append(i)
+            cache._lru_cache[i] = Mock(spec=QImage)
 
         with patch("services.image_cache_manager.SafeImagePreloadWorker") as mock_worker_class:
             mock_worker = Mock()
@@ -768,8 +759,7 @@ class TestImagePreloading:
 
         # Cache all frames 0-4
         for i in range(5):
-            cache._cache[i] = Mock(spec=QImage)
-            cache._lru_order.append(i)
+            cache._lru_cache[i] = Mock(spec=QImage)
 
         with patch("services.image_cache_manager.SafeImagePreloadWorker") as mock_worker_class:
             # Request preload of already-cached frames
@@ -1046,8 +1036,8 @@ class TestWorkerThreadSafety:
         cache._on_image_preloaded(0, mock_image)
 
         # Verify image added to cache
-        assert 0 in cache._cache
-        assert cache._cache[0] is mock_image
+        assert 0 in cache._lru_cache
+        assert cache._lru_cache[0] is mock_image
 
     def test_on_image_preloaded_skips_cached_frame(self):
         """Test that _on_image_preloaded doesn't overwrite cached frames."""
@@ -1058,15 +1048,14 @@ class TestWorkerThreadSafety:
 
         # Pre-cache frame 0
         original_image = Mock(spec=QImage)
-        cache._cache[0] = original_image
-        cache._lru_order.append(0)
+        cache._lru_cache[0] = original_image
 
         # Try to overwrite with preloaded image
         preloaded_image = Mock(spec=QImage)
         cache._on_image_preloaded(0, preloaded_image)
 
         # Verify original image retained (not overwritten)
-        assert cache._cache[0] is original_image
+        assert cache._lru_cache[0] is original_image
 
     def test_on_image_preloaded_rejects_invalid_type(self):
         """Test that _on_image_preloaded rejects non-QImage objects."""
@@ -1079,7 +1068,7 @@ class TestWorkerThreadSafety:
         cache._on_image_preloaded(0, "not_an_image")
 
         # Verify not added to cache
-        assert 0 not in cache._cache
+        assert 0 not in cache._lru_cache
 
 
 if __name__ == "__main__":

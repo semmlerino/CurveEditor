@@ -16,6 +16,8 @@ Key Design Decisions:
 
 import logging
 import threading
+import time
+from collections import OrderedDict
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
@@ -63,6 +65,11 @@ class SafeImagePreloadWorker(QThread):
         # Worker reads, main thread writes (write-once: False → True)
         self._stop_requested: bool = False
 
+        # Backpressure mechanism: limit pending images in Qt event queue
+        self._pending_count: int = 0
+        self._max_pending: int = 10  # Max images waiting for main thread to process
+        self._pending_lock: threading.Lock = threading.Lock()
+
     @override
     def run(self) -> None:
         """
@@ -81,6 +88,14 @@ class SafeImagePreloadWorker(QThread):
                 logger.debug(f"Preload worker stopped (loaded {loaded}/{total} frames)")
                 return
 
+            # Backpressure: wait if too many images pending in main thread queue
+            while self.should_pause() and not self._stop_requested:
+                time.sleep(0.01)  # 10ms pause
+
+            if self._stop_requested:
+                logger.debug(f"Preload worker stopped during backpressure (loaded {loaded}/{total} frames)")
+                return
+
             # Validate frame bounds
             if frame < 0 or frame >= len(self._image_files):
                 logger.debug(f"Skipping out-of-bounds frame {frame}")
@@ -91,6 +106,8 @@ class SafeImagePreloadWorker(QThread):
             image = self._load_image(file_path)
 
             if image is not None:
+                # Increment pending before emit (decremented by main thread in _on_image_preloaded)
+                self.increment_pending()
                 # Emit signal with loaded image (QueuedConnection to main thread)
                 self.image_loaded.emit(frame, image)
                 loaded += 1
@@ -103,6 +120,21 @@ class SafeImagePreloadWorker(QThread):
     def stop(self) -> None:
         """Request worker to stop loading frames."""
         self._stop_requested = True
+
+    def increment_pending(self) -> None:
+        """Increment pending count (called before emit)."""
+        with self._pending_lock:
+            self._pending_count += 1
+
+    def decrement_pending(self) -> None:
+        """Decrement pending count (called by main thread after processing)."""
+        with self._pending_lock:
+            self._pending_count -= 1
+
+    def should_pause(self) -> bool:
+        """Check if worker should pause due to backpressure."""
+        with self._pending_lock:
+            return self._pending_count >= self._max_pending
 
     def _load_image(self, file_path: str) -> "QImage | None":
         """
@@ -198,8 +230,8 @@ class SafeImageCacheManager(QObject):
         super().__init__()
 
         self._max_cache_size: int = max_cache_size
-        self._cache: dict[int, QImage] = {}
-        self._lru_order: list[int] = []
+        # OrderedDict provides O(1) LRU operations via move_to_end() and popitem()
+        self._lru_cache: OrderedDict[int, QImage] = OrderedDict()
         self._image_files: list[str] = []
         self._lock: threading.Lock = threading.Lock()
         self._preload_worker: SafeImagePreloadWorker | None = None
@@ -222,8 +254,7 @@ class SafeImageCacheManager(QObject):
 
         with self._lock:
             self._image_files = image_files
-            self._cache.clear()
-            self._lru_order.clear()
+            self._lru_cache.clear()
 
         logger.info(f"Image sequence set: {len(image_files)} frames")
 
@@ -258,11 +289,11 @@ class SafeImageCacheManager(QObject):
                 logger.debug(f"get_image: Frame {frame} out of bounds (0-{len(self._image_files)-1})")
                 return None
 
-            # Cache hit - update LRU and return
-            if frame in self._cache:
-                self._update_lru(frame)
+            # Cache hit - update LRU order and return (O(1) with OrderedDict)
+            if frame in self._lru_cache:
+                self._lru_cache.move_to_end(frame)
                 logger.debug(f"Cache HIT: frame {frame}")
-                return self._cache[frame]
+                return self._lru_cache[frame]
 
             # Cache miss - load from disk
             file_path = self._image_files[frame]
@@ -274,7 +305,7 @@ class SafeImageCacheManager(QObject):
 
             # Add to cache (triggers eviction if needed)
             self._add_to_cache(frame, image)
-            logger.debug(f"Cache MISS: frame {frame} loaded and cached (size: {len(self._cache)})")
+            logger.debug(f"Cache MISS: frame {frame} loaded and cached (size: {len(self._lru_cache)})")
 
             return image
 
@@ -321,7 +352,7 @@ class SafeImageCacheManager(QObject):
 
     def _add_to_cache(self, frame: int, image: "QImage") -> None:
         """
-        Add image to cache with LRU eviction.
+        Add image to cache with LRU eviction (O(1) operations).
 
         Args:
             frame: Frame number
@@ -330,30 +361,16 @@ class SafeImageCacheManager(QObject):
         Note:
             Automatically evicts oldest frames if cache exceeds max_cache_size.
             Must be called with lock held.
+            Uses OrderedDict for O(1) insertion and eviction.
         """
-        # Add to cache
-        self._cache[frame] = image
-        self._lru_order.append(frame)
+        # Add to cache and mark as most recently used
+        self._lru_cache[frame] = image
+        self._lru_cache.move_to_end(frame)
 
-        # Evict oldest frames if cache too large (LRU eviction)
-        while len(self._cache) > self._max_cache_size:
-            oldest_frame = self._lru_order.pop(0)
-            del self._cache[oldest_frame]
-            logger.debug(f"Cache EVICT: frame {oldest_frame} (cache size: {len(self._cache)})")
-
-    def _update_lru(self, frame: int) -> None:
-        """
-        Update LRU order on cache hit (move frame to end).
-
-        Args:
-            frame: Frame number that was accessed
-
-        Note:
-            Must be called with lock held.
-        """
-        # Remove from current position and append to end (most recently used)
-        self._lru_order.remove(frame)
-        self._lru_order.append(frame)
+        # Evict oldest frames if cache too large (O(1) per eviction with OrderedDict)
+        while len(self._lru_cache) > self._max_cache_size:
+            oldest_frame, _ = self._lru_cache.popitem(last=False)
+            logger.debug(f"Cache EVICT: frame {oldest_frame} (cache size: {len(self._lru_cache)})")
 
     def clear_cache(self) -> None:
         """
@@ -362,8 +379,7 @@ class SafeImageCacheManager(QObject):
         Public method for manual cache clearing (e.g., memory management).
         """
         with self._lock:
-            self._cache.clear()
-            self._lru_order.clear()
+            self._lru_cache.clear()
 
         logger.info("Image cache cleared")
 
@@ -386,7 +402,7 @@ class SafeImageCacheManager(QObject):
             Number of frames currently in cache
         """
         with self._lock:
-            return len(self._cache)
+            return len(self._lru_cache)
 
     @property
     def max_cache_size(self) -> int:
@@ -467,7 +483,7 @@ class SafeImageCacheManager(QObject):
 
         # Filter out frames already in cache
         with self._lock:
-            frames_needed = [f for f in frames_to_load if f not in self._cache]
+            frames_needed = [f for f in frames_to_load if f not in self._lru_cache]
 
         if not frames_needed:
             logger.debug("_start_preload_worker: All frames already cached")
@@ -509,6 +525,7 @@ class SafeImageCacheManager(QObject):
 
         This slot runs in the main thread via QueuedConnection.
         Adds preloaded image to cache if not already present.
+        Releases backpressure by decrementing pending count.
 
         Args:
             frame: Frame number
@@ -516,16 +533,22 @@ class SafeImageCacheManager(QObject):
 
         Note:
             Skips frames already in cache (prevents overwriting recent access).
+            Always decrements pending count to release backpressure.
         """
         from PySide6.QtGui import QImage
 
-        # Type guard - qimage should always be QImage from worker
-        if not isinstance(qimage, QImage):
-            logger.error(f"Invalid image type received: {type(qimage)}")
-            return
+        try:
+            # Type guard - qimage should always be QImage from worker
+            if not isinstance(qimage, QImage):
+                logger.error(f"Invalid image type received: {type(qimage)}")
+                return
 
-        with self._lock:
-            # Don't overwrite if frame was loaded on-demand during preload
-            if frame not in self._cache:
-                self._add_to_cache(frame, qimage)
-                logger.debug(f"Preloaded frame {frame} added to cache")
+            with self._lock:
+                # Don't overwrite if frame was loaded on-demand during preload
+                if frame not in self._lru_cache:
+                    self._add_to_cache(frame, qimage)
+                    logger.debug(f"Preloaded frame {frame} added to cache")
+        finally:
+            # Always decrement pending count to release backpressure
+            if self._preload_worker is not None:
+                self._preload_worker.decrement_pending()
