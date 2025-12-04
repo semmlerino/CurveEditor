@@ -9,11 +9,14 @@ uv run python main.py
 
 ### Testing
 ```bash
-# Run all tests (1945+ test cases)
+# Run all tests (3100+ test cases)
 uv run pytest tests/
 
 # Run specific test file
 uv run pytest tests/test_curve_view.py
+
+# PREFERRED: Stop at first failure, quiet output
+uv run pytest tests/ -xq
 
 # Run with verbose output and stop on first failure
 uv run pytest tests/ -v -x
@@ -21,8 +24,8 @@ uv run pytest tests/ -v -x
 # Run with short traceback
 uv run pytest tests/ --tb=short
 
-# Quick test run (quiet mode)
-uv run pytest tests/ -q
+# Disable parallel (for debugging single test)
+uv run pytest tests/test_foo.py -n0
 ```
 
 ### Linting (Ruff)
@@ -60,28 +63,21 @@ uv run ruff check ui/main_window.py
 python3 -m py_compile <file.py>
 ```
 
+## WSL Environment Fallback
+
+If `uv` is unavailable, use `.venv/bin/python3` directly:
+```bash
+.venv/bin/python3 -m pytest tests/
+.venv/bin/python3 -m ruff check .
+.venv/bin/python3 ./bpr
+```
+
 ## Git Commands
 ```bash
 git status
 git add .
 git commit -m "message"
 git log --oneline -n 10
-```
-
-## System Commands (Linux/WSL2)
-```bash
-ls          # List files
-cd          # Change directory
-grep        # Search in files
-find        # Find files
-cat         # Display file contents
-head/tail   # Show file start/end
-```
-
-## Virtual Environment
-```bash
-# Already managed by uv - no need to activate manually
-# uv handles venv automatically when using `uv run`
 ```
 
 ## Performance Testing
@@ -93,4 +89,14 @@ uv run pytest tests/ -m benchmark
 ## Coverage Analysis
 ```bash
 uv run pytest tests/ --cov=. --cov-report=html
+```
+
+## Debugging Test Failures
+
+For crashes or hard aborts:
+```bash
+export PYTHONFAULTHANDLER=1 && uv run pytest tests/ \
+  -vv -x --maxfail=1 --tb=short -s \
+  --log-cli-level=DEBUG \
+  2>&1 | tee /tmp/pytest_diag.log
 ```

@@ -276,14 +276,20 @@ state.set_show_all_curves(False)  # → DisplayMode.SELECTED or ACTIVE_ONLY
 
 ## UI Controllers
 
-Specialized controllers in `ui/controllers/` handle focused responsibilities:
+Specialized controllers in `ui/controllers/` handle focused responsibilities (13 controllers + curve_view submodule):
+
 - **Action handling**: Menu/toolbar actions (ActionHandlerController)
-- **Tracking**: Multi-curve tracking, Insert Track workflow (MultiPointTrackingController, BaseTrackingController, Tracking*Controller)
+- **Tracking**: Multi-curve tracking, Insert Track workflow (MultiPointTrackingController, BaseTrackingController, TrackingDataController, TrackingDisplayController, TrackingSelectionController)
 - **Point editing**: Point manipulation, selection (PointEditorController)
 - **Frame management**: Navigation, playback, deterministic frame change coordination (TimelineController, FrameChangeCoordinator)
 - **View management**: Camera movement, zoom, pan, fit-to-view (ViewCameraController, ViewManagementController)
 - **UI setup**: Component initialization, signal connections (UIInitializationController, SignalConnectionManager)
 - **Progressive disclosure**: Collapsible UI sections (ProgressiveDisclosureController)
+
+**CurveView Submodule** (`ui/controllers/curve_view/`):
+- **CurveDataFacade**: Data access facade for CurveViewWidget
+- **RenderCacheController**: Render caching management
+- **StateSyncController**: State synchronization
 
 Key architectural pattern: **FrameChangeCoordinator** eliminates race conditions from Qt signal ordering by enforcing deterministic frame change response order.
 
@@ -366,6 +372,10 @@ rez env oiio-3.0.4.0 PySide6_Essentials pillow typing_extensions psutil imageio 
 3. **Pillow** - If compiled with EXR support (rarely available)
 4. **imageio** - Auto-detection fallback (limited EXR support)
 
+**Color Pipeline** (`io_utils/color_pipeline.py`):
+- Handles HDR→LDR tone mapping with sRGB color space metadata
+- Singleton access via `get_color_pipeline()`
+
 **Finding Available Packages:**
 ```bash
 # Search for EXR-capable packages
@@ -398,10 +408,11 @@ This indicates the Rez environment is missing an EXR-capable package.
 # Linting
 uv run ruff check . --fix
 
-# Testing (prefer -x for development)
+# Testing (parallel by default, prefer -x for development)
 uv run pytest tests/ -xq           # PREFERRED: Stop at first failure, quiet output
 uv run pytest tests/ -x            # Stop at first failure, normal output
 uv run pytest tests/ -v            # Full run (pre-commit validation)
+uv run pytest tests/test_foo.py -n0  # Disable parallel (for debugging single test)
 python3 -m py_compile <file.py>    # Quick syntax check
 ```
 
@@ -409,6 +420,7 @@ python3 -m py_compile <file.py>    # Quick syntax check
 - **Development** (default): Use `-x` to stop at first failure for fast iteration
 - **Pre-commit**: Use `-v` for full validation before committing
 - **Impact analysis**: Use full run to see total breakage after refactoring
+- **Debugging**: Use `-n0` to disable parallel execution when debugging a specific test
 
 ## Type Safety
 
