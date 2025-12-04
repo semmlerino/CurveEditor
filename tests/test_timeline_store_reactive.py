@@ -48,9 +48,16 @@ class TestTimelineStoreReactive:
         Uses without_dummy_frames to clear the 1000 dummy frames from conftest
         so the timeline frame range is based only on test data.
         """
-        # Mock file operations to prevent auto-loading burger data
-        with patch("ui.file_operations.FileOperations.load_burger_data_async"):
+        from ui.session_manager import SessionManager
+
+        # Mock file operations AND session loading to prevent auto-loading
+        with (
+            patch("ui.file_operations.FileOperations.load_burger_data_async"),
+            patch.object(SessionManager, "load_session", return_value=None),
+        ):
             window = MainWindow()
+            # Process events to let any queued operations complete
+            QApplication.processEvents()
             qtbot.addWidget(window)
             return window
 

@@ -41,8 +41,17 @@ class TestTrackingDirectionUndo:
     @pytest.fixture
     def main_window_with_tracking_data(self, qapp, qtbot):
         """Create a main window with tracking data loaded."""
-        with patch.object(FileOperations, "load_burger_data_async"):
+        from ui.session_manager import SessionManager
+        from PySide6.QtWidgets import QApplication
+
+        # Patch both file loading AND session loading to prevent interference
+        with (
+            patch.object(FileOperations, "load_burger_data_async"),
+            patch.object(SessionManager, "load_session", return_value=None),
+        ):
             main_window = MainWindow()
+            # Process events to let any queued operations complete
+            QApplication.processEvents()
 
         # Create sample tracking data with mixed statuses
         tracking_data = {
@@ -69,6 +78,8 @@ class TestTrackingDirectionUndo:
         # Cast through object to avoid protocol overlap check
         controller = cast(MultiPointTrackingController, cast(object, main_window.tracking_controller))
         controller.point_tracking_directions = {"Point1": TrackingDirection.TRACKING_FW}
+        # CRITICAL: Also set on data_controller - it has its own separate dict
+        controller.data_controller.point_tracking_directions = {"Point1": TrackingDirection.TRACKING_FW}
         main_window.active_timeline_point = "Point1"
 
         # Set curve data to match

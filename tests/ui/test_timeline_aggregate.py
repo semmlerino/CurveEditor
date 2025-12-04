@@ -20,6 +20,12 @@ def timeline_widget(qtbot, qapp, without_dummy_frames) -> TimelineTabWidget:
     Uses without_dummy_frames to clear the 1000 dummy frames from conftest
     so tests can verify frame ranges based only on their test data.
     """
+    # Ensure clean ApplicationState for this test
+    app_state = get_application_state()
+    # Clear all curves to prevent interference from parallel tests
+    for curve_name in list(app_state.get_all_curve_names()):
+        app_state.delete_curve(curve_name)
+
     widget = TimelineTabWidget()
     qtbot.addWidget(widget)
     return widget
