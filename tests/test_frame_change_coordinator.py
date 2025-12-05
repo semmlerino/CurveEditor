@@ -18,6 +18,7 @@ from unittest.mock import patch
 import pytest
 
 from stores.application_state import get_application_state
+from tests.test_utils import process_qt_events
 from ui.controllers.frame_change_coordinator import FrameChangeCoordinator
 
 
@@ -57,7 +58,7 @@ class TestFrameChangeCoordinator:
         coordinator = main_window.frame_change_coordinator
 
         # First, allow any pending signals from previous tests to flush
-        qtbot.wait(50)
+        process_qt_events()
 
         # Mock the coordinator's _trigger_repaint method to count calls
         # This is more specific than mocking curve_widget.update() which may be
@@ -71,11 +72,12 @@ class TestFrameChangeCoordinator:
             # Trigger frame change
             get_application_state().set_frame(42)
 
-            # UPDATED: Wait for QueuedConnection to execute (asynchronous)
-            qtbot.wait(50)  # Allow Qt event loop to process queued signal
+            # Process Qt event loop to execute QueuedConnection signals
+            process_qt_events()
 
             # Coordinator should call _trigger_repaint exactly once
-            assert repaint_mock.call_count == 1
+            assert repaint_mock.call_count == 1, \
+                f"Expected 1 _trigger_repaint call, got {repaint_mock.call_count}"
 
     def test_update_order_is_deterministic(self, main_window, coordinator, qtbot):
         """Test updates happen in correct order."""
@@ -110,7 +112,7 @@ class TestFrameChangeCoordinator:
         coordinator = main_window.frame_change_coordinator
 
         # First, allow any pending signals from previous tests to flush
-        qtbot.wait(50)
+        process_qt_events()
 
         # Mock coordinator's _trigger_repaint method
         # This is more specific than mocking curve_widget.update() which may be
@@ -121,11 +123,12 @@ class TestFrameChangeCoordinator:
 
             get_application_state().set_frame(42)
 
-            # UPDATED: Wait for QueuedConnection to execute (asynchronous)
-            qtbot.wait(50)  # Allow Qt event loop to process queued signal
+            # Process Qt event loop to execute QueuedConnection signals
+            process_qt_events()
 
             # Verify coordinator called _trigger_repaint once
-            assert repaint_mock.call_count == 1
+            assert repaint_mock.call_count == 1, \
+                f"Expected 1 _trigger_repaint call, got {repaint_mock.call_count}"
 
     def test_centering_before_repaint(self, main_window, coordinator, qtbot):
         """Test centering updates pan_offset before repaint."""
@@ -238,7 +241,7 @@ class TestFrameChangeCoordinator:
         coordinator.disconnect()
 
         # Flush any pending queued signals from previous tests
-        qtbot.wait(50)
+        process_qt_events()
 
         # Mock coordinator's _trigger_repaint to count calls
         with patch.object(coordinator, "_trigger_repaint") as repaint_mock:
@@ -252,11 +255,12 @@ class TestFrameChangeCoordinator:
             # Trigger frame change
             get_application_state().set_frame(42)
 
-            # UPDATED: Wait for QueuedConnection to execute (asynchronous)
-            qtbot.wait(50)  # Allow Qt event loop to process queued signal
+            # Process Qt event loop to execute QueuedConnection signals
+            process_qt_events()
 
             # Verify only ONE _trigger_repaint() call (not 2x)
-            assert repaint_mock.call_count == 1
+            assert repaint_mock.call_count == 1, \
+                f"Expected 1 _trigger_repaint call (idempotent), got {repaint_mock.call_count}"
 
     def test_disconnect_before_connect(self, main_window, qtbot):
         """Test disconnect() works even if never connected."""

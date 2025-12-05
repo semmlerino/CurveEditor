@@ -147,3 +147,122 @@ def assert_production_realistic(test_func):
         return test_func(*args, **kwargs)
 
     return wrapper
+
+
+# =============================================================================
+# Wait Utilities for Reliable Testing
+# =============================================================================
+
+
+def process_qt_events(iterations: int = 3) -> None:
+    """Process Qt events to allow signal propagation and deleteLater() completion.
+
+    Use this instead of qtbot.wait(N) for synchronous signal processing when you
+    don't have a specific condition to wait for.
+
+    Args:
+        iterations: Number of event processing loops. Default 3 handles:
+            - 1: Direct signal emissions
+            - 2: Queued signals from slot handlers
+            - 3: deleteLater() cleanup from destroyed objects
+
+    Note: For tests waiting on specific conditions, prefer wait_for_condition()
+    or process_qt_events_with_verification() instead.
+    """
+    app = QApplication.instance()
+    if app:
+        for _ in range(iterations):
+            app.processEvents()
+
+
+def process_qt_events_with_verification(condition=None, max_iterations: int = 10) -> bool:
+    """Process events until condition met or max iterations reached.
+
+    Safer alternative to process_qt_events() when you have a condition to verify.
+
+    Args:
+        condition: Optional callable returning True when done
+        max_iterations: Maximum event processing loops (default 10)
+
+    Returns:
+        True if condition met (or no condition), False if max iterations
+        reached without condition being satisfied
+    """
+    app = QApplication.instance()
+    if app is None:
+        return condition() if condition else True
+
+    for _ in range(max_iterations):
+        app.processEvents()
+        if condition and condition():
+            return True
+    return condition() if condition else True
+
+
+def wait_for_condition(qtbot, condition, timeout: int = 1000, message: str = "Condition not met"):
+    """Wait for arbitrary condition with clear error message.
+
+    Wrapper around qtbot.waitUntil that provides better error messages
+    when the condition times out.
+
+    Args:
+        qtbot: pytest-qt qtbot fixture
+        condition: Callable returning True when condition is satisfied
+        timeout: Maximum time to wait in milliseconds (default 1000ms)
+        message: Error message to show on timeout
+
+    Raises:
+        AssertionError: If condition not met within timeout
+    """
+    try:
+        qtbot.waitUntil(condition, timeout=timeout)
+    except Exception:
+        # pytestqt raises various exceptions on timeout
+        raise AssertionError(f"{message} (timeout={timeout}ms)")
+
+
+def wait_for_frame(qtbot, expected_frame: int, timeout: int = 1000):
+    """Wait for current frame to change to expected value.
+
+    Convenience wrapper for the common pattern of waiting for frame changes
+    after keyboard/mouse events.
+
+    Args:
+        qtbot: pytest-qt qtbot fixture
+        expected_frame: Frame number to wait for
+        timeout: Maximum time to wait in milliseconds (default 1000ms)
+
+    Raises:
+        AssertionError: If frame doesn't reach expected value within timeout
+    """
+    from stores.application_state import get_application_state
+
+    state = get_application_state()
+    wait_for_condition(
+        qtbot,
+        lambda: state.current_frame == expected_frame,
+        timeout=timeout,
+        message=f"Expected frame {expected_frame}, got {state.current_frame}",
+    )
+
+
+def wait_for_signal(qtbot, spy, min_count: int = 1, timeout: int = 1000):
+    """Wait for signal spy to record at least min_count emissions.
+
+    Wrapper for waiting on QSignalSpy with clear error messages.
+
+    Args:
+        qtbot: pytest-qt qtbot fixture
+        spy: QSignalSpy instance to check
+        min_count: Minimum number of emissions required (default 1)
+        timeout: Maximum time to wait in milliseconds (default 1000ms)
+
+    Raises:
+        AssertionError: If signal count doesn't reach min_count within timeout
+    """
+    wait_for_condition(
+        qtbot,
+        lambda: spy.count() >= min_count,
+        timeout=timeout,
+        message=f"Expected {min_count}+ signal emissions, got {spy.count()}",
+    )

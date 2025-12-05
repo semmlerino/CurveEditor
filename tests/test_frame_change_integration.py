@@ -29,7 +29,11 @@ import pytest
 
 from core.type_aliases import CurveDataList
 from stores.application_state import get_application_state
+from tests.test_utils import process_qt_events, wait_for_frame
 from ui.main_window import MainWindow
+
+# Tests in this file require frame navigation
+pytestmark = pytest.mark.usefixtures("with_minimal_frame_range")
 
 
 @pytest.fixture
@@ -117,14 +121,16 @@ class TestFrameChangeSignalChain:
         # This reproduces the user's rapid timeline scrubbing scenario
         for frame in range(1, 101):
             app_state.set_frame(frame)  # Uses ACTUAL signal chain!
-            qtbot.wait(10)  # 10ms per frame
+            process_qt_events()  # Process events immediately
 
             # Capture pan offset after signal processing
             # With QueuedConnection: Queue buildup causes lag
             pan_offset_history.append((curve_widget.pan_offset_x, curve_widget.pan_offset_y))
 
         # Allow queue to drain completely (QueuedConnection may have queued many updates)
-        qtbot.wait(500)  # 500ms to process all queued events
+        # Use processEvents for deterministic behavior
+        for _ in range(10):
+            process_qt_events()
 
         # Verify smooth centering (no visual jumps)
         # For linear motion (x=100+i, y=200+i), pan offsets should change smoothly
@@ -195,10 +201,11 @@ class TestFrameChangeSignalChain:
         app_state.set_frame(test_frame)
 
         # Wait for signal processing (QueuedConnection may need time)
-        qtbot.wait(50)
+        wait_for_frame(qtbot, expected_frame=test_frame)
 
         # Verify all components synchronized
-        assert app_state.current_frame == test_frame, "ApplicationState should be at frame 42"
+        assert app_state.current_frame == test_frame, \
+            f"ApplicationState should be at frame {test_frame}, got {app_state.current_frame}"
 
         # Note: timeline_tabs and timeline_controller may not expose current_frame
         # This test validates that signal delivery happens without errors
@@ -213,13 +220,24 @@ class TestFrameChangeSignalChain:
         - No centering when mode disabled
         - Toggle works with rapid frame changes
         """
+        from tests.test_utils import wait_for_condition
+
         app_state = get_application_state()
         curve_widget = main_window.curve_widget
 
-        # Load test data
+        # Window must be shown for centering to have valid dimensions
+        main_window.show()
+        qtbot.waitExposed(main_window)
+        process_qt_events()
+
+        # Load test data with linear motion (frame i at position 100+i, 200+i)
         test_data: CurveDataList = [(i, 100.0 + float(i), 200.0 + float(i)) for i in range(1, 21)]
         app_state.set_curve_data("CenterTest", test_data)
         app_state.set_active_curve("CenterTest")
+
+        # Also set data in curve widget (required for centering calculations)
+        curve_widget.set_curve_data(test_data)
+        process_qt_events()
 
         # Test 1: Centering disabled
         curve_widget.centering_mode = False
@@ -227,22 +245,36 @@ class TestFrameChangeSignalChain:
         initial_pan_y = curve_widget.pan_offset_y
 
         app_state.set_frame(10)
-        qtbot.wait(50)
+        wait_for_frame(qtbot, expected_frame=10)
 
         # Pan offsets should NOT change (centering disabled)
-        assert curve_widget.pan_offset_x == initial_pan_x, "Pan X should not change when centering disabled"
-        assert curve_widget.pan_offset_y == initial_pan_y, "Pan Y should not change when centering disabled"
+        assert curve_widget.pan_offset_x == initial_pan_x, \
+            f"Pan X should not change when centering disabled: was {initial_pan_x}, now {curve_widget.pan_offset_x}"
+        assert curve_widget.pan_offset_y == initial_pan_y, \
+            f"Pan Y should not change when centering disabled: was {initial_pan_y}, now {curve_widget.pan_offset_y}"
 
         # Test 2: Centering enabled
         curve_widget.centering_mode = True
+        pre_centering_pan_x = curve_widget.pan_offset_x
+        pre_centering_pan_y = curve_widget.pan_offset_y
 
         app_state.set_frame(15)
-        qtbot.wait(50)
+        wait_for_frame(qtbot, expected_frame=15)
+
+        # Wait for centering to complete (happens asynchronously via signal chain)
+        # Centering modifies pan_offset, so wait until it changes from initial value
+        wait_for_condition(
+            qtbot,
+            lambda: curve_widget.pan_offset_x != pre_centering_pan_x or curve_widget.pan_offset_y != pre_centering_pan_y,
+            timeout=1000,
+            message=f"Centering should have changed pan_offset from ({pre_centering_pan_x}, {pre_centering_pan_y}), "
+                    f"but it's still ({curve_widget.pan_offset_x}, {curve_widget.pan_offset_y})",
+        )
 
         # Pan offsets SHOULD change (centering enabled)
         # Exact values depend on widget size, just verify they changed
         assert (
-            curve_widget.pan_offset_x != initial_pan_x or curve_widget.pan_offset_y != initial_pan_y
+            curve_widget.pan_offset_x != pre_centering_pan_x or curve_widget.pan_offset_y != pre_centering_pan_y
         ), "Pan offsets should change when centering enabled"
 
     def test_no_memory_leak_during_rapid_frame_changes(self, qtbot, main_window):
@@ -264,10 +296,11 @@ class TestFrameChangeSignalChain:
         for frame in range(1, 1001, 10):  # Every 10th frame for speed
             app_state.set_frame(frame)
             if frame % 100 == 0:
-                qtbot.wait(10)  # Occasional wait to process queue
+                process_qt_events()  # Occasional event processing to drain queue
 
-        # Allow queue to drain
-        qtbot.wait(100)
+        # Allow queue to drain - use processEvents for deterministic behavior
+        for _ in range(5):
+            process_qt_events()
 
         # If we get here without crash/hang, memory management is OK
         # Actual memory leak would require memory profiling tools
@@ -292,7 +325,7 @@ class TestFrameChangeEdgeCases:
         # Change frames (should not crash)
         for frame in range(1, 11):
             app_state.set_frame(frame)
-            qtbot.wait(10)
+            process_qt_events()
 
         # Should complete without error
         assert True, "Frame changes should not crash without curve data"
@@ -310,7 +343,7 @@ class TestFrameChangeEdgeCases:
 
         # Should handle gracefully
         app_state.set_frame(5)
-        qtbot.wait(50)
+        wait_for_frame(qtbot, expected_frame=5)
 
         assert True, "Empty curve data should be handled gracefully"
 
@@ -333,12 +366,12 @@ class TestFrameChangeEdgeCases:
         for i in range(10):
             app_state.set_active_curve("Curve1")
             app_state.set_frame(i * 5)
-            qtbot.wait(5)
+            process_qt_events()
 
             app_state.set_active_curve("Curve2")
             app_state.set_frame(i * 5 + 2)
-            qtbot.wait(5)
+            process_qt_events()
 
         # Should complete without errors
-        qtbot.wait(50)
+        process_qt_events()
         assert True, "Rapid curve switching with frame changes should not crash"

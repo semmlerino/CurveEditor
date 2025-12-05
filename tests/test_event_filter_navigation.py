@@ -30,7 +30,11 @@ from pytestqt.qtbot import QtBot
 
 from core.type_aliases import CurveDataList
 from stores.application_state import get_application_state
+from tests.test_utils import process_qt_events, wait_for_frame
 from ui.main_window import MainWindow
+
+# Tests in this file require frame navigation
+pytestmark = pytest.mark.usefixtures("with_minimal_frame_range")
 
 # Phase 4 TODO: Migrate StateManager current_frame setters (7 occurrences)
 # Test file uses setters for test setup - defer migration to Phase 4
@@ -39,21 +43,14 @@ from ui.main_window import MainWindow
 class TestEventFilterNavigation:
     """Test that Page Up/Down works via eventFilter regardless of widget focus."""
 
-    @pytest.fixture
-    def app(self) -> QApplication:
-        """Create QApplication for widget tests."""
-        existing_app = QApplication.instance()
-        if existing_app is not None:
-            # Type narrowing: ensure we have QApplication, not just QCoreApplication
-            app = existing_app if isinstance(existing_app, QApplication) else QApplication([])
-        else:
-            app = QApplication([])
-        return app
+    # Note: Tests use session-scoped qapp fixture from qt_fixtures.py
+    # which ensures proper Qt cleanup via qt_cleanup fixture
 
     @pytest.fixture
-    def main_window_with_data(self, app: QApplication, qtbot: QtBot) -> MainWindow:
+    def main_window_with_data(self, qapp: QApplication, qtbot: QtBot) -> MainWindow:
         """Create MainWindow with test curve data."""
-        window = MainWindow()
+        # auto_load_data=False prevents background file loading during tests
+        window = MainWindow(auto_load_data=False)
 
         def cleanup_event_filter(w):
             """Remove event filters before widget destruction."""
@@ -75,9 +72,8 @@ class TestEventFilterNavigation:
         # Show window and wait for it to be ready
         window.show()
         qtbot.waitExposed(window)
-        qtbot.wait(500)  # Allow background file operations to complete
 
-        # NOW set up active curve in application state (after background load completes)
+        # Set up active curve in application state
         state = get_application_state()
         test_curve_name = "TestCurve"
         state.set_curve_data(test_curve_name, test_data)
@@ -97,7 +93,7 @@ class TestEventFilterNavigation:
         if window.curve_widget is not None:
             window.curve_widget.update()
 
-        qtbot.wait(50)  # Allow UI to update
+        process_qt_events()  # Allow UI to update
         return window
 
     def test_page_down_via_eventfilter_with_timeline_focus(
@@ -110,7 +106,7 @@ class TestEventFilterNavigation:
         # Give focus to timeline (simulates user clicking timeline)
         if window.timeline_tabs:
             window.timeline_tabs.setFocus()
-            qtbot.wait(10)
+            process_qt_events()  # Let focus settle
             # Note: hasFocus() may return False in test environment
             # But the event should still work
 
@@ -124,10 +120,11 @@ class TestEventFilterNavigation:
         if window.timeline_tabs and app:
             app.postEvent(window.timeline_tabs, key_event)
             app.processEvents()  # Process the event queue
-        qtbot.wait(10)
+        wait_for_frame(qtbot, expected_frame=5)
 
         # Verify navigation happened (should be at frame 5)
-        assert get_application_state().current_frame == 5
+        assert get_application_state().current_frame == 5, \
+            f"Expected frame 5, got {get_application_state().current_frame}"
         status_msg = window.statusBar().currentMessage().lower()
         assert "frame" in status_msg
         assert "5" in status_msg
@@ -140,7 +137,7 @@ class TestEventFilterNavigation:
         # Give focus to timeline
         if window.timeline_tabs:
             window.timeline_tabs.setFocus()
-            qtbot.wait(10)
+            process_qt_events()  # Let focus settle
             # Note: hasFocus() may return False in test environment
 
         # Start at frame 10
@@ -154,10 +151,11 @@ class TestEventFilterNavigation:
         if app:
             app.postEvent(window.timeline_tabs, key_event)
             app.processEvents()  # Process the event queue
-        qtbot.wait(10)
+        wait_for_frame(qtbot, expected_frame=5)
 
         # Verify navigation happened (should be at frame 5)
-        assert get_application_state().current_frame == 5
+        assert get_application_state().current_frame == 5, \
+            f"Expected frame 5, got {get_application_state().current_frame}"
         status_msg = window.statusBar().currentMessage().lower()
         assert "frame" in status_msg
         assert "5" in status_msg
@@ -170,7 +168,7 @@ class TestEventFilterNavigation:
         # Give focus to curve widget
         assert window.curve_widget is not None
         window.curve_widget.setFocus()
-        qtbot.wait(10)
+        process_qt_events()  # Let focus settle
         # Note: hasFocus() may return False in test environment
 
         # Start at frame 5
@@ -181,10 +179,11 @@ class TestEventFilterNavigation:
         if app:
             app.postEvent(window.curve_widget, key_event)
             app.processEvents()  # Process the event queue
-        qtbot.wait(10)
+        wait_for_frame(qtbot, expected_frame=10)
 
         # Should navigate to frame 10
-        assert get_application_state().current_frame == 10
+        assert get_application_state().current_frame == 10, \
+            f"Expected frame 10, got {get_application_state().current_frame}"
 
     def test_navigation_with_spinbox_focus(self, main_window_with_data: MainWindow, qtbot: QtBot) -> None:
         """Test navigation works when frame spinbox has focus."""
@@ -196,7 +195,7 @@ class TestEventFilterNavigation:
 
         # Give focus to frame spinbox
         window.frame_spinbox.setFocus()
-        qtbot.wait(10)
+        process_qt_events()  # Let focus settle
         # Note: hasFocus() may return False in test environment
 
         # Start at frame 15
@@ -207,10 +206,11 @@ class TestEventFilterNavigation:
         if app:
             app.postEvent(window.frame_spinbox, key_event)
             app.processEvents()  # Process the event queue
-        qtbot.wait(10)
+        wait_for_frame(qtbot, expected_frame=10)
 
         # Should navigate to frame 10
-        assert get_application_state().current_frame == 10
+        assert get_application_state().current_frame == 10, \
+            f"Expected frame 10, got {get_application_state().current_frame}"
 
     def test_eventfilter_consumes_navigation_events(self, main_window_with_data: MainWindow, qtbot: QtBot) -> None:
         """Test that eventFilter properly consumes Page Up/Down events."""
@@ -248,6 +248,7 @@ class TestEventFilterNavigation:
         # Give focus to timeline
         if window.timeline_tabs:
             window.timeline_tabs.setFocus()
+            process_qt_events()  # Let focus settle
 
         # Start at first keyframe
         get_application_state().set_frame(1)
@@ -258,10 +259,12 @@ class TestEventFilterNavigation:
         if app:
             app.postEvent(target, key_event)
             app.processEvents()  # Process the event queue
-        qtbot.wait(10)
+        process_qt_events()  # Allow status bar update
 
-        assert get_application_state().current_frame == 1
-        assert "first" in window.statusBar().currentMessage().lower()
+        assert get_application_state().current_frame == 1, \
+            f"Expected frame 1 at boundary, got {get_application_state().current_frame}"
+        assert "first" in window.statusBar().currentMessage().lower(), \
+            f"Expected 'first' in status, got: {window.statusBar().currentMessage()}"
 
         # Go to last keyframe
         get_application_state().set_frame(20)
@@ -271,10 +274,12 @@ class TestEventFilterNavigation:
         if app:
             app.postEvent(target, key_event)
             app.processEvents()  # Process the event queue
-        qtbot.wait(10)
+        process_qt_events()  # Allow status bar update
 
-        assert get_application_state().current_frame == 20
-        assert "last" in window.statusBar().currentMessage().lower()
+        assert get_application_state().current_frame == 20, \
+            f"Expected frame 20 at boundary, got {get_application_state().current_frame}"
+        assert "last" in window.statusBar().currentMessage().lower(), \
+            f"Expected 'last' in status, got: {window.statusBar().currentMessage()}"
 
     def test_mixed_navigation_frames(self, main_window_with_data: MainWindow, qtbot: QtBot) -> None:
         """Test navigation with mixed frame types (keyframes, endframes, startframes)."""
@@ -292,11 +297,12 @@ class TestEventFilterNavigation:
         assert main_window_with_data.curve_widget is not None
         main_window_with_data.curve_widget.set_curve_data(mixed_data)
         main_window_with_data.update_timeline_tabs(mixed_data)
-        qtbot.wait(50)
+        process_qt_events()  # Allow UI to update
 
         # Give focus to timeline
         if main_window_with_data.timeline_tabs:
             main_window_with_data.timeline_tabs.setFocus()
+            process_qt_events()  # Let focus settle
 
         # Start at frame 2 (interpolated)
         get_application_state().set_frame(2)
@@ -307,18 +313,20 @@ class TestEventFilterNavigation:
         if app:
             app.postEvent(target, key_event1)
             app.processEvents()  # Process the event queue
-        qtbot.wait(10)
+        wait_for_frame(qtbot, expected_frame=5)
 
-        assert get_application_state().current_frame == 5
+        assert get_application_state().current_frame == 5, \
+            f"Expected frame 5 (endframe), got {get_application_state().current_frame}"
 
         # Page Down again should go to keyframe at 10
         key_event2 = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
         if app:
             app.postEvent(target, key_event2)
             app.processEvents()  # Process the event queue
-        qtbot.wait(10)
+        wait_for_frame(qtbot, expected_frame=10)
 
-        assert get_application_state().current_frame == 10
+        assert get_application_state().current_frame == 10, \
+            f"Expected frame 10 (keyframe), got {get_application_state().current_frame}"
 
 
 if __name__ == "__main__":

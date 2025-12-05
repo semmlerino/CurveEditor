@@ -21,15 +21,22 @@ the central stores to all connected UI components automatically.
 
 import pytest
 from PySide6.QtTest import QSignalSpy
+from PySide6.QtWidgets import QApplication
 
 from core.type_aliases import CurveDataList
+from tests.test_utils import (
+    process_qt_events,
+    wait_for_condition,
+    wait_for_frame,
+    wait_for_signal,
+)
+
 from stores import get_store_manager
 from stores.application_state import get_application_state
 from stores.store_manager import StoreManager
 from ui.curve_view_widget import CurveViewWidget
 from ui.main_window import MainWindow
 from ui.timeline_tabs import TimelineTabWidget
-
 
 class TestDataFlowIntegration:
     """Test reactive data flow from stores to UI components.
@@ -92,7 +99,7 @@ class TestDataFlowIntegration:
         assert spy.count() >= 1, "curves_changed signal should have been emitted"
 
         # Let signals process
-        qtbot.wait(100)
+        process_qt_events()
 
         # Timeline should have updated automatically
         assert timeline.min_frame == 5
@@ -139,7 +146,7 @@ class TestDataFlowIntegration:
         assert spy.count() >= 1, "curves_changed signal should have been emitted"
 
         # Let signals process
-        qtbot.wait(100)
+        process_qt_events()
 
         # Widget should have updated automatically
         assert len(widget.curve_data) == 2
@@ -191,7 +198,7 @@ class TestDataFlowIntegration:
         # Initial setup
         app_state.set_curve_data("TestCurve", [(1, 100.0, 100.0, "keyframe")])
         app_state.set_active_curve("TestCurve")
-        qtbot.wait(100)
+        process_qt_events()
 
         # Setup signal spy for curve changes
         spy_add = QSignalSpy(app_state.curves_changed)
@@ -205,7 +212,7 @@ class TestDataFlowIntegration:
         # Verify signal was emitted
         assert spy_add.count() >= 1, "curves_changed signal should have been emitted"
 
-        qtbot.wait(100)
+        process_qt_events()
 
         # All components should have updated
         assert len(widget.curve_data) == 2
@@ -236,7 +243,7 @@ class TestDataFlowIntegration:
         ]
         app_state.set_curve_data("TestCurve", test_data)
         app_state.set_active_curve("TestCurve")
-        qtbot.wait(100)
+        process_qt_events()
 
         # Setup signal spy for curve changes
         spy_remove = QSignalSpy(app_state.curves_changed)
@@ -250,7 +257,7 @@ class TestDataFlowIntegration:
         # Verify signal was emitted
         assert spy_remove.count() >= 1, "curves_changed signal should have been emitted"
 
-        qtbot.wait(100)
+        process_qt_events()
 
         # All components should have updated
         assert len(widget.curve_data) == 2
@@ -278,7 +285,7 @@ class TestDataFlowIntegration:
         ]
         app_state.set_curve_data("TestCurve", test_data)
         app_state.set_active_curve("TestCurve")
-        qtbot.wait(100)
+        process_qt_events()
 
         # All should be normal initially
         # get_status returns tuple: (keyframe, interpolated, tracked, endframe, normal, start, inactive, selected)
@@ -301,7 +308,7 @@ class TestDataFlowIntegration:
                 existing_data[2],
             ]
             app_state.set_curve_data("TestCurve", new_data)
-        qtbot.wait(100)
+        process_qt_events()
 
         # Timeline should reflect the change
         # get_status returns tuple: (keyframe, interpolated, tracked, endframe, normal, start, inactive, selected)
@@ -327,18 +334,18 @@ class TestDataFlowIntegration:
         ]
         app_state.set_curve_data("TestCurve", test_data)
         app_state.set_active_curve("TestCurve")
-        qtbot.wait(100)
+        process_qt_events()
 
         # Select via ApplicationState
         app_state.set_selection("TestCurve", {1})
-        qtbot.wait(100)
+        process_qt_events()
 
         # Widget should show selection
         assert 1 in widget.selected_indices
 
         # Multi-select via ApplicationState
         app_state.set_selection("TestCurve", {1, 2})
-        qtbot.wait(100)
+        process_qt_events()
 
         # Widget should show both selections
         assert 1 in widget.selected_indices
@@ -365,7 +372,7 @@ class TestDataFlowIntegration:
         ]
         app_state.set_curve_data("TestCurve", test_data)
         app_state.set_active_curve("TestCurve")
-        qtbot.wait(100)
+        process_qt_events()
 
         # Verify data is loaded
         assert len(widget.curve_data) == 3
@@ -374,7 +381,7 @@ class TestDataFlowIntegration:
         # Clear the ApplicationState
         app_state.delete_curve("TestCurve")
         app_state.set_active_curve(None)
-        qtbot.wait(100)
+        process_qt_events()
 
         # All components should reset
         assert len(widget.curve_data) == 0
@@ -404,7 +411,7 @@ class TestDataFlowIntegration:
             app_state.set_active_curve("TestCurve")
 
         # Wait for deferred update to complete
-        qtbot.wait(100)  # Allow deferred updates to process (timeline uses 50ms timer)
+        process_qt_events()  # Allow deferred updates to process (timeline uses 50ms timer)
 
         # Timeline should have all points correctly reflected
         assert timeline.max_frame == 10
@@ -440,7 +447,13 @@ class TestDataFlowIntegration:
         ]
         app_state.set_curve_data("TestCurve", test_data)
         app_state.set_active_curve("TestCurve")
-        qtbot.wait(150)
+        # Wait for timeline to update with new frame range
+        wait_for_condition(
+            qtbot,
+            lambda: timeline.min_frame == 50 and timeline.max_frame == 100,
+            timeout=1000,
+            message=f"Timeline frame range not updated: min={timeline.min_frame}, max={timeline.max_frame}",
+        )
 
         # Timeline should show new data range
         assert timeline.min_frame == 50, f"Expected min 50, got {timeline.min_frame}"
@@ -453,7 +466,13 @@ class TestDataFlowIntegration:
             (180, 300.0, 300.0, "keyframe"),  # Extended to 180 (within 200 frame limit)
         ]
         app_state.set_curve_data("TestCurve", new_data)
-        qtbot.wait(150)
+        # Wait for timeline to reflect updated frame range
+        wait_for_condition(
+            qtbot,
+            lambda: timeline.max_frame == 180,
+            timeout=1000,
+            message=f"Timeline max_frame not updated: got {timeline.max_frame}, expected 180",
+        )
 
         # Timeline should reflect the updated ApplicationState data
         assert timeline.max_frame == 180, f"Expected max 180 after update, got {timeline.max_frame}"
@@ -480,7 +499,7 @@ class TestDataFlowIntegration:
         ]
         app_state.set_curve_data("TestCurve", invalid_data)
         app_state.set_active_curve("TestCurve")
-        qtbot.wait(100)
+        process_qt_events()
 
         # Components should handle gracefully
         # Frame store should clamp to valid range
@@ -522,7 +541,7 @@ class TestDataFlowIntegration:
             app_state.set_active_curve("TestCurve")
 
         # Allow all updates to process
-        qtbot.wait(100)
+        process_qt_events()
 
         # Final state should be consistent across all components
         final_data = app_state.get_curve_data("TestCurve")
@@ -539,6 +558,7 @@ class TestDataFlowIntegration:
             assert status.normal_count == 1  # normal_count
 
 
+@pytest.mark.usefixtures("with_minimal_frame_range")
 class TestMultiControllerSignalChains:
     """Test signal chains between multiple controllers.
 
@@ -580,11 +600,11 @@ class TestMultiControllerSignalChains:
         app_state.set_curve_data("TestCurve", test_data)
         app_state.set_active_curve("TestCurve")
 
-        qtbot.wait(100)  # Let data propagate
+        process_qt_events()  # Let data propagate
 
         # Set initial frame to a known value
         timeline_controller.set_frame(1)
-        qtbot.wait(50)
+        wait_for_frame(qtbot, expected_frame=1)
         initial_frame = app_state.current_frame
 
         # Setup signal spy on ApplicationState (frame changes go through here now)
@@ -605,7 +625,7 @@ class TestMultiControllerSignalChains:
             ), f"Should change to next frame (got {changed_frame}, expected {initial_frame + 1})"
 
         # Verify the chain completed (frame actually changed)
-        qtbot.wait(100)
+        process_qt_events()
         # Frame should have advanced
         assert (
             app_state.current_frame > initial_frame
@@ -638,12 +658,12 @@ class TestMultiControllerSignalChains:
         test_data: CurveDataList = [(1, 100.0, 200.0, "keyframe"), (2, 150.0, 250.0, "normal")]
         app_state.set_curve_data("TestCurve", test_data)
         app_state.set_active_curve("TestCurve")
-        qtbot.wait(100)
+        process_qt_events()
 
         # Select first point via ApplicationState
         assert window.curve_widget is not None, "Curve widget should be initialized"
         app_state.set_selection("TestCurve", {0})
-        qtbot.wait(50)
+        process_qt_events()  # Allow selection to propagate
 
         # Setup spies on signals (Phase 6: curves_changed from ApplicationState)
         spy_data_changed = QSignalSpy(app_state.curves_changed)
@@ -658,7 +678,8 @@ class TestMultiControllerSignalChains:
 
             # Update X coordinate (test single update to avoid race conditions)
             point_editor._on_point_x_changed(110.0)
-            qtbot.wait(200)  # Allow sync and signal processing to complete
+            # Wait for signal cascade to complete
+            wait_for_signal(qtbot, spy_data_changed, min_count=1, timeout=1000)
 
             # Verify signal cascade (Phase 6: ApplicationState is the source of truth)
             signal_count = spy_data_changed.count()
@@ -723,7 +744,7 @@ class TestMultiControllerSignalChains:
         test_data: CurveDataList = [(i, float(i * 10), float(i * 10), "keyframe") for i in range(1, 6)]
         app_state.set_curve_data("TestCurve", test_data)
         app_state.set_active_curve("TestCurve")
-        qtbot.wait(100)
+        process_qt_events()
 
         # Test ViewManagement <-> UI bidirectional communication
         if window.curve_widget is not None:
@@ -732,7 +753,7 @@ class TestMultiControllerSignalChains:
                 window.curve_widget.visual.point_radius if hasattr(window.curve_widget, "visual") else 5
             )  # Store initial for comparison
             window.view_management_controller.update_curve_point_size(10)
-            qtbot.wait(100)
+            process_qt_events()
 
             # Verify UI responded (check visual settings, not deprecated property)
             # Note: update_curve_point_size converts slider value (1-20) to radius via * 0.25
@@ -741,7 +762,7 @@ class TestMultiControllerSignalChains:
             # Change view through UI and verify view options is aware
             window.curve_widget.zoom_factor = 2.0
             window.curve_widget.view_changed.emit()
-            qtbot.wait(100)
+            process_qt_events()
 
             # View management should reflect the change
             _ = window.view_management_controller.get_view_options()  # Could verify options contain zoom factor
