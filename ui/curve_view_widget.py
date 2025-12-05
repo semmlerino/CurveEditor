@@ -1617,7 +1617,7 @@ class CurveViewWidget(QWidget):
 
         # Collect points to delete
         indices = list(self.selected_indices)
-        deleted_points = [(idx, self.curve_data[idx]) for idx in sorted(indices) if 0 <= idx < len(self.curve_data)]
+        deleted_points = [self.curve_data[idx] for idx in sorted(indices) if 0 <= idx < len(self.curve_data)]
 
         if deleted_points:
             # Create and execute delete command (lazy import to avoid cycle)

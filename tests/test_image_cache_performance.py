@@ -224,7 +224,7 @@ class TestLargeSequencePerformance:
         # Assert: Old frames evicted (frames 0-50 should NOT be in cache anymore)
         # Note: We can't check timing after accessing them (that would cache them again)
         # Instead, check that they're not in the internal cache structure
-        old_in_cache = sum(1 for i in range(51) if i in cache._cache)
+        old_in_cache = sum(1 for i in range(51) if i in cache._lru_cache)
 
         # Most old frames should be evicted (allow small margin for edge cases)
         assert old_in_cache < 10, f"{old_in_cache}/51 old frames still in cache (expected <10)"

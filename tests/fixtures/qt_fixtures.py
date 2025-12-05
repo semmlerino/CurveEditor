@@ -26,6 +26,7 @@ import threading
 from collections.abc import Generator
 
 import pytest
+from PySide6.QtCore import QThread, QTimer
 from PySide6.QtWidgets import QApplication
 
 from tests.test_utils import cleanup_qt_widgets
@@ -57,6 +58,23 @@ def was_qt_used() -> bool:
     return getattr(_qt_used, "value", False)
 
 
+def load_curve_data_via_state(curve_name: str, data: list) -> None:
+    """Load curve data through proper state flow (ApplicationState + DataService).
+
+    Use this helper instead of widget.set_curve_data() to ensure tests
+    validate the real data flow. This is the recommended way to load test data.
+
+    Args:
+        curve_name: Name of the curve to set as active
+        data: List of CurvePoint objects to load
+    """
+    from stores.application_state import get_application_state
+
+    state = get_application_state()
+    state.set_curve_data(curve_name, data)
+    # DataService picks up changes via ApplicationState signals
+
+
 @pytest.fixture(scope="session")
 def qapp() -> Generator[QApplication, None, None]:
     """Session-wide QApplication - created once for all tests.
@@ -64,9 +82,15 @@ def qapp() -> Generator[QApplication, None, None]:
     CRITICAL: Session-scope QApplication + proper QObject cleanup prevents
     resource exhaustion segfaults after 850+ tests (see UNIFIED_TESTING_GUIDE).
 
+    NOTE: This fixture auto-marks Qt usage when requested, ensuring cleanup runs
+    even if tests forget to call mark_qt_used() explicitly.
+
     Yields:
         QApplication: The shared application instance
     """
+    # Auto-mark Qt usage when qapp is requested (defense in depth)
+    mark_qt_used()
+
     # Set environment for headless testing
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
@@ -129,6 +153,16 @@ def _perform_qt_cleanup(qapp: QApplication) -> None:
         except Exception as e:
             _logger.debug(f"Widget cleanup error: {e}")
 
+    # Clean up QThreads that may have been created without proper fixture management
+    for thread in qapp.findChildren(QThread):
+        try:
+            if thread.isRunning():
+                thread.quit()
+                thread.wait(1000)  # 1 second timeout
+            thread.deleteLater()
+        except RuntimeError as e:
+            _logger.debug(f"QThread cleanup: {e}")
+
     # Process events to handle deleteLater calls (reduced from 10 to 4 iterations)
     for _ in range(4):
         qapp.processEvents()
@@ -161,10 +195,6 @@ def qt_cleanup(request) -> Generator[None, None, None]:
 
     yield
 
-    # Skip cleanup if Qt was not used in this test
-    if not was_qt_used():
-        return
-
     # Skip cleanup if marker says so
     if request.node.get_closest_marker("skip_qt_cleanup"):
         return
@@ -173,6 +203,17 @@ def qt_cleanup(request) -> Generator[None, None, None]:
     # triggering qapp fixture for non-Qt tests)
     qapp = QApplication.instance()
     if qapp is None:
+        return
+
+    # Safety path: clean if widgets exist, Qt marked used, OR QThreads/QTimers exist
+    # This catches edge cases where QObjects are created without top-level widgets
+    has_widgets = bool(qapp.topLevelWidgets())
+    qt_was_used = was_qt_used()
+    has_qthreads = bool(qapp.findChildren(QThread))
+    has_qtimers = bool(qapp.findChildren(QTimer))
+    has_qobjects_needing_cleanup = has_qthreads or has_qtimers
+
+    if not qt_was_used and not has_widgets and not has_qobjects_needing_cleanup:
         return
 
     _perform_qt_cleanup(qapp)
@@ -217,15 +258,9 @@ def curve_view_widget(qapp: QApplication, qtbot):
     # Mock is protocol-compatible at runtime (has properties that match protocol requirements)
     widget.set_main_window(mock_main_window)
 
-    # Store original set_curve_data method and wrap it to sync with data service
-    original_set_curve_data = widget.set_curve_data
-
-    def synced_set_curve_data(data):
-        original_set_curve_data(data)
-        # Sync with data service so commands can work
-        data_service.update_curve_data(data)
-
-    widget.set_curve_data = synced_set_curve_data
+    # NOTE: No monkeypatch here - tests should load data via ApplicationState
+    # using load_curve_data_via_state() helper for proper data flow testing.
+    # See production_widget_factory for integration tests that need real data flow.
 
     # Ensure widget is properly initialized
     qapp.processEvents()
@@ -289,7 +324,9 @@ def main_window(qapp: QApplication, qtbot):
     from ui.main_window import MainWindow
     from ui.timeline_tabs import TimelineTabWidget
 
-    window = MainWindow()
+    # auto_load_data=False prevents background file loading during tests.
+    # Tests should explicitly load test data, not rely on host filesystem state.
+    window = MainWindow(auto_load_data=False)
 
     # CRITICAL: Use qtbot.addWidget with before_close_func for deterministic event filter cleanup
     # This prevents accumulation of event filters across 1580+ tests causing timeout

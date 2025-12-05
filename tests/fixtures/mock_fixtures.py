@@ -2,6 +2,11 @@
 Mock object fixtures for testing.
 
 Contains fixtures that provide mock objects for various components.
+
+Fixture Selection Guide:
+- `mock_curve_view`: Lightweight mock for unit tests (no Qt widgets)
+- `mock_main_window`: Full mock with Qt widgets for integration tests
+- Use `production_widget_factory` from production_fixtures.py for multi-state tests
 """
 
 # Per-file type checking relaxations for test code
@@ -22,71 +27,34 @@ import pytest
 # Import mock classes from test helpers
 from tests.test_helpers import (
     BaseMockCurveView,
-    LazyUIMockMainWindow,
     MockMainWindow,
-    ProtocolCompliantMockCurveView,
-    ProtocolCompliantMockMainWindow,
 )
 from tests.fixtures.qt_fixtures import mark_qt_used
 
 
 @pytest.fixture
 def mock_curve_view() -> BaseMockCurveView:
-    """Create a basic mock curve view for testing."""
+    """Create a basic mock curve view for unit testing.
+
+    Use this for tests that don't need Qt widgets - fast and isolated.
+
+    Returns:
+        BaseMockCurveView: Lightweight mock implementing CurveViewProtocol
+    """
     return BaseMockCurveView()
 
 
 @pytest.fixture
-def mock_curve_view_with_selection() -> BaseMockCurveView:
-    """Create a mock curve view with selected points."""
-    return BaseMockCurveView(selected_points={1, 2})
-
-
-@pytest.fixture
-def protocol_compliant_mock_curve_view() -> ProtocolCompliantMockCurveView:
-    """Create a fully protocol-compliant mock curve view."""
-    return ProtocolCompliantMockCurveView()
-
-
-@pytest.fixture
-def protocol_compliant_mock_main_window(qapp) -> ProtocolCompliantMockMainWindow:
-    """Create a fully protocol-compliant mock main window.
-
-    Requires QApplication since it creates real Qt widgets.
-    """
-    mark_qt_used()
-    return ProtocolCompliantMockMainWindow()
-
-
-@pytest.fixture
 def mock_main_window(qapp) -> MockMainWindow:
-    """Create a full mock main window for testing with state_manager and all protocol attributes.
+    """Create a full mock main window for integration testing.
 
-    Requires QApplication since it creates real Qt widgets (QSlider, QSpinBox, etc.).
+    Includes real Qt widgets (QSlider, QSpinBox, etc.) and state_manager.
+    Requires QApplication since it creates real Qt widgets.
+
+    Use this for tests that need to verify signal connections and widget behavior.
+
+    Returns:
+        MockMainWindow: Mock implementing MainWindowProtocol with real Qt widgets
     """
     mark_qt_used()
     return MockMainWindow()
-
-
-@pytest.fixture
-def mock_main_window_with_data(qapp) -> MockMainWindow:
-    """Create a mock main window with sample curve data.
-
-    Requires QApplication since it creates real Qt widgets.
-    """
-    mark_qt_used()
-    window = MockMainWindow()
-    # Set curve data on the curve view
-    window.curve_view.curve_data = [(1, 100.0, 200.0), (2, 150.0, 250.0), (3, 200.0, 300.0)]
-    window.curve_view.selected_points = {1}
-    return window
-
-
-@pytest.fixture
-def lazy_mock_main_window(qapp) -> LazyUIMockMainWindow:
-    """Create a mock main window with lazy UI component creation.
-
-    Requires QApplication since it creates real Qt widgets on demand.
-    """
-    mark_qt_used()
-    return LazyUIMockMainWindow()

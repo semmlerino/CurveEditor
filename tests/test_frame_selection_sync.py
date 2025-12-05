@@ -26,6 +26,9 @@ from core.models import PointStatus
 from stores.application_state import get_application_state
 from ui.main_window import MainWindow
 
+# Tests in this file require frame navigation
+pytestmark = pytest.mark.usefixtures("with_minimal_frame_range")
+
 
 class TestFrameSelectionSync:
     """Test frame indicator synchronization after point selection."""

@@ -25,6 +25,9 @@ from PySide6.QtWidgets import QApplication
 
 from ui.main_window import MainWindow
 
+# Tests in this file require frame navigation
+pytestmark = pytest.mark.usefixtures("with_minimal_frame_range")
+
 
 @pytest.fixture
 def qapp():

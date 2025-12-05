@@ -3,10 +3,15 @@ Test fixtures package for CurveEditor.
 
 This package contains organized test fixtures split by domain:
 - qt_fixtures: Qt application and widget fixtures
-- mock_fixtures: Mock objects for testing
+- mock_fixtures: Mock objects for testing (consolidated to 2 core fixtures)
 - data_fixtures: Test data generators and builders
 - service_fixtures: Service layer test fixtures
 - production_fixtures: Production-realistic workflow fixtures
+
+Fixture Selection Guide:
+- Unit tests (no Qt): use `mock_curve_view`
+- Integration tests (with Qt widgets): use `mock_main_window`
+- Multi-state/workflow tests: use `production_widget_factory`
 """
 
 # Component fixtures removed - classes now available directly from test_helpers
@@ -17,13 +22,8 @@ from tests.fixtures.data_fixtures import (
     sample_points,
 )
 from tests.fixtures.mock_fixtures import (
-    lazy_mock_main_window,
     mock_curve_view,
-    mock_curve_view_with_selection,
     mock_main_window,
-    mock_main_window_with_data,
-    protocol_compliant_mock_curve_view,
-    protocol_compliant_mock_main_window,
 )
 from tests.fixtures.production_fixtures import (
     production_widget_factory,
@@ -34,6 +34,7 @@ from tests.fixtures.qt_fixtures import (
     curve_view_widget,
     file_load_signals,
     file_load_worker,
+    load_curve_data_via_state,
     mark_qt_used,
     qapp,
     qt_cleanup,
@@ -59,16 +60,14 @@ __all__ = [
     "isolated_services",
     "keyframe_curve_data",
     "large_sample_points",
-    "lazy_mock_main_window",
+    "load_curve_data_via_state",
     "mark_qt_used",
     "memory_monitor",
+    # Mock fixtures (consolidated from 7 to 2)
     "mock_curve_view",
-    "mock_curve_view_with_selection",
     "mock_main_window",
-    "mock_main_window_with_data",
+    # Production fixtures
     "production_widget_factory",
-    "protocol_compliant_mock_curve_view",
-    "protocol_compliant_mock_main_window",
     "qapp",
     "qt_cleanup",
     "reset_all_test_state",

@@ -226,3 +226,58 @@ reportUnusedCallResult = "none"
 reportUnusedParameter = "warning"
 reportUnreachable = "warning"
 reportRedeclaration = "warning"
+
+[tool.pytest.ini_options]
+# Test discovery patterns
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+# Test execution paths
+testpaths = ["tests"]
+
+# Default options
+# -ra: Show extra test summary for all except passed
+# --strict-markers: Error on unregistered markers
+# --timeout=60: Default timeout per test
+# --timeout-method=thread: Use thread-based timeout
+# --durations=10: Show 10 slowest tests
+# -m "not performance": Skip performance tests by default
+# -n auto: Auto-detect CPU count for parallel execution
+# --dist loadscope: Group tests by module for parallel execution
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--ignore=tests/test_helpers.py",
+    "--timeout=60",
+    "--timeout-method=thread",
+    "--durations=10",
+    "-m", "not performance",
+    "-n", "auto",
+    "--dist", "loadscope",
+]
+
+# Warning filters: Enable most warnings, filter noisy ones
+filterwarnings = [
+    # Show all warnings by default (important for catching resource leaks)
+    "default",
+    # Filter known noisy deprecation warnings from dependencies
+    "ignore::DeprecationWarning:importlib.*",
+    "ignore::PendingDeprecationWarning",
+    # Qt/PySide6 internal warnings we can't control
+    "ignore:.*sipPyTypeDict.*:DeprecationWarning",
+    # Ignore module import warnings from optional dependencies
+    "ignore:.*can't resolve package.*:ImportWarning",
+]
+
+# Test markers
+# NOTE: For slow tests, use @pytest.mark.timeout(120) to override the 60s default
+# NOTE: Performance tests are excluded by default. Run with: pytest -m performance
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "qt: marks tests that require Qt application",
+    "integration: marks integration tests",
+    "unit: marks unit tests (no Qt dependencies, fast execution)",
+    "production: marks production workflow simulation tests (realistic user interactions)",
+    "performance: marks performance tests (excluded by default, run with -m performance)",
+]

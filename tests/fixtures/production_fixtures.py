@@ -75,16 +75,35 @@ def production_widget_factory(curve_view_widget: CurveViewWidget, qtbot) -> Call
         Returns:
             Configured widget ready for production testing
         """
-        # Reset widget state before each configuration to prevent state bleed
-        # between multiple factory calls in the same test
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+
+        # FULL STATE RESET to prevent state bleed between multiple factory calls
+        # in the same test. Previously only reset curve_data, causing hidden coupling.
+
+        # 1. Reset curve data
         curve_view_widget.set_curve_data([])
+
+        # 2. Reset view camera state (zoom, pan)
+        if hasattr(curve_view_widget, "view_camera") and curve_view_widget.view_camera is not None:
+            curve_view_widget.view_camera.reset_view()
+
+        # 3. Reset manual offsets
+        curve_view_widget.manual_offset_x = 0.0
+        curve_view_widget.manual_offset_y = 0.0
+
+        # 4. Reset selection state
+        app_state.set_selection("test_curve", set())
+
+        # 5. Clear render caches if present
+        if hasattr(curve_view_widget, "_render_cache") and curve_view_widget._render_cache is not None:
+            with __import__("contextlib").suppress(AttributeError):
+                curve_view_widget._render_cache.clear()
 
         # FIX: Use `is not None` to allow empty lists
         # `if curve_data:` would skip empty lists, preventing empty data tests
         if curve_data is not None:
-            from stores.application_state import get_application_state
-
-            app_state = get_application_state()
             app_state.set_curve_data("test_curve", curve_data)
             app_state.set_active_curve("test_curve")
             curve_view_widget.set_curve_data(curve_data)
@@ -197,7 +216,9 @@ def user_interaction(qtbot) -> Any:
             screen_x, screen_y = transform.data_to_screen(data_x, data_y)
 
             QTest.mouseClick(view, Qt.MouseButton.LeftButton, modifier, QPointF(screen_x, screen_y).toPoint())
-            qtbot.wait(10)
+            # Process Qt events instead of fixed sleep to eliminate race conditions
+            from PySide6.QtWidgets import QApplication
+            QApplication.processEvents()
 
         def ctrl_click(self, view: CurveViewWidget, data_x: float, data_y: float) -> None:
             """Ctrl+click at data coordinates.

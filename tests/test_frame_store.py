@@ -22,6 +22,9 @@ from core.type_aliases import CurveDataList
 from stores import get_store_manager
 from stores.store_manager import StoreManager
 
+# Tests in this file require frame navigation
+pytestmark = pytest.mark.usefixtures("with_minimal_frame_range")
+
 
 class TestFrameStore:
     """Test FrameStore functionality."""

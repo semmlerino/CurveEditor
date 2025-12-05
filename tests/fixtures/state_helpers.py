@@ -29,7 +29,8 @@ def reset_services_safely() -> list[str]:
         import services
 
         # 1. Clear caches first (before resetting instances)
-        for service_name in ["_transform_service", "_data_service", "_interaction_service"]:
+        # Include all 4 services to catch any future cache additions
+        for service_name in ["_transform_service", "_data_service", "_interaction_service", "_ui_service"]:
             service = getattr(services, service_name, None)
             if service is not None:
                 # Clear service cache
@@ -114,6 +115,24 @@ def reset_config_safely() -> list[str]:
     return warnings
 
 
+def reset_service_facade_safely() -> list[str]:
+    """Reset ServiceFacade singleton with proper error tracking.
+
+    Returns:
+        List of warning messages for any issues encountered
+    """
+    warnings: list[str] = []
+
+    try:
+        from ui.service_facade import reset_service_facade
+
+        reset_service_facade()
+    except Exception as e:
+        warnings.append(f"ServiceFacade reset error: {e}")
+
+    return warnings
+
+
 def process_qt_events_safely() -> list[str]:
     """Process Qt events to clean up QObjects with proper error tracking.
 
@@ -163,11 +182,12 @@ def reset_all_test_state(log_warnings: bool = True) -> list[str]:
     Order matters:
     1. Clear service caches (while services exist)
     2. Reset services
-    3. Reset ApplicationState
-    4. Reset StoreManager
-    5. Reset config
-    6. Process Qt events
-    7. Force garbage collection
+    3. Reset ServiceFacade (depends on services)
+    4. Reset ApplicationState
+    5. Reset StoreManager
+    6. Reset config
+    7. Process Qt events
+    8. Force garbage collection
 
     Args:
         log_warnings: Whether to log warnings (vs return silently)
@@ -177,8 +197,9 @@ def reset_all_test_state(log_warnings: bool = True) -> list[str]:
     """
     all_warnings: list[str] = []
 
-    # Order matters: services -> app state -> store manager -> config -> Qt -> gc
+    # Order matters: services -> facade -> app state -> store manager -> config -> Qt -> gc
     all_warnings.extend(reset_services_safely())
+    all_warnings.extend(reset_service_facade_safely())
     all_warnings.extend(reset_application_state_safely())
     all_warnings.extend(reset_store_manager_safely())
     all_warnings.extend(reset_config_safely())

@@ -39,6 +39,9 @@ from ui.main_window import MainWindow
 # CurveEditor imports
 from ui.timeline_tabs import TimelineTabWidget
 
+# Tests in this file require frame navigation
+pytestmark = pytest.mark.usefixtures("with_minimal_frame_range")
+
 
 class TestTimelineScrubbing:
     """Test suite for timeline scrubbing functionality."""

@@ -63,7 +63,7 @@ class DataService:
 
         # SegmentedCurve cache for performance (keyed by content-based tuple)
         # Content-based key avoids id() collision after GC
-        self._segmented_curves: dict[tuple[int, int, int, int], SegmentedCurve] = {}
+        self._segmented_curves: dict[tuple[int, int, int, int, int], SegmentedCurve] = {}
         self._max_segmented_cache_size: int = 10  # Limit cache size
 
         # Persistent SegmentedCurve for restoration functionality (separate from cache)
@@ -82,27 +82,30 @@ class DataService:
         """
         return self._segmented_curve
 
-    def _make_curve_cache_key(self, points: CurveDataList) -> tuple[int, int, int, int]:
+    def _make_curve_cache_key(self, points: CurveDataList) -> tuple[int, int, int, int, int]:
         """Generate content-based cache key for curve data.
 
-        Uses (length, first_frame, last_frame, frames_hash) to avoid
+        Uses (length, first_frame, last_frame, frames_hash, status_hash) to avoid
         id()-based collisions after GC. Safe even when object IDs are reused.
+        Includes status hash to distinguish curves with different gap configurations.
 
         Args:
             points: Curve data points
 
         Returns:
-            Tuple key for cache lookup (length, first_frame, last_frame, frames_hash)
+            Tuple key for cache lookup (length, first_frame, last_frame, frames_hash, status_hash)
         """
         if not points:
-            return (0, 0, 0, 0)
+            return (0, 0, 0, 0, 0)
 
         length = len(points)
         first_frame = int(points[0][0])
         last_frame = int(points[-1][0])
         # Hash of all frame numbers for collision resistance
         frames_hash = hash(tuple(int(p[0]) for p in points))
-        return (length, first_frame, last_frame, frames_hash)
+        # Hash of statuses to distinguish curves with different gap configurations
+        status_hash = hash(tuple(p[3] if len(p) > 3 else "normal" for p in points))
+        return (length, first_frame, last_frame, frames_hash, status_hash)
 
     # ==================== Public File I/O Methods (Sprint 11.5) ====================
 

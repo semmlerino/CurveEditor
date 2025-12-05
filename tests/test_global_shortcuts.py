@@ -38,6 +38,9 @@ from stores.application_state import get_application_state
 from ui.main_window import MainWindow
 from ui.shortcut_registry import ShortcutRegistry
 
+# Tests in this file require frame navigation
+pytestmark = pytest.mark.usefixtures("with_minimal_frame_range")
+
 
 @pytest.fixture
 def main_window_with_shortcuts(qtbot):
